@@ -5,28 +5,48 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@firebase/app": "^0.14.6",
+    "@firebase/auth": "^1.11.1",
+    "@firebase/firestore": "^4.9.2",
+    "@hookform/resolvers": "^5.2.2",
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
+    "@mui/x-charts": "^8.22.0",
+    "@mui/x-data-grid-pro": "^8.22.0",
+    "@tanstack/react-query": "^5.90.12",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
+    "@tinymce/tinymce-react": "^6.3.0",
+    "@types/file-saver": "^2.0.7",
     "@types/jest": "^27.5.2",
     "@types/node": "^16.18.126",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "axios": "^1.13.2",
+    "file-saver": "^2.0.5",
+    "firebase": "^12.6.0",
+    "jwt-decode": "^4.0.0",
+    "leaflet": "^1.9.4",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-hook-form": "^7.68.0",
+    "react-leaflet": "^5.0.0",
     "react-router-dom": "^6.30.2",
     "react-scripts": "5.0.1",
+    "recharts": "^3.5.1",
     "typescript": "^4.9.5",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "zod": "^4.1.13",
+    "zustand": "^5.0.9"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "craco start",
+    "build": "node scripts/inject-firebase-config.js && craco build",
+    "test": "craco test",
+    "eject": "react-scripts eject",
+    "deploy": "npm run build && firebase deploy"
   },
   "eslintConfig": {
     "extends": [
@@ -47,6 +67,9 @@
     ]
   },
   "devDependencies": {
-    "@types/react-router-dom": "^5.3.3"
+    "@craco/craco": "^7.1.0",
+    "@types/leaflet": "^1.9.21",
+    "@types/react-router-dom": "^5.3.3",
+    "craco-alias": "^3.0.1"
   }
 }

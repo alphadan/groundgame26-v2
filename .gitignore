@@ -1,23 +1,37 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Dependencies
+node_modules/
+dist/
+build/
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
+# Firebase
+.firebase/
+.firebaserc
+firebase.json
 
-# testing
-/coverage
-
-# production
-/build
-
-# misc
-.DS_Store
+# Environment
+.env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*.local
 
+
+# Certs
+localhost.crt
+localhost.key
+
+
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Voter data – NEVER commit real files
+*.csv
+*.xlsx
+data/
+voter-files/

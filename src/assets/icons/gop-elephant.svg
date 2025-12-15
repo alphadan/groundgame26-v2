@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64px" height="64px" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <!-- Classic Republican Elephant in GOP Red #B22234 -->
+  <g fill="#B22234" stroke="none">
+    <!-- Body -->
+    <path d="M44 38 C48 38 52 34 52 30 C52 26 48 22 44 22 C40 22 36 26 36 30 C36 34 40 38 44 38 Z"/>
+    <!-- Head -->
+    <ellipse cx="44" cy="30" rx="12" ry="14"/>
+    <!-- Trunk -->
+    <path d="M56 30 Q64 30 64 38 L64 44 Q64 52 56 52 Q48 52 48 44 Q48 36 56 36 Z"/>
+    <!-- Legs -->
+    <rect x="36" y="38" width="8" height="20" rx="4"/>
+    <rect x="48" y="38" width="8" height="20" rx="4"/>
+    <!-- Tail -->
+    <path d="M28 38 Q20 42 20 50" stroke="#B22234" stroke-width="6" fill="none" stroke-linecap="round"/>
+    <!-- Ear -->
+    <path d="M44 20 Q36 12 28 16" fill="#B22234"/>
+  </g>
+  <!-- Three white stars on body (traditional GOP elephant) -->
+  <g fill="white">
+    <circle cx="40" cy="28" r="3"/>
+    <circle cx="48" cy="28" r="3"/>
+    <circle cx="44" cy="34" r="3"/>
+  </g>
+</svg>

@@ -1,0 +1,4205 @@
+[
+  {
+    "uid": "OWlZ68Qw3ebG3NWVxeQU1iTNhA22",
+    "role": "state_admin",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "220",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "220",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "295",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "295",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "300",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "300",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "301",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "301",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "060",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "060",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "061",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "061",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "380",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "01",
+    "precinct_code": "380",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "02",
+    "precinct_code": "665",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "02",
+    "precinct_code": "665",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "02",
+    "precinct_code": "666",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "02",
+    "precinct_code": "666",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "02",
+    "precinct_code": "525",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "02",
+    "precinct_code": "525",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "02",
+    "precinct_code": "690",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "02",
+    "precinct_code": "690",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "02",
+    "precinct_code": "693",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "02",
+    "precinct_code": "693",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "375",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "375",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "145",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "145",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "150",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "150",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "155",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "155",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "156",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "156",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "695",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "695",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "700",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "700",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "705",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "03",
+    "precinct_code": "705",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "160",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "160",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "160",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "160",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "165",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "165",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "680",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "680",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "681",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "681",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "682",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "682",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "683",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "683",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "170",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "170",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "560",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "560",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "565",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "565",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "570",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "570",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "575",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "04",
+    "precinct_code": "575",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "472",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "472",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "473",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "473",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "475",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "475",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "468",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "468",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "469",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "469",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "461",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "461",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "463",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "463",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "464",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "464",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "477",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "477",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "478",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "478",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "479",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "05",
+    "precinct_code": "479",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "065",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "065",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "515",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "515",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "520",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "520",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "521",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "521",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "550",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "550",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "555",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "555",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "556",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "556",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "558",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "06",
+    "precinct_code": "558",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "614",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "614",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "615",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "615",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "616",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "616",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "617",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "617",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "618",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "618",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "619",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "619",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "620",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "07",
+    "precinct_code": "620",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "195",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "195",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "198",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "198",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "201",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "201",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "204",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "204",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "207",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "207",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "210",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "210",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "213",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "08",
+    "precinct_code": "213",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "350",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "350",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "770",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "770",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "775",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "775",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "780",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "780",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "785",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "785",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "790",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "790",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "795",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "795",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "800",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "800",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "805",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "805",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "806",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "09",
+    "precinct_code": "806",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "10",
+    "precinct_code": "735",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "10",
+    "precinct_code": "735",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "10",
+    "precinct_code": "740",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "10",
+    "precinct_code": "740",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "10",
+    "precinct_code": "745",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "10",
+    "precinct_code": "745",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "10",
+    "precinct_code": "750",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "10",
+    "precinct_code": "750",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "10",
+    "precinct_code": "752",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "10",
+    "precinct_code": "752",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "10",
+    "precinct_code": "754",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "10",
+    "precinct_code": "754",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "810",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "810",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "820",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "820",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "825",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "825",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "835",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "835",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "842",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "842",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "846",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "846",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "850",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "850",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "860",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "11",
+    "precinct_code": "860",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "020",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "020",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "021",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "021",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "023",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "023",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "024",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "024",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "025",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "025",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "030",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "030",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "031",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "031",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "032",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "032",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "033",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "12",
+    "precinct_code": "033",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "035",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "035",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "036",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "036",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "038",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "038",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "055",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "055",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "056",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "056",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "175",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "175",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "180",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "180",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "185",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "185",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "190",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "13",
+    "precinct_code": "190",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "070",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "070",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "800",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "800",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "090",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "090",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "100",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "100",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "110",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "110",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "120",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "120",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "140",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "140",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "370",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "370",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "670",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "670",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "671",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "671",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "672",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "672",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "675",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "14",
+    "precinct_code": "675",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "005",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "005",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "225",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "225",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "230",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "230",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "290",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "290",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "440",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "440",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "445",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "445",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "535",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "535",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "540",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "540",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "545",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "545",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "235",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "15",
+    "precinct_code": "235",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "014",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "014",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "015",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "015",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "400",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "400",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "453",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "453",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "454",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "454",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "456",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "456",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "457",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "457",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "530",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "16",
+    "precinct_code": "530",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "305",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "305",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "310",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "310",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "315",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "315",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "320",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "320",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "325",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "325",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "328",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "328",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "329",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "329",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "385",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "385",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "390",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "390",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "391",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "17",
+    "precinct_code": "391",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "010",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "010",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "355",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "355",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "356",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "356",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "360",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "360",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "340",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "340",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "345",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "345",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "710",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "710",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "715",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "715",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "365",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "18",
+    "precinct_code": "365",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "405",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "405",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "406",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "406",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "215",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "215",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "425",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "425",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "430",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "430",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "415",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "415",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "420",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "420",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "435",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "435",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "410",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "19",
+    "precinct_code": "410",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "265",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "265",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "270",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "270",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "255",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "255",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "260",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "260",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "261",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "261",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "262",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "262",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "275",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "275",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "280",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "280",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "285",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "285",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "286",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "20",
+    "precinct_code": "286",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "243",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "243",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "244",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "244",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "245",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "245",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "246",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "246",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "247",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "247",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "248",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "248",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "249",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "249",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "250",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "250",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "251",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "21",
+    "precinct_code": "251",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "22",
+    "precinct_code": "585",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "22",
+    "precinct_code": "585",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "22",
+    "precinct_code": "590",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "22",
+    "precinct_code": "590",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "22",
+    "precinct_code": "595",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "22",
+    "precinct_code": "595",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "22",
+    "precinct_code": "600",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "22",
+    "precinct_code": "600",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "22",
+    "precinct_code": "605",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "22",
+    "precinct_code": "605",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "23",
+    "precinct_code": "630",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "23",
+    "precinct_code": "630",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "23",
+    "precinct_code": "635",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "23",
+    "precinct_code": "635",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "23",
+    "precinct_code": "640",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "23",
+    "precinct_code": "640",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "23",
+    "precinct_code": "645",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "23",
+    "precinct_code": "645",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "23",
+    "precinct_code": "647",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "23",
+    "precinct_code": "647",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "580",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "580",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "581",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "581",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "720",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "720",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "725",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "725",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "730",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "730",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "733",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "733",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "734",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "24",
+    "precinct_code": "734",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "653",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "653",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "654",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "654",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "655",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "655",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "656",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "656",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "657",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "657",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "658",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "658",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "659",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "659",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "660",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "660",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "661",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "25",
+    "precinct_code": "661",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "759",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "759",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "760",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "760",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "761",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "761",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "762",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "762",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "763",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "763",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "764",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "764",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "765",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "26",
+    "precinct_code": "765",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "045",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "045",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "050",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "050",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "053",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "053",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "054",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "054",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "040",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "040",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "041",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "041",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "040",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "040",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "041",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "041",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "043",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "27",
+    "precinct_code": "043",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "28",
+    "precinct_code": "240",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "28",
+    "precinct_code": "240",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "28",
+    "precinct_code": "330",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "28",
+    "precinct_code": "330",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "28",
+    "precinct_code": "335",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "28",
+    "precinct_code": "335",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "28",
+    "precinct_code": "395",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "28",
+    "precinct_code": "395",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "28",
+    "precinct_code": "450",
+    "is_vacant": false
+  },
+  {
+    "uid": "",
+    "role": "committeeperson",
+    "org_id": "chester_gop",
+    "county_code": "15",
+    "area_district": "28",
+    "precinct_code": "450",
+    "is_vacant": false
+  }
+]
