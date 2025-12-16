@@ -1,8 +1,8 @@
-// src/app/layout/MainLayout.tsx — FINAL WITH ORG & ROLE ICONS (2025)
 import { useState, useEffect, ReactNode } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { signOut } from "firebase/auth"; // Only need signOut now
 import { auth } from "../../lib/firebase";
+import { useAuth } from "../../context/AuthContext"; // <-- NEW: Import useAuth
 import {
   Box,
   Drawer,
@@ -36,6 +36,7 @@ import {
   Settings,
 } from "@mui/icons-material";
 import SearchIcon from "@mui/icons-material/Search";
+import DataObjectIcon from "@mui/icons-material/DataObject";
 import Logo from "../../components/ui/Logo";
 
 // Icons
@@ -57,10 +58,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // User state
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [userOrgId, setUserOrgId] = useState<string | null>(null);
+  // 🛑 FIX: Consume stable user and claims from context
+  const { user: currentUser, claims } = useAuth();
+
+  // 🛑 FIX: Derive role and orgId from stable claims object
+  const userRole = (claims?.role as string) || null;
+  const userOrgId = (claims?.org_id as string) || null;
 
   // Avatar dropdown
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -76,6 +79,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   };
 
   const ROLE_ICONS: Record<string, any> = {
+    state_admin: CommitteepersonShield,
     candidate: CandidateRosette,
     county_chair: CountyChairCrown,
     area_chair: AreaChairBadge,
@@ -84,30 +88,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
     committeewoman: CommitteepersonShield,
   };
 
-  // Auth + Claims
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        navigate("/login");
-        return;
-      }
-
-      setCurrentUser(user);
-
-      try {
-        const idTokenResult = await user.getIdTokenResult(true);
-        const claims = idTokenResult.claims;
-        console.error("claims:", claims);
-
-        setUserRole((claims.role as string) || null);
-        setUserOrgId((claims.org_id as string) || null);
-      } catch (err) {
-        console.error("Failed to get claims:", err);
-      }
-    });
-
-    return unsubscribe;
-  }, [navigate]);
+  // 🛑 FIX: REMOVE the entire useEffect that was re-fetching auth/claims
+  // and causing the infinite re-render loop. (Original lines 119-140 are gone)
 
   // Breadcrumb
   const pathnames = location.pathname.split("/").filter((x) => x);
@@ -118,8 +100,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
           .replace(/\b\w/g, (l) => l.toUpperCase())
       : "Dashboard";
 
-  const menuItems = [
-    { text: "My Precincts", icon: <HomeWork />, path: "/my-precincts" },
+  const baseMenuItems = [
+    // { text: "My Dashboard", icon: <HomeWork />, path: "/dashboard" },
+    { text: "My Test", icon: <HomeWork />, path: "/dashboard/TestFetch" },
     { text: "Reports", icon: <BarChart />, path: "/reports" },
     { text: "Analysis", icon: <Analytics />, path: "/analysis" },
     { text: "Actions", icon: <Campaign />, path: "/actions" },
@@ -130,6 +113,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
     { divider: true },
     { text: "Settings", icon: <Settings />, path: "/settings" },
   ];
+
+  const menuItems = [...baseMenuItems];
+
+  if (userRole === "state_admin") {
+    menuItems.push({
+      text: "Firebase",
+      icon: <DataObjectIcon />,
+      path: "/admin", // ← make sure this matches your route
+    });
+  }
 
   const drawer = (
     <Box>
@@ -273,23 +266,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
               </Typography>
             </Breadcrumbs>
 
-            {/* RIGHT SIDE: ORG ICON + ROLE ICON + SETTINGS + AVATAR */}
+            {/* RIGHT SIDE: ROLE ICON + ORG ICON + SETTINGS + AVATAR */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              {/* ORGANIZATION ICON */}
-              {userOrgId && ORG_ICONS[userOrgId] && (
-                <Tooltip
-                  title={userOrgId
-                    .replace(/_/g, " ")
-                    .replace(/\b\w/g, (l) => l.toUpperCase())}
-                >
-                  <img
-                    src={ORG_ICONS[userOrgId]}
-                    alt="Org"
-                    style={{ height: 34 }}
-                  />
-                </Tooltip>
-              )}
-
               {/* ROLE ICON */}
               {userRole && ROLE_ICONS[userRole.toLowerCase()] && (
                 <Tooltip
@@ -301,6 +279,20 @@ export default function MainLayout({ children }: MainLayoutProps) {
                     src={ROLE_ICONS[userRole.toLowerCase()]}
                     alt={userRole}
                     style={{ height: 30 }}
+                  />
+                </Tooltip>
+              )}
+              {/* ORGANIZATION ICON */}
+              {userOrgId && ORG_ICONS[userOrgId] && (
+                <Tooltip
+                  title={userOrgId
+                    .replace(/_/g, " ")
+                    .replace(/\b\w/g, (l) => l.toUpperCase())}
+                >
+                  <img
+                    src={ORG_ICONS[userOrgId]}
+                    alt="Org"
+                    style={{ height: 34 }}
                   />
                 </Tooltip>
               )}

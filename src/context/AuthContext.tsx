@@ -1,5 +1,4 @@
-// src/context/AuthContext.tsx
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 import { User } from "firebase/auth";
 
 interface AuthContextType {
@@ -20,9 +19,19 @@ export const AuthProvider: React.FC<{
   user: User | null;
   claims: any;
 }> = ({ children, user, claims }) => {
+  // CRITICAL FIX: Memoize the context value object.
+  // This ensures that the reference to the 'value' only changes
+  // when 'user' OR 'claims' change, breaking the infinite render loop
+  // that was affecting the Dashboard's useEffect.
+  const contextValue = useMemo(
+    () => ({
+      user,
+      claims,
+    }),
+    [user, claims]
+  );
+
   return (
-    <AuthContext.Provider value={{ user, claims }}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };

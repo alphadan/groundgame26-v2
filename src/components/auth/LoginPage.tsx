@@ -12,6 +12,7 @@ import {
 } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { useActivityLogger } from "../../hooks/useActivityLogger";
 import {
   Box,
   Button,
@@ -39,6 +40,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { logFailure } = useActivityLogger();
 
   // Forgot Password Modal
   const [forgotOpen, setForgotOpen] = useState(false);
@@ -90,6 +92,9 @@ export default function LoginPage() {
         return;
       }
     } catch (err: any) {
+      logFailure(err.code || "unknown_error", {
+        email: email.toLowerCase(),
+      });
       if (err.code === "auth/multi-factor-auth-required") {
         // ← THIS IS THE CASE YOU'RE HITTING
         await handleMFAChallenge(err);

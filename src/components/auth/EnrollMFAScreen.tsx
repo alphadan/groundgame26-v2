@@ -8,7 +8,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth } from "../../lib/firebase";
-import { useNavigate } from "react-router-dom"; // ← NEW IMPORT
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Button,
@@ -34,12 +34,10 @@ export default function EnrollMFAScreen() {
   const [error, setError] = useState("");
   const [verifying, setVerifying] = useState(false);
 
-  const navigate = useNavigate(); // ← For redirecting after success
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // ──────────────────────────────────────────────────────────────
-  // Create reCAPTCHA only once, safely destroy on unmount
-  // ──────────────────────────────────────────────────────────────
+  // Create invisible reCAPTCHA verifier for MFA
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -51,18 +49,10 @@ export default function EnrollMFAScreen() {
       } catch {}
       window.recaptchaVerifier = undefined;
     }
-    if (typeof window.recaptchaWidgetId === "number") {
-      try {
-        (window as any).grecaptcha?.reset(window.recaptchaWidgetId);
-      } catch {}
-      window.recaptchaWidgetId = undefined;
-    }
 
-    const verifier = new RecaptchaVerifier(
-      auth,
-      container,
-      { size: "invisible" }
-    );
+    const verifier = new RecaptchaVerifier(auth, container, {
+      size: "invisible",
+    });
 
     window.recaptchaVerifier = verifier;
 
@@ -74,9 +64,6 @@ export default function EnrollMFAScreen() {
     };
   }, []);
 
-  // ──────────────────────────────────────────────────────────────
-  // Send SMS code
-  // ──────────────────────────────────────────────────────────────
   const sendCode = async () => {
     setError("");
     setMessage("");
@@ -91,6 +78,7 @@ export default function EnrollMFAScreen() {
       }
 
       const session = await multiFactor(auth.currentUser!).getSession();
+
       const phoneInfoOptions = {
         phoneNumber: phone,
         session,
@@ -117,9 +105,6 @@ export default function EnrollMFAScreen() {
     }
   };
 
-  // ──────────────────────────────────────────────────────────────
-  // Verify code and complete enrollment
-  // ──────────────────────────────────────────────────────────────
   const verify = async () => {
     if (code.length !== 6) return;
 
@@ -132,13 +117,11 @@ export default function EnrollMFAScreen() {
 
       await multiFactor(auth.currentUser!).enroll(assertion, "Committee Phone");
 
-      // SUCCESS! Redirect to main app
       setStage("success");
       setMessage("MFA successfully enabled! Redirecting...");
 
-      // Small delay for user feedback, then navigate
       setTimeout(() => {
-        navigate("/reports"); // Or navigate("/") if you prefer the default redirect
+        navigate("/reports");
       }, 1500);
     } catch (err: any) {
       console.error("Enrollment error:", err);
@@ -164,7 +147,6 @@ export default function EnrollMFAScreen() {
         Add your phone number for two-factor authentication
       </Typography>
 
-      {/* Hidden reCAPTCHA container */}
       <div ref={containerRef} />
 
       {stage === "phone" && (

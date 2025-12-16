@@ -1,25 +1,32 @@
 // functions/index.js — FINAL, PRODUCTION-READY (Dec 2025)
-const functions = require("firebase-functions");
-const functionsV1 = require("firebase-functions/v1");
-const admin = require("firebase-admin");
-const { onRequest } = require("firebase-functions/v2/https");
-const { BigQuery } = require("@google-cloud/bigquery");
+import * as functionsV1 from "firebase-functions/v1"; // replaces const functionsV1 = require("firebase-functions/v1");
 
-admin.initializeApp();
-const db = admin.firestore();
+// For 2nd gen HTTPS (or other v2 triggers)
+import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions/v2";
+
+// BigQuery
+import { BigQuery } from "@google-cloud/bigquery";
+
+import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
+initializeApp();
+
+const db = getFirestore();
 const bigquery = new BigQuery();
 
 // ================================================================
 // 1. BIGQUERY PROXY — GEN 2
 // ================================================================
-exports.queryVoters = onRequest(
+export const queryVoters = onRequest(
   { cors: true, region: "us-central1" },
   async (req, res) => {
     try {
       const token = req.headers.authorization?.split("Bearer ")[1];
       if (!token) return res.status(401).send("No token");
 
-      await admin.auth().verifyIdToken(token);
+      await getAuth().verifyIdToken(token, { role: "admin" });
 
       let sql = req.body.sql || req.query.sql;
       if (!sql) return res.status(400).send("No SQL");
@@ -46,39 +53,99 @@ exports.queryVoters = onRequest(
 // ================================================================
 // 2. AUTO-CREATE users/{uid} — GEN 1
 // ================================================================
-exports.createUserProfile = functionsV1.auth.user().onCreate(async (user) => {
-  const uid = user.uid;
-  const email = user.email?.toLowerCase() || "";
-  const displayName = user.displayName || email.split("@")[0];
+export const createUserProfile = functionsV1.auth
+  .user()
+  .onCreate(async (user) => {
+    const uid = user.uid;
+    const email = user.email?.toLowerCase() || "";
+    const displayName = user.displayName || email.split("@")[0];
 
-  try {
-    await db.doc(`users/${uid}`).set({
-      uid,
-      display_name: displayName,
-      email,
-      phone: user.phoneNumber || "",
-      photo_url: user.photoURL || "",
-      created_at: admin.firestore.FieldValue.serverTimestamp(),
-      last_login: admin.firestore.FieldValue.serverTimestamp(),
-      last_ip: "auth-trigger",
-      login_count: 1,
-    });
+    try {
+      await db.doc(`users/${uid}`).set({
+        uid,
+        display_name: displayName,
+        email,
+        phone: user.phoneNumber || "",
+        photo_url: user.photoURL || "",
+        created_at: FieldValue.serverTimestamp(),
+        last_login: FieldValue.serverTimestamp(),
+        last_ip: "auth-trigger",
+        login_count: 1,
+      });
 
-    await db.collection("login_attempts").add({
-      uid,
-      email,
-      success: true,
-      ip: "auth-trigger",
-      user_agent: "firebase-auth",
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  } catch (err) {
-    console.error("createUserProfile failed:", err);
-  }
-});
+      await db.collection("login_attempts").add({
+        uid,
+        email,
+        success: true,
+        ip: "auth-trigger",
+        user_agent: "firebase-auth",
+        timestamp: FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("createUserProfile failed:", err);
+    }
+  });
 
 // ================================================================
-// 3. PERMISSIONS ENGINE — CENTRALIZED & CLEAN
+// 3. USER ACTIVITY LOG — CENTRALIZED & CLEAN
+// ================================================================
+
+export const logLoginActivity = onCall(
+  { cors: true }, // options
+  async (request) => {
+    if (!request.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be logged in"
+      );
+    }
+
+    const {
+      success,
+      errorCode,
+      timestamp: clientTimestamp,
+      ...extra
+    } = request.data || {};
+
+    const ip = request.rawRequest?.ip || "unknown";
+    const userAgent = request.rawRequest?.headers["user-agent"] || "unknown";
+
+    try {
+      await db.collection("login_activity").add({
+        uid: request.auth.uid,
+        email: request.auth.token.email?.toLowerCase() || "",
+        success: Boolean(success),
+        error_code: errorCode || null,
+        ip,
+        user_agent: userAgent,
+        client_timestamp: clientTimestamp || null,
+        server_timestamp: FieldValue.serverTimestamp(),
+        type: success ? "login_success" : "login_failed",
+        ...extra,
+      });
+
+      // Update user counters on successful login
+      if (success) {
+        await db.doc(`users/${request.auth.uid}`).update({
+          last_ip: ip,
+          login_count: FieldValue.increment(1),
+          last_login: FieldValue.serverTimestamp(),
+        });
+      }
+
+      return { success: true };
+    } catch (err) {
+      console.error("logLoginActivity failed:", err);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to log activity"
+      );
+    }
+  }
+);
+
+// ================================================================
+// 4. PERMISSIONS ENGINE — CENTRALIZED & CLEAN
 // ================================================================
 const getPermissionsForRole = (role) => {
   const base = {
@@ -146,20 +213,23 @@ const getPermissionsForRole = (role) => {
 };
 
 // ================================================================
-// 4. SYNC org_roles → Custom Claims + Permissions
+// 5. SYNC org_roles → Custom Claims + Permissions
 // ================================================================
-exports.syncOrgRolesToClaims = functionsV1.firestore
+export const syncOrgRolesToClaims = functionsV1.firestore
   .document("org_roles/{docId}")
   .onWrite(async (change, context) => {
     const before = change.before.exists ? change.before.data() : null;
     const after = change.after.exists ? change.after.data() : null;
 
     if (!after || after.is_vacant || !after.uid) {
-      if (before?.uid) await admin.auth().setCustomUserClaims(before.uid, null);
+      if (before?.uid)
+        await getAuth().setCustomUserClaims(before.uid, { role: "admin" });
       return;
     }
 
     const uid = after.uid;
+
+    logger.info("[syncOrgRolesToClaims]uid :", uid);
 
     const snap = await db
       .collection("org_roles")
@@ -168,13 +238,15 @@ exports.syncOrgRolesToClaims = functionsV1.firestore
       .get();
 
     if (snap.empty) {
-      await admin.auth().setCustomUserClaims(uid, null);
+      await getAuth().setCustomUserClaims(uid, { role: "admin" });
+      logger.info("[syncOrgRolesToClaims]setCustomUserClaims:uid :", uid);
       return;
     }
 
     const precincts = [];
     const counties = new Set();
     const areas = new Set();
+    const orgIds = new Set();
     const roles = new Set();
 
     snap.forEach((doc) => {
@@ -186,7 +258,10 @@ exports.syncOrgRolesToClaims = functionsV1.firestore
       if (d.precinct_code) precincts.push(d.precinct_code);
     });
 
-    const primaryRole = [...roles][0] || "user";
+    logger.info("[syncOrgRolesToClaims]roles :", roles);
+
+    const primaryRole = [...roles][0] || "base";
+    logger.info("[syncOrgRolesToClaims]primaryRole :", primaryRole);
     const permissions = getPermissionsForRole(primaryRole);
 
     const claims = {
@@ -205,24 +280,26 @@ exports.syncOrgRolesToClaims = functionsV1.firestore
       ],
     };
 
-    await admin.auth().setCustomUserClaims(uid, claims);
+    logger.info("[syncOrgRolesToClaims]claims :", claims);
+
+    await getAuth().setCustomUserClaims(uid, claims);
 
     await db.doc(`users/${uid}`).set(
       {
         primary_county: claims.counties[0] || null,
         primary_precinct: precincts[0] || null,
-        role_summary: primaryRole,
-        permissions, // ← cache for fast UI reads
-        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        role: primaryRole,
+        permissions,
+        updated_at: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
   });
 
 // ================================================================
-// 5. SECURE VOLUNTEER SUBMISSION
+// 6. SECURE VOLUNTEER SUBMISSION
 // ================================================================
-exports.submitVolunteer = onRequest(
+export const submitVolunteer = onRequest(
   { cors: true, region: "us-central1" },
   async (req, res) => {
     try {
@@ -234,7 +311,7 @@ exports.submitVolunteer = onRequest(
         name: name.trim(),
         email: email.toLowerCase().trim(),
         comment: comment?.trim() || "",
-        submitted_at: admin.firestore.FieldValue.serverTimestamp(),
+        submitted_at: FieldValue.serverTimestamp(),
         status: "new",
       });
 
