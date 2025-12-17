@@ -32,7 +32,8 @@ import {
   where,
   DocumentData,
 } from "firebase/firestore";
-import { db } from "../../lib/firebase";
+import { useAuth } from "../../context/AuthContext";
+import { db, auth } from "../../lib/firebase";
 
 const ExpandMore = styled((props: any) => {
   const { expand, ...other } = props;
@@ -62,6 +63,7 @@ export default function ActionsPage() {
   );
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const { user, isLoaded } = useAuth();
 
   // Collapsible states
   const [expandedChase, setExpandedChase] = useState(false);
@@ -81,13 +83,25 @@ export default function ActionsPage() {
 
   // Load suggested messages
   const loadSuggestedMessages = async () => {
+    // 1. Log initiation for auditing
+    console.log("🚀 Firestore: Initiation message template fetch...");
     setLoadingMessages(true);
+
     try {
-      let q: any = query(
+      // 2. Gatekeeper Check: Ensure we have an active session
+      if (!user) {
+        throw new Error("Session expired. Please log in again.");
+      }
+
+      // 3. Defensive DB check
+      if (!db) throw new Error("Database connection not initialized.");
+
+      let q = query(
         collection(db, "message_templates"),
         where("active", "==", true)
       );
 
+      // Apply your existing filters
       if (msgFilters.age_group)
         q = query(q, where("age_group", "==", msgFilters.age_group));
       if (msgFilters.modeled_party)
@@ -100,17 +114,24 @@ export default function ActionsPage() {
       if (msgFilters.tags)
         q = query(q, where("tags", "array-contains", msgFilters.tags));
 
+      // 4. Execute the fetch
       const snapshot = await getDocs(q);
 
-      const templates = snapshot.docs.map((doc) => {
-        const data = doc.data() as Record<string, any>;
-        return { id: doc.id, ...data };
-      });
+      // 5. Success Logging
+      console.log(
+        `✅ Firestore: Successfully retrieved ${snapshot.size} templates.`
+      );
+
+      const templates = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Record<string, any>),
+      }));
 
       setSuggestedMessages(templates);
     } catch (err: any) {
-      console.error("Firestore error:", err);
-      alert("Error loading messages: " + err.message);
+      // 6. Professional Error Handling
+      console.error("❌ Firestore Template Error:", err);
+      alert(`Failed to load messages: ${err.message}`);
     } finally {
       setLoadingMessages(false);
     }

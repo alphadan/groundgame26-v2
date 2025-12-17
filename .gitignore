@@ -3,6 +3,9 @@ node_modules/
 dist/
 build/
 
+# Public
+public
+
 # Firebase
 .firebase/
 .firebaserc

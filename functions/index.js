@@ -17,7 +17,7 @@ const db = getFirestore();
 const bigquery = new BigQuery();
 
 // ================================================================
-// 1. BIGQUERY PROXY — GEN 2
+// 1. BIGQUERY PROXY — GEN 2 (UPDATED FOR V2 PROJECT)
 // ================================================================
 export const queryVoters = onRequest(
   { cors: true, region: "us-central1" },
@@ -26,22 +26,36 @@ export const queryVoters = onRequest(
       const token = req.headers.authorization?.split("Bearer ")[1];
       if (!token) return res.status(401).send("No token");
 
-      await getAuth().verifyIdToken(token, { role: "admin" });
+      // Verify the user is authenticated
+      await getAuth().verifyIdToken(token);
 
       let sql = req.body.sql || req.query.sql;
       if (!sql) return res.status(400).send("No SQL");
 
-      if (
-        !sql.toLowerCase().includes("from `groundgame26_voters.chester_county`")
-      ) {
-        return res.status(403).send("Invalid table");
+      // 🚀 THE FIX: Update the security check to include the v2 project ID
+      // We use a more flexible check to ensure it's hitting the correct table
+      const lowerSql = sql.toLowerCase();
+      const isValidTable =
+        lowerSql.includes(
+          "from `groundgame26-v2.groundgame26_voters.chester_county`"
+        ) || lowerSql.includes("from `groundgame26_voters.chester_county`"); // Fallback for local testing
+
+      if (!isValidTable) {
+        console.warn("BLOCKED: Unauthorized table access attempt:", sql);
+        return res.status(403).send("Invalid table: Unauthorized data source.");
       }
 
+      // Formatting Fixes
       sql = sql.replace(/''/g, "NULL");
       sql = sql.replace(/'true'/gi, "TRUE");
       sql = sql.replace(/'false'/gi, "FALSE");
 
-      const [rows] = await bigquery.query({ query: sql });
+      // Execute Query
+      const [rows] = await bigquery.query({
+        query: sql,
+        location: "US", // Ensure location matches your dataset
+      });
+
       res.json(rows);
     } catch (err) {
       console.error("QUERY FAILED:", err);
@@ -87,62 +101,64 @@ export const createUserProfile = functionsV1.auth
   });
 
 // ================================================================
-// 3. USER ACTIVITY LOG — CENTRALIZED & CLEAN
+// 3. USER ACTIVITY LOG — REFACTORED FOR AUTH STABILITY
 // ================================================================
 
-export const logLoginActivity = onCall(
-  { cors: true }, // options
-  async (request) => {
-    if (!request.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "User must be logged in"
-      );
-    }
+export const logLoginActivity = onCall({ cors: true }, async (request) => {
+  const data = request.data || {};
+  const success = Boolean(data.success);
 
-    const {
-      success,
-      errorCode,
-      timestamp: clientTimestamp,
-      ...extra
-    } = request.data || {};
+  // 1. Identify the user
+  // If successful login, use request.auth. If failed, use UID passed in data (if available)
+  const uid = request.auth?.uid || data.uid || "anonymous";
+  const email =
+    request.auth?.token?.email?.toLowerCase() ||
+    data.email?.toLowerCase() ||
+    "unknown";
 
-    const ip = request.rawRequest?.ip || "unknown";
-    const userAgent = request.rawRequest?.headers["user-agent"] || "unknown";
+  const ip = request.rawRequest?.ip || "unknown";
+  const userAgent = request.rawRequest?.headers["user-agent"] || "unknown";
 
-    try {
-      await db.collection("login_activity").add({
-        uid: request.auth.uid,
-        email: request.auth.token.email?.toLowerCase() || "",
-        success: Boolean(success),
-        error_code: errorCode || null,
-        ip,
-        user_agent: userAgent,
-        client_timestamp: clientTimestamp || null,
-        server_timestamp: FieldValue.serverTimestamp(),
-        type: success ? "login_success" : "login_failed",
-        ...extra,
-      });
+  try {
+    // 2. Log the attempt (This works for both success and failure)
+    await db.collection("login_activity").add({
+      uid: uid,
+      email: email,
+      success: success,
+      error_code: data.errorCode || null,
+      ip: ip,
+      user_agent: userAgent,
+      client_timestamp: data.timestamp || null,
+      server_timestamp: FieldValue.serverTimestamp(),
+      type: success ? "login_success" : "login_failed",
+    });
 
-      // Update user counters on successful login
-      if (success) {
-        await db.doc(`users/${request.auth.uid}`).update({
+    // 3. Update User Metadata (ONLY if authenticated and successful)
+    if (success && request.auth) {
+      const userRef = db.doc(`users/${request.auth.uid}`);
+
+      // Use a set with merge:true in case the user doc doesn't exist yet
+      await userRef.set(
+        {
           last_ip: ip,
           login_count: FieldValue.increment(1),
           last_login: FieldValue.serverTimestamp(),
-        });
-      }
-
-      return { success: true };
-    } catch (err) {
-      console.error("logLoginActivity failed:", err);
-      throw new functions.https.HttpsError(
-        "internal",
-        "Failed to log activity"
+          updated_at: FieldValue.serverTimestamp(),
+        },
+        { merge: true }
       );
     }
+
+    return { success: true };
+  } catch (err) {
+    // Log the ACTUAL error to Firebase Logs so you can see it in the console
+    console.error("CRITICAL: logLoginActivity failed internal execution:", err);
+
+    // Do not throw HttpsError for logging—just return a graceful failure
+    // so the user's login experience isn't interrupted by a logging bug
+    return { success: false, error: "Internal logging failure" };
   }
-);
+});
 
 // ================================================================
 // 4. PERMISSIONS ENGINE — CENTRALIZED & CLEAN

@@ -1,5 +1,4 @@
-// src/app/settings/SettingsPage.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Container,
@@ -11,32 +10,36 @@ import {
   CircularProgress,
   InputAdornment,
   Link,
+  Paper,
 } from "@mui/material";
-import { PhotoCamera, Save } from "@mui/icons-material";
+import { PhotoCamera, Save, LockReset } from "@mui/icons-material";
 import {
-  getAuth,
   updateProfile,
   updateEmail,
   sendPasswordResetEmail,
 } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
-import { auth, db, storage } from "../../lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
+// Unified Imports
+import { auth, db, storage } from "../../lib/firebase";
+import { useAuth } from "../../context/AuthContext";
+
 export default function SettingsPage() {
-  const auth = getAuth();
-  const user = auth.currentUser;
+  // 1. Source identity from our reactive Gatekeeper
+  const { user, isLoaded } = useAuth();
 
   const [formData, setFormData] = useState({
     displayName: user?.displayName || "",
     email: user?.email || "",
-    phone: user?.phoneNumber || "",
+    phone: "", // Will be populated from users_meta
     photoFile: null as File | null,
   });
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [resetSent, setResetSent] = useState(false);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -53,60 +56,95 @@ export default function SettingsPage() {
     try {
       let photoURL = user.photoURL;
 
+      // 2. Handle Profile Photo Upload
       if (formData.photoFile) {
         const storageRef = ref(storage, `profile-photos/${user.uid}`);
         await uploadBytes(storageRef, formData.photoFile);
         photoURL = await getDownloadURL(storageRef);
       }
 
+      // 3. Update Firebase Auth Profile (Global State)
       await updateProfile(user, {
         displayName: formData.displayName,
         photoURL: photoURL || undefined,
       });
 
-      if (formData.email !== user.email) {
+      // 4. Update Email (Requires recent login - may throw error)
+      if (formData.email !== user.email && formData.email) {
         await updateEmail(user, formData.email);
       }
 
+      // 5. Update Central Metadata (Sync with ManageTeam/Dashboard)
       await updateDoc(doc(db, "users", user.uid), {
         display_name: formData.displayName,
         email: formData.email,
-        phone: formData.phone || "",
         photo_url: photoURL || "",
-        updated_at: new Date(),
+        updated_at: new Date().toISOString(),
       });
 
       setSuccess(true);
     } catch (err: any) {
-      setError(err.message || "Failed to save");
+      console.error("Settings Update Error:", err);
+      // Handle the "Requires Recent Login" error specifically
+      if (err.code === "auth/requires-recent-login") {
+        setError(
+          "For security, please log out and back in before changing your email."
+        );
+      } else {
+        setError(err.message || "Failed to save changes.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  if (!user) return <Typography>Please log in.</Typography>;
+  const handlePasswordReset = async () => {
+    if (!user?.email) return;
+    try {
+      await sendPasswordResetEmail(auth, user.email);
+      setResetSent(true);
+    } catch (err: any) {
+      setError("Failed to send reset email.");
+    }
+  };
+
+  if (!isLoaded)
+    return (
+      <Box p={10} textAlign="center">
+        <CircularProgress />
+      </Box>
+    );
 
   return (
     <Container maxWidth="sm">
-      <Box sx={{ mt: 4 }}>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
-          My Profile & Settings
+      <Paper sx={{ p: 4, mt: 4, borderRadius: 3, boxShadow: 3 }}>
+        <Typography variant="h4" fontWeight="bold" color="#B22234" gutterBottom>
+          Profile Settings
+        </Typography>
+        <Typography variant="body2" color="text.secondary" mb={4}>
+          Manage your identity and contact information across the GroundGame26
+          network.
         </Typography>
 
-        <Box sx={{ textAlign: "center", my: 4 }}>
+        <Box sx={{ textAlign: "center", mb: 4 }}>
           <Avatar
             src={
               formData.photoFile
                 ? URL.createObjectURL(formData.photoFile)
-                : user.photoURL || ""
+                : user?.photoURL || ""
             }
-            sx={{ width: 120, height: 120, mx: "auto" }}
+            sx={{
+              width: 120,
+              height: 120,
+              mx: "auto",
+              border: "4px solid #f0f0f0",
+            }}
           />
           <Button
-            variant="outlined"
+            variant="text"
             component="label"
             startIcon={<PhotoCamera />}
-            sx={{ mt: 2 }}
+            sx={{ mt: 1, color: "#B22234" }}
           >
             Change Photo
             <input
@@ -118,10 +156,11 @@ export default function SettingsPage() {
           </Button>
         </Box>
 
-        <Box sx={{ "& > :not(style)": { my: 2 } }}>
+        <Box sx={{ "& > :not(style)": { mb: 3 } }}>
           <TextField
             fullWidth
-            label="Display Name"
+            label="Full Name"
+            variant="outlined"
             value={formData.displayName}
             onChange={(e) =>
               setFormData({ ...formData, displayName: e.target.value })
@@ -129,64 +168,59 @@ export default function SettingsPage() {
           />
           <TextField
             fullWidth
-            label="Email"
+            label="Email Address"
             type="email"
             value={formData.email}
             onChange={(e) =>
               setFormData({ ...formData, email: e.target.value })
             }
-          />
-          <TextField
-            fullWidth
-            label="Phone"
-            value={formData.phone}
-            onChange={(e) =>
-              setFormData({ ...formData, phone: e.target.value })
-            }
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">+1</InputAdornment>
-              ),
-            }}
+            helperText="Changing your email requires a secure session."
           />
 
-          {success && <Alert severity="success">Saved successfully!</Alert>}
+          {success && (
+            <Alert severity="success">Profile updated successfully!</Alert>
+          )}
           {error && <Alert severity="error">{error}</Alert>}
+          {resetSent && (
+            <Alert severity="info">
+              Password reset email sent to {user?.email}
+            </Alert>
+          )}
 
           <Button
             fullWidth
             variant="contained"
             size="large"
-            startIcon={loading ? <CircularProgress size={20} /> : <Save />}
+            startIcon={
+              loading ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                <Save />
+              )
+            }
             onClick={handleSave}
             disabled={loading}
             sx={{
-              mt: 3,
+              bgcolor: "#B22234",
               py: 1.5,
-              backgroundColor: "#B22234",
+              fontWeight: "bold",
               "&:hover": { bgcolor: "#8B1A1A" },
             }}
           >
-            {loading ? "Saving..." : "Save Changes"}
+            {loading ? "Updating..." : "Save Profile"}
           </Button>
-          <Box sx={{ mt: 3, textAlign: "center" }}>
-            {user?.email ? (
-              <Link
-                component="button"
-                variant="body2"
-                onClick={() => sendPasswordResetEmail(auth, user.email!)}
-                sx={{ color: "#B22234", fontWeight: "medium" }}
-              >
-                Send Password Reset Email
-              </Link>
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                Email not available
-              </Typography>
-            )}
+
+          <Box sx={{ textAlign: "center", pt: 2 }}>
+            <Button
+              startIcon={<LockReset />}
+              onClick={handlePasswordReset}
+              sx={{ color: "#666", textTransform: "none" }}
+            >
+              Send Password Reset Link
+            </Button>
           </Box>
         </Box>
-      </Box>
+      </Paper>
     </Container>
   );
 }

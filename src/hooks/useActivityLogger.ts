@@ -1,40 +1,44 @@
-// src/hooks/useActivityLogger.ts
 import { useCallback } from "react";
 import { useCloudFunctions } from "./useCloudFunctions";
+import { auth } from "../lib/firebase"; // Import auth for success backup
 
-/**
- * Hook for logging user activity (successful/failed logins, etc.)
- * Uses the secure callable function "logLoginActivity"
- */
 export const useActivityLogger = () => {
   const { callFunction } = useCloudFunctions();
 
   /**
    * Log a successful login
+   * Passing current user details explicitly to prevent race conditions
    */
   const logSuccess = useCallback(async () => {
+    const user = auth.currentUser;
     try {
       await callFunction("logLoginActivity", {
         success: true,
-        timestamp: new Date().toISOString(), // client timestamp as fallback
+        uid: user?.uid, // Explicit UID
+        email: user?.email, // Explicit Email
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      // Fail silently — activity logging should never break the app
       console.warn("Failed to log successful login:", error);
     }
   }, [callFunction]);
 
   /**
    * Log a failed login attempt
-   * @param errorCode - Firebase auth error code (e.g., "auth/wrong-password")
-   * @param extra - Any additional context (optional)
+   * @param errorCode - e.g., "auth/invalid-credential"
+   * @param identifier - The email or username the user tried to use
    */
   const logFailure = useCallback(
-    async (errorCode: string, extra?: Record<string, any>) => {
+    async (
+      errorCode: string,
+      identifier?: string,
+      extra?: Record<string, any>
+    ) => {
       try {
         await callFunction("logLoginActivity", {
           success: false,
           errorCode,
+          email: identifier, // Log what they tried to login with
           ...extra,
           timestamp: new Date().toISOString(),
         });

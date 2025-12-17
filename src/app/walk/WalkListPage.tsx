@@ -1,5 +1,4 @@
-// src/app/walk/WalkListPage.tsx — FINAL, NO ERRORS, GROUPED BY ADDRESS
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -33,18 +32,13 @@ import {
   ExpandLess,
   AddComment,
 } from "@mui/icons-material";
-import {
-  collection,
-  addDoc,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-} from "firebase/firestore";
-import { auth, db } from "../../lib/firebase";
+import { collection, addDoc } from "firebase/firestore";
+import { db, auth } from "../../lib/firebase";
 import { useVoters } from "../../hooks/useVoters";
+import { useAuth } from "../../context/AuthContext"; // Integrated Auth
 
 export default function WalkListPage() {
+  const { user, isLoaded } = useAuth(); // Monitor identity state
   const [zipCode, setZipCode] = useState("");
   const [streetFilter, setStreetFilter] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -56,50 +50,39 @@ export default function WalkListPage() {
   const [selectedVoter, setSelectedVoter] = useState<any>(null);
   const [noteText, setNoteText] = useState("");
 
-  // Build BigQuery SQL
-  const buildQuery = () => {
-    const conditions: string[] = [];
+  // 1. MEMOIZED SQL GENERATION
+  const sqlQuery = useMemo(() => {
+    if (!submitted) return "";
 
-    if (zipCode) {
-      const cleanZip = zipCode.replace(/\D/g, "").slice(0, 5);
-      if (cleanZip.length === 5) {
-        conditions.push(`zip_code = CAST(${cleanZip} AS INT64)`);
-      }
+    const conditions: string[] = [];
+    if (zipCode.length === 5) {
+      conditions.push(
+        `zip_code = CAST(${zipCode.replace(/\D/g, "")} AS INT64)`
+      );
     }
 
     if (streetFilter.trim()) {
-      const clean = streetFilter
-        .trim()
-        .replace(/[^a-zA-Z\s]/g, " ")
-        .replace(/\s+/g, " ");
-      if (clean.length > 1) {
-        const escaped = clean.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
-        conditions.push(
-          `REGEXP_CONTAINS(LOWER(address), r'(?i)\\b${escaped}')`
-        );
-      }
+      const clean = streetFilter.trim().replace(/'/g, "\\'"); // Basic SQL Escaping
+      conditions.push(`REGEXP_CONTAINS(LOWER(address), r'(?i)\\b${clean}')`);
     }
 
     const whereClause =
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     return `
-      SELECT voter_id, full_name, age, party, phone_mobile, phone_home,
-             address, city, zip_code, turnout_score_general
+      SELECT voter_id, full_name, age, party, phone_mobile, phone_home, address, city, zip_code, turnout_score_general, precinct
       FROM \`groundgame26_voters.chester_county\`
       ${whereClause}
       ORDER BY address, turnout_score_general DESC
       LIMIT 2000
     `.trim();
-  };
+  }, [submitted, zipCode, streetFilter]);
 
-  const sql = buildQuery();
-  const { data = [], isLoading, error } = useVoters(sql);
+  const { data = [], isLoading, error } = useVoters(sqlQuery);
 
-  // Group by address — fully typed, no errors
+  // 2. HOUSEHOLD GROUPING LOGIC
   const households = useMemo(() => {
     const groups: Record<string, any[]> = {};
-
     data.forEach((voter: any) => {
       const addr = voter.address?.trim() || "Unknown Address";
       if (!groups[addr]) groups[addr] = [];
@@ -107,262 +90,209 @@ export default function WalkListPage() {
     });
 
     return Object.keys(groups)
-      .map((address) => {
-        const voters = groups[address];
-        return {
-          address,
-          city: voters[0]?.city,
-          zip_code: voters[0]?.zip_code,
-          voters: voters.sort(
-            (a: any, b: any) =>
-              (b.turnout_score_general || 0) - (a.turnout_score_general || 0)
-          ),
-        };
-      })
+      .map((address) => ({
+        address,
+        city: groups[address][0]?.city,
+        zip_code: groups[address][0]?.zip_code,
+        voters: groups[address].sort(
+          (a, b) =>
+            (b.turnout_score_general || 0) - (a.turnout_score_general || 0)
+        ),
+      }))
       .sort((a, b) => a.address.localeCompare(b.address));
   }, [data]);
 
-  const paginated = households.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
-
   const handleGenerate = () => {
-    if (!zipCode && !streetFilter.trim()) {
-      alert("Please enter a zip code or street name");
+    if (zipCode.length < 5 && !streetFilter.trim()) {
+      alert("Please provide a 5-digit zip code or a street name.");
       return;
     }
     setSubmitted(true);
     setPage(0);
-    setExpandedHouse("");
   };
 
   const handleAddNote = async () => {
-    if (!noteText.trim() || !selectedVoter) return;
-
-    await addDoc(collection(db, "voter_notes"), {
-      voter_id: selectedVoter.voter_id,
-      full_name: selectedVoter.full_name,
-      address: selectedVoter.address,
-      note: noteText,
-      created_by_uid: auth.currentUser?.uid || "unknown",
-      created_by_name: auth.currentUser?.displayName || "Canvasser",
-      created_at: new Date(),
-    });
-
-    setNoteText("");
-    setOpenNote(false);
+    if (!noteText.trim() || !selectedVoter || !user) return;
+    try {
+      await addDoc(collection(db, "voter_notes"), {
+        voter_id: selectedVoter.voter_id,
+        precinct: selectedVoter.precinct,
+        full_name: selectedVoter.full_name,
+        address: selectedVoter.address,
+        note: noteText,
+        created_by_uid: user.uid,
+        created_by_name: user.displayName || user.email,
+        created_at: new Date(),
+      });
+      setNoteText("");
+      setOpenNote(false);
+    } catch (err) {
+      alert("Failed to save note. Check permissions.");
+    }
   };
+
+  // --- RENDERING GATEKEEPER ---
+  if (!isLoaded)
+    return (
+      <Box display="flex" justifyContent="center" py={10}>
+        <CircularProgress />
+      </Box>
+    );
 
   return (
     <Box p={4}>
       <Typography variant="h4" gutterBottom color="#B22234" fontWeight="bold">
-        Walk List — Grouped by Address
+        Canvassing Walk List
+      </Typography>
+      <Typography variant="body2" color="textSecondary" mb={4}>
+        Grouped by address for efficient door-knocking.
       </Typography>
 
-      <Paper sx={{ p: 3, mb: 4, bgcolor: "#f5f5f5" }}>
+      <Paper sx={{ p: 3, mb: 4, bgcolor: "#f8f9fa", borderRadius: 2 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid>
             <TextField
               label="Zip Code"
+              fullWidth
               value={zipCode}
-              onChange={(e) =>
-                setZipCode(e.target.value.replace(/\D/g, "").slice(0, 5))
-              }
+              onChange={(e) => setZipCode(e.target.value.slice(0, 5))}
               size="small"
-              placeholder="19365"
-              sx={{ minWidth: 140 }}
             />
           </Grid>
           <Grid>
             <TextField
               label="Street Name"
+              fullWidth
               value={streetFilter}
               onChange={(e) => setStreetFilter(e.target.value)}
               size="small"
-              placeholder="Main, Oak, Church"
-              sx={{ minWidth: 240 }}
+              placeholder="e.g. Main St"
             />
           </Grid>
           <Grid>
             <Button
               variant="contained"
+              fullWidth
+              sx={{ bgcolor: "#0A3161", height: 40 }}
               onClick={handleGenerate}
               disabled={isLoading}
-              sx={{ bgcolor: "#0A3161", height: 56, px: 6 }}
             >
-              {isLoading ? <CircularProgress size={24} /> : "Generate List"}
+              {isLoading ? "Fetching..." : "Generate List"}
             </Button>
           </Grid>
         </Grid>
       </Paper>
 
-      {isLoading && submitted && (
-        <Box textAlign="center" py={8}>
-          <CircularProgress />
-          <Typography mt={2}>Loading walk list...</Typography>
-        </Box>
-      )}
-
-      {error && <Alert severity="error">Error loading data</Alert>}
-
-      {submitted && !isLoading && households.length === 0 && (
-        <Alert severity="info">No voters found for that search.</Alert>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Error loading walk list: {(error as Error).message}
+        </Alert>
       )}
 
       {submitted && households.length > 0 && (
-        <Paper>
-          <Box p={3}>
-            <Typography variant="h6">
-              {households.length} Households • {data.length} Voters
-            </Typography>
-          </Box>
-
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow sx={{ bgcolor: "#0A3161" }}>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                    Address
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                    Voters
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                    Phones
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                    Actions
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginated.map((house) => {
-                  const phones = Array.from(
-                    new Set(
-                      house.voters
-                        .map((v: any) => v.phone_mobile || v.phone_home)
-                        .filter(Boolean)
-                    )
-                  );
-
-                  return (
-                    <>
-                      {/* MAIN ROW */}
-                      <TableRow
-                        hover
-                        sx={{ cursor: "pointer" }}
-                        onClick={() =>
-                          setExpandedHouse(
-                            expandedHouse === house.address ? "" : house.address
-                          )
-                        }
-                      >
-                        <TableCell>
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Home fontSize="small" />
-                            <Box>
-                              <Typography fontWeight="bold">
-                                {house.address}
-                              </Typography>
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
+        <TableContainer
+          component={Paper}
+          sx={{ borderRadius: 2, boxShadow: 3 }}
+        >
+          <Table>
+            <TableHead sx={{ bgcolor: "#0A3161" }}>
+              <TableRow>
+                <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                  Property Address
+                </TableCell>
+                <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                  Households
+                </TableCell>
+                <TableCell
+                  align="right"
+                  sx={{ color: "white", fontWeight: "bold" }}
+                >
+                  Actions
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {households
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((house) => (
+                  <React.Fragment key={house.address}>
+                    <TableRow
+                      hover
+                      onClick={() =>
+                        setExpandedHouse(
+                          expandedHouse === house.address ? "" : house.address
+                        )
+                      }
+                      sx={{ cursor: "pointer" }}
+                    >
+                      <TableCell>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Home color="action" />
+                          <Typography fontWeight="bold">
+                            {house.address}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          badgeContent={house.voters.length}
+                          color="error"
+                          overlap="circular"
+                        >
+                          <Chip label="Voters" size="small" />
+                        </Badge>
+                      </TableCell>
+                      <TableCell align="right">
+                        {expandedHouse === house.address ? (
+                          <ExpandLess />
+                        ) : (
+                          <ExpandMore />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell colSpan={3} sx={{ py: 0 }}>
+                        <Collapse
+                          in={expandedHouse === house.address}
+                          timeout="auto"
+                          unmountOnExit
+                        >
+                          <Box sx={{ p: 2, bgcolor: "#f1f3f5" }}>
+                            {house.voters.map((v: any) => (
+                              <Box
+                                key={v.voter_id}
+                                display="flex"
+                                justifyContent="space-between"
+                                alignItems="center"
+                                sx={{
+                                  py: 1,
+                                  borderBottom: "1px solid #dee2e6",
+                                }}
                               >
-                                {house.city}, PA {house.zip_code}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            badgeContent={house.voters.length}
-                            color="primary"
-                          >
-                            <Chip label="People" size="small" />
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {phones.length > 0 ? phones.join(" • ") : "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Box display="flex" gap={1} alignItems="center">
-                            {phones.map((p) => (
-                              <>
-                                <IconButton
-                                  component="a"
-                                  href={`tel:${p.replace(/\D/g, "")}`}
-                                  size="small"
-                                  sx={{
-                                    bgcolor: "white",
-                                    color: "success.main",
-                                  }}
-                                >
-                                  <Phone fontSize="small" />
-                                </IconButton>
-                                <IconButton
-                                  component="a"
-                                  href={`sms:${p.replace(/\D/g, "")}`}
-                                  size="small"
-                                  sx={{ bgcolor: "white", color: "info.main" }}
-                                >
-                                  <Message fontSize="small" />
-                                </IconButton>{" "}
-                                •
-                              </>
-                            ))}
-                            {expandedHouse === house.address ? (
-                              <ExpandLess />
-                            ) : (
-                              <ExpandMore />
-                            )}
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-
-                      {/* EXPANDED VOTER DETAILS */}
-                      <TableRow>
-                        <TableCell colSpan={4} sx={{ p: 0 }}>
-                          <Collapse
-                            in={expandedHouse === house.address}
-                            timeout="auto"
-                          >
-                            <Box sx={{ bgcolor: "#f9f9f9", p: 3 }}>
-                              {house.voters.map((v: any) => (
-                                <Box
-                                  key={v.voter_id}
-                                  sx={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    py: 1.5,
-                                    borderBottom: "1px solid #eee",
-                                  }}
-                                >
-                                  <Box>
-                                    <Typography fontWeight="medium">
-                                      {v.full_name} ({v.age || "?"})
-                                    </Typography>
-                                    <Box display="flex" gap={1} mt={0.5}>
-                                      <Chip
-                                        label={v.party || "N/A"}
-                                        size="small"
-                                        color={
-                                          v.party === "R"
-                                            ? "error"
-                                            : v.party === "D"
-                                            ? "primary"
-                                            : "default"
-                                        }
-                                      />
-                                      <Chip
-                                        label={v.turnout_score_general || 0}
-                                        size="small"
-                                        color="success"
-                                      />
-                                    </Box>
-                                  </Box>
+                                <Box>
+                                  <Typography variant="body2" fontWeight="bold">
+                                    {v.full_name} ({v.age})
+                                  </Typography>
+                                  <Chip
+                                    label={v.party}
+                                    size="small"
+                                    color={
+                                      v.party === "R" ? "error" : "primary"
+                                    }
+                                    sx={{ height: 20, fontSize: 10, mt: 0.5 }}
+                                  />
+                                </Box>
+                                <Box>
                                   <IconButton
+                                    color="success"
+                                    onClick={() =>
+                                      window.open(`tel:${v.phone_mobile}`)
+                                    }
+                                  >
+                                    <Phone />
+                                  </IconButton>
+                                  <IconButton
+                                    color="primary"
                                     onClick={() => {
                                       setSelectedVoter(v);
                                       setOpenNote(true);
@@ -371,30 +301,25 @@ export default function WalkListPage() {
                                     <AddComment />
                                   </IconButton>
                                 </Box>
-                              ))}
-                            </Box>
-                          </Collapse>
-                        </TableCell>
-                      </TableRow>
-                    </>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
+                              </Box>
+                            ))}
+                          </Box>
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
+                ))}
+            </TableBody>
+          </Table>
           <TablePagination
+            component="div"
             count={households.length}
             page={page}
             onPageChange={(_, p) => setPage(p)}
             rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={(e) => {
-              setRowsPerPage(+e.target.value);
-              setPage(0);
-            }}
-            rowsPerPageOptions={[10, 25, 50]}
+            onRowsPerPageChange={(e) => setRowsPerPage(+e.target.value)}
           />
-        </Paper>
+        </TableContainer>
       )}
 
       {/* Note Dialog */}
@@ -404,15 +329,15 @@ export default function WalkListPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Add Note — {selectedVoter?.full_name}</DialogTitle>
+        <DialogTitle>Canvass Note: {selectedVoter?.full_name}</DialogTitle>
         <DialogContent>
           <TextField
             multiline
-            rows={5}
+            rows={4}
             fullWidth
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Spoke with voter..."
+            placeholder="Door knocked, voter was..."
             sx={{ mt: 2 }}
           />
         </DialogContent>
@@ -422,8 +347,9 @@ export default function WalkListPage() {
             variant="contained"
             onClick={handleAddNote}
             disabled={!noteText.trim()}
+            sx={{ bgcolor: "#B22234" }}
           >
-            Save Note
+            Save Entry
           </Button>
         </DialogActions>
       </Dialog>

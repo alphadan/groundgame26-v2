@@ -1,70 +1,63 @@
-// src/app/dashboard/TestFetch.tsx - TEMPORARY DIAGNOSTIC FILE
-
-import React, { useEffect, useState } from "react";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "../../lib/firebase"; // Adjust path if necessary
-import { CircularProgress, Typography, Box } from "@mui/material";
+import React, { useState } from "react";
+import { collection, getDocs, query } from "firebase/firestore";
+import { db, auth } from "../../lib/firebase";
+import { Button, Box, Typography, Paper, Divider } from "@mui/material";
 
 export default function TestFetch() {
-  const [loading, setLoading] = useState(true);
-  const [success, setSuccess] = useState(false);
+  const [log, setLog] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
+  const addLog = (msg: string) =>
+    setLog((prev) => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
+
+  const runSdkQuery = async () => {
     setLoading(true);
-    setSuccess(false);
-
-    console.log("TEST FETCH: Starting isolated query...");
+    addLog("🔍 Starting Firestore SDK Query...");
 
     try {
-      unsubscribe = onSnapshot(
-        collection(db, "counties"),
-        (snapshot) => {
-          // SUCCESS CALLBACK (This is the log we need to see!)
-          console.log(
-            "✅ TEST FETCH SUCCESS! Data received. Size:",
-            snapshot.size
-          );
-          setSuccess(true);
-          setLoading(false);
-        },
-        (error) => {
-          // ERROR CALLBACK
-          console.error("❌ TEST FETCH FAILURE! Error:", error);
-          setLoading(false);
-        }
-      );
-    } catch (e) {
-      // SYNCHRONOUS ERROR
-      console.error("❌ TEST FETCH Sync error:", e);
+      const colRef = collection(db, "counties");
+      const snapshot = await getDocs(query(colRef));
+      addLog(`✅ SUCCESS: Found ${snapshot.size} docs.`);
+    } catch (err: any) {
+      addLog(`❌ SDK ERROR: [${err.code}] ${err.message}`);
+    } finally {
       setLoading(false);
     }
-
-    // CRITICAL CLEANUP: Runs when the component unmounts
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-        console.log("TEST FETCH: Cleanup finished.");
-      }
-    };
-  }, []); // Runs only ONCE when the component mounts
+  };
 
   return (
-    <Box
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      minHeight="70vh"
-      flexDirection="column"
-    >
-      {loading && <CircularProgress />}
-      <Typography ml={2} variant="h6">
-        {loading
-          ? "Loading Test Data (Checking Firestore Connection)..."
-          : success
-          ? "SUCCESS: Isolated Query Completed."
-          : "FAILURE: See console for error."}
+    <Paper sx={{ p: 4, maxWidth: 800, mx: "auto", mt: 4 }}>
+      <Typography variant="h5" gutterBottom>
+        Database Connectivity Diagnostics
       </Typography>
-    </Box>
+
+      <Box display="flex" gap={2} mb={3}>
+        <Button variant="contained" onClick={runSdkQuery} disabled={loading}>
+          {loading ? "Querying..." : "Test Firestore SDK"}
+        </Button>
+      </Box>
+
+      <Typography variant="subtitle2" color="textSecondary">
+        System Logs:
+      </Typography>
+      <Box
+        sx={{
+          bgcolor: "#1e1e1e",
+          color: "#00ff00",
+          p: 2,
+          borderRadius: 1,
+          height: 200,
+          overflow: "auto",
+          fontFamily: "monospace",
+          mt: 1,
+        }}
+      >
+        {log.map((line, i) => (
+          <Typography key={i} variant="caption" display="block">
+            {line}
+          </Typography>
+        ))}
+      </Box>
+    </Paper>
   );
 }

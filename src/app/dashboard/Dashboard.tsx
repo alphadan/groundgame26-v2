@@ -11,118 +11,58 @@ import {
   Select,
   MenuItem,
   Alert,
+  Chip,
 } from "@mui/material";
 import {
   collection,
   onSnapshot,
-  getDocs, // Keeping getDocs for reference, but using onSnapshot
+  query,
+  orderBy,
+  QuerySnapshot,
+  DocumentData,
+  FirestoreError,
 } from "firebase/firestore";
-import { enableNetwork } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { County } from "../../types/County";
 
 export default function Dashboard() {
-  const { user, claims } = useAuth();
-  const [loading, setLoading] = useState(true);
+  // 1. Pull isLoaded to ensure the Gatekeeper has finished
+  const { user, claims, isLoaded } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [counties, setCounties] = useState<County[]>([]);
   const [selectedCounty, setSelectedCounty] = useState("");
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const role = claims?.role || "unknown";
-
-  // 1. Memoize isStateAdmin to create a stable dependency
   const isStateAdmin = useMemo(() => claims?.role === "state_admin", [claims]);
 
-  // Use a simplified loading state check tied only to the fetch
   useEffect(() => {
-    // If we're not an admin, we aren't loading the county data
-    if (!isStateAdmin) {
-      setLoading(false);
-    }
-  }, [isStateAdmin]);
+    // 1. Create a variable to hold the 'hang up' function
+    let unsubscribe: () => void;
 
-  // Enable network access (optional, but good practice if disabling elsewhere)
-  useEffect(() => {
-    enableNetwork(db);
-    console.log("Forced Firestore network enable");
-  }, []);
+    const q = query(collection(db, "counties"), orderBy("name"));
 
-  // Fetch active counties — only for state admins
-  useEffect(() => {
-    // 2. CRITICAL SCOPE FIX: Declare the unsubscribe variable here
-    let unsubscribeListener: (() => void) | undefined;
-
-    // 3. CRITICAL GUARD: Stop the effect if claims or user is not yet stable/present
-    if (!claims) {
-      return;
-    }
-
-    if (!isStateAdmin) {
-      console.log("Not state_admin — skipping county fetch");
-      setLoading(false);
-      return;
-    }
-
-    console.log("User is state_admin — starting county fetch");
-
-    // The logic is now inside the useEffect for better scope control
-    setLoading(true);
-    setFetchError(null);
-
-    const collectionRef = collection(db, "counties");
-
-    try {
-      console.log("Executing onSnapshot() diagnostic...");
-
-      unsubscribeListener = onSnapshot(
-        collectionRef,
-        (snapshot) => {
-          // SUCCESS PATH
-          console.log(
-            "✅ onSnapshot successful! Data received. Size:",
-            snapshot.size
-          );
-          const fetchedCounties = snapshot.docs.map(
-            (doc) =>
-              ({
-                id: doc.id,
-                ...doc.data(),
-              } as County)
-          );
-          setCounties(fetchedCounties);
-          setLoading(false);
-        },
-        (error: any) => {
-          // ERROR PATH
-          console.error("❌ onSnapshot FAILED:", error);
-          setFetchError(error.message || "Failed to load counties.");
-          setLoading(false);
-        }
+    // 2. Start the listener and save the returned function to our variable
+    unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as County)
       );
-    } catch (err: any) {
-      // SYNCHRONOUS ERROR PATH (rare)
-      console.error("❌ onSnapshot failed synchronously:", err);
-      setFetchError(err.message || "Query failed to start.");
+      setCounties(data);
       setLoading(false);
-    }
+    });
 
-    // 4. CRITICAL CLEANUP: Return the cleanup function, which can now access
-    //    the outer 'unsubscribeListener' variable.
+    // 3. THE CLEANUP: This is the 'unsubscribe' method
+    // React calls this automatically when the component is destroyed
     return () => {
-      if (unsubscribeListener) {
-        console.log("Dashboard: Cleaning up onSnapshot listener.");
-        unsubscribeListener();
+      if (unsubscribe) {
+        console.log("🧹 Hanging up the listener...");
+        unsubscribe();
       }
     };
+  }, [user?.uid, isStateAdmin]);
 
-    // 5. Stable Dependency Array
-  }, [claims, isStateAdmin]);
-  // NOTE: isStateAdmin depends on claims, but having both helps ensure the effect
-  // only runs once claims has a stable value set by the AuthProvider.
-
-  // Component rendering checks
-  if (!user || !claims) {
-    // This should only show briefly due to App.tsx loading guard
+  // Phase 1: Wait for AuthContext Gatekeeper
+  if (!isLoaded) {
     return (
       <Box
         display="flex"
@@ -130,7 +70,7 @@ export default function Dashboard() {
         alignItems="center"
         minHeight="70vh"
       >
-        <CircularProgress />
+        <CircularProgress sx={{ color: "#B22234" }} />
       </Box>
     );
   }
@@ -141,49 +81,41 @@ export default function Dashboard() {
         Dashboard
       </Typography>
 
-      {/* Welcome Card */}
-      <Paper sx={{ p: 4, mb: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Welcome back, {user.displayName || user.email}
+      <Paper sx={{ p: 4, mb: 4, borderRadius: 2 }}>
+        <Typography variant="h6">
+          Welcome, {user?.displayName || user?.email}
         </Typography>
-        <Typography variant="body1">
-          <strong>Role:</strong> {role.replace("_", " ").toUpperCase()}
+        <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+          <strong>Authorized Role:</strong>{" "}
+          {role.replace("_", " ").toUpperCase()}
         </Typography>
       </Paper>
 
-      {/* County Selector — ONLY for state_admin */}
       {isStateAdmin && (
-        <Paper sx={{ p: 4, mb: 4 }}>
+        <Paper sx={{ p: 4, mb: 4, borderRadius: 2 }}>
           <Typography variant="h6" gutterBottom>
-            Select County
+            State Administrator: County Control
           </Typography>
 
-          {fetchError && (
+          {fetchError ? (
             <Alert severity="error" sx={{ mb: 2 }}>
-              Error: {fetchError}
+              {fetchError}
             </Alert>
-          )}
-
-          {loading ? (
-            <Box display="flex" justifyContent="center" my={4}>
-              <CircularProgress />
-              <Typography ml={2}>Loading counties...</Typography>
+          ) : loading ? (
+            <Box display="flex" alignItems="center" gap={2} my={2}>
+              <CircularProgress size={24} />
+              <Typography>Synchronizing county data...</Typography>
             </Box>
-          ) : counties.length === 0 && !fetchError ? (
-            <Alert severity="info">
-              No active counties found in Firestore.
-            </Alert>
           ) : (
             <FormControl fullWidth>
-              <InputLabel id="county-select-label">County</InputLabel>
+              <InputLabel>Active Counties</InputLabel>
               <Select
-                labelId="county-select-label"
                 value={selectedCounty}
-                label="County"
+                label="Active Counties"
                 onChange={(e) => setSelectedCounty(e.target.value)}
               >
                 <MenuItem value="">
-                  <em>All Counties</em>
+                  <em>Show All Active</em>
                 </MenuItem>
                 {counties.map((county) => (
                   <MenuItem key={county.id} value={county.code}>
@@ -196,15 +128,20 @@ export default function Dashboard() {
         </Paper>
       )}
 
-      {/* Future KPI Section */}
-      <Paper sx={{ p: 4 }}>
+      <Paper sx={{ p: 4, borderRadius: 2 }}>
         <Typography variant="h6" gutterBottom>
           Key Performance Indicators
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Coming soon: Bar charts for voter registration, mail-in ballots, and
-          new volunteers by age group.
-          {selectedCounty && ` (Filtered to ${selectedCounty})`}
+          Data visualization modules will initialize once a county is selected
+          above.
+          {selectedCounty && (
+            <Chip
+              label={`Focus: ${selectedCounty.toUpperCase()}`}
+              sx={{ ml: 1 }}
+              size="small"
+            />
+          )}
         </Typography>
       </Paper>
     </Box>

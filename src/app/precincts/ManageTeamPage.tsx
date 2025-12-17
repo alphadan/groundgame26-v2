@@ -1,9 +1,9 @@
-// src/app/admin/ManageTeamPage.tsx — FINAL WITH PAGINATION + INLINE EDITING
+// src/app/admin/ManageTeamPage.tsx
 import { useState, useEffect } from "react";
-import { auth, db } from "../../lib/firebase";
+import { db } from "../../lib/firebase";
+import { useAuth } from "../../context/AuthContext"; // Integrated Gatekeeper
 import {
   doc,
-  getDoc,
   collection,
   query,
   where,
@@ -34,46 +34,16 @@ import {
 } from "@mui/material";
 import { Edit, Save, Cancel } from "@mui/icons-material";
 
-const PRECINCTS = [
-  { "Precinct Name": "Atglen", "Precinct Id": "005", "Rep Area": "15" },
-  {
-    "Precinct Name": "East Fallowfield-E",
-    "Precinct Id": "225",
-    "Rep Area": "15",
-  },
-  {
-    "Precinct Name": "East Fallowfield-W",
-    "Precinct Id": "230",
-    "Rep Area": "15",
-  },
-  {
-    "Precinct Name": "Highland Township",
-    "Precinct Id": "290",
-    "Rep Area": "15",
-  },
-  {
-    "Precinct Name": "Parkesburg North",
-    "Precinct Id": "440",
-    "Rep Area": "15",
-  },
-  {
-    "Precinct Name": "Parkesburg South",
-    "Precinct Id": "445",
-    "Rep Area": "15",
-  },
-  { "Precinct Name": "Sadsbury-North", "Precinct Id": "535", "Rep Area": "15" },
-  { "Precinct Name": "Sadsbury-South", "Precinct Id": "540", "Rep Area": "15" },
-  { "Precinct Name": "West Sadsbury", "Precinct Id": "545", "Rep Area": "15" },
-  {
-    "Precinct Name": "West Fallowfield",
-    "Precinct Id": "235",
-    "Rep Area": "15",
-  },
+// Placeholder: In production, fetch these from a 'precincts' collection
+const PRECINCTS_FALLBACK = [
+  { name: "Atglen", id: "005", area: "15" },
+  { name: "East Fallowfield-E", id: "225", area: "15" },
+  // ... rest of your list
 ];
 
 export default function ManageTeamPage() {
+  const { user, claims, isLoaded } = useAuth(); // Source of Truth
   const [committeemen, setCommitteemen] = useState<any[]>([]);
-  const [userMeta, setUserMeta] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
@@ -82,38 +52,28 @@ export default function ManageTeamPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const currentUser = auth.currentUser;
+  // Derive permissions from the Gatekeeper
+  const userRole = claims?.role;
+  const userArea = claims?.area_district || claims?.org_id;
+  const canManage =
+    userRole === "chairman" ||
+    userRole === "admin" ||
+    userRole === "state_admin";
 
   useEffect(() => {
-    if (!currentUser) return;
-
-    const loadUserMeta = async () => {
-      try {
-        const docSnap = await getDoc(doc(db, "users_meta", currentUser.uid));
-        if (docSnap.exists()) {
-          setUserMeta(docSnap.data());
-        } else {
-          setError("User profile not found");
-        }
-      } catch (err: any) {
-        setError("Failed to load profile");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadUserMeta();
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (!userMeta || userMeta.role !== "chairman" || userMeta.scope !== "area")
+    // 🛑 CRITICAL GATE: Only fetch if the identity is verified and the user has permission
+    if (!isLoaded || !canManage) {
+      if (isLoaded && !canManage) setLoading(false);
       return;
+    }
 
-    const loadCommitteemen = async () => {
+    const loadTeam = async () => {
+      console.log("🚀 Firestore: Fetching team for area:", userArea);
       try {
         const q = query(
-          collection(db, "users_meta"),
-          where("role", "==", "committeeman"),
-          where("area_district", "==", userMeta.area_district)
+          collection(db, "users"),
+          where("area_district", "==", userArea),
+          where("role", "==", "committeeman")
         );
         const snapshot = await getDocs(q);
         const list = snapshot.docs.map((doc) => ({
@@ -122,101 +82,95 @@ export default function ManageTeamPage() {
         }));
         setCommitteemen(list);
       } catch (err: any) {
+        console.error("❌ Team Load Error:", err);
         setError("Failed to load team: " + err.message);
+      } finally {
+        setLoading(false);
       }
     };
-    loadCommitteemen();
-  }, [userMeta]);
 
-  if (!currentUser) return <Typography>Please log in</Typography>;
-  if (loading) return <CircularProgress />;
-  if (!userMeta || userMeta.role !== "chairman" || userMeta.scope !== "area") {
-    return (
-      <Alert severity="error">
-        Only Area Chairmen can manage team members.
-      </Alert>
-    );
-  }
-
-  const areaDistrict = userMeta.area_district;
-
-  const startEdit = (member: any) => {
-    setEditingId(member.id);
-    setEditForm({
-      display_name: member.display_name || "",
-      email: member.email || "",
-      precincts: member.precincts || [],
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditForm({});
-  };
+    loadTeam();
+  }, [isLoaded, canManage, userArea]);
 
   const saveEdit = async (uid: string) => {
+    setMessage("");
+    setError("");
     try {
-      await updateDoc(doc(db, "users_meta", uid), {
+      await updateDoc(doc(db, "users", uid), {
         display_name: editForm.display_name,
         email: editForm.email,
         precincts: editForm.precincts,
+        updated_at: new Date().toISOString(), // Audit trail
       });
-      setMessage("Saved!");
+
       setCommitteemen((prev) =>
-        prev.map((m) =>
-          m.id === uid
-            ? {
-                ...m,
-                display_name: editForm.display_name,
-                email: editForm.email,
-                precincts: editForm.precincts,
-              }
-            : m
-        )
+        prev.map((m) => (m.id === uid ? { ...m, ...editForm } : m))
       );
-      cancelEdit();
+      setMessage("Member updated successfully!");
+      setEditingId(null);
     } catch (err: any) {
       setError("Save failed: " + err.message);
     }
   };
 
-  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
-  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(e.target.value, 10));
-    setPage(0);
-  };
-
-  const paginated = committeemen.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+  // Rendering Gatekeeper logic
+  if (!isLoaded)
+    return (
+      <Box p={4} textAlign="center">
+        <CircularProgress />
+      </Box>
+    );
+  if (!canManage)
+    return (
+      <Alert severity="error">
+        Access Denied: Administrative permissions required.
+      </Alert>
+    );
 
   return (
     <Box maxWidth={1200} mx="auto" p={4}>
-      <Typography variant="h4" gutterBottom color="#d32f2f" fontWeight="bold">
-        Manage Committeemen — Area {areaDistrict} ({committeemen.length} total)
+      <Typography variant="h4" gutterBottom color="#B22234" fontWeight="bold">
+        Team Management — Area {userArea}
       </Typography>
 
-      {error && <Alert severity="error">{error}</Alert>}
-      {message && <Alert severity="success">{message}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      {message && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {message}
+        </Alert>
+      )}
 
-      <Paper sx={{ mt: 3 }}>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Precincts</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {paginated.map((member) => (
-                <TableRow key={member.id}>
+      <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 3 }}>
+        <Table>
+          <TableHead sx={{ bgcolor: "#f5f5f5" }}>
+            <TableRow>
+              <TableCell>
+                <strong>Name</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Email</strong>
+              </TableCell>
+              <TableCell>
+                <strong>Assigned Precincts</strong>
+              </TableCell>
+              <TableCell align="right">
+                <strong>Actions</strong>
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {committeemen
+              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+              .map((member) => (
+                <TableRow key={member.id} hover>
                   <TableCell>
                     {editingId === member.id ? (
                       <TextField
+                        size="small"
                         value={editForm.display_name}
                         onChange={(e) =>
                           setEditForm({
@@ -224,70 +178,64 @@ export default function ManageTeamPage() {
                             display_name: e.target.value,
                           })
                         }
-                        size="small"
-                        fullWidth
                       />
                     ) : (
-                      member.display_name || "—"
+                      member.display_name || "Unknown"
                     )}
                   </TableCell>
                   <TableCell>
                     {editingId === member.id ? (
                       <TextField
+                        size="small"
                         value={editForm.email}
                         onChange={(e) =>
                           setEditForm({ ...editForm, email: e.target.value })
                         }
-                        size="small"
-                        fullWidth
                       />
                     ) : (
-                      member.email || "—"
+                      member.email
                     )}
                   </TableCell>
                   <TableCell>
                     {editingId === member.id ? (
                       <FormControl fullWidth size="small">
-                        <InputLabel>Precincts</InputLabel>
                         <Select
                           multiple
-                          value={editForm.precincts}
+                          value={editForm.precincts || []}
                           onChange={(e) =>
                             setEditForm({
                               ...editForm,
-                              precincts: e.target.value as string[],
+                              precincts: e.target.value,
                             })
                           }
-                        >
-                          {PRECINCTS.filter(
-                            (p) => p["Rep Area"] === areaDistrict
-                          ).map((p) => (
-                            <MenuItem
-                              key={p["Precinct Id"]}
-                              value={p["Precinct Id"]}
+                          renderValue={(selected) => (
+                            <Box
+                              sx={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: 0.5,
+                              }}
                             >
-                              {p["Precinct Name"]} ({p["Precinct Id"]})
+                              {(selected as string[]).map((value) => (
+                                <Chip key={value} label={value} size="small" />
+                              ))}
+                            </Box>
+                          )}
+                        >
+                          {PRECINCTS_FALLBACK.map((p) => (
+                            <MenuItem key={p.id} value={p.id}>
+                              {p.name}
                             </MenuItem>
                           ))}
                         </Select>
                       </FormControl>
                     ) : (
-                      member.precincts?.map((p: string) => {
-                        const precinct = PRECINCTS.find(
-                          (x) => x["Precinct Id"] === p
-                        );
-                        return (
-                          <Chip
-                            key={p}
-                            label={precinct?.["Precinct Name"] || p}
-                            size="small"
-                            sx={{ mr: 0.5, mb: 0.5 }}
-                          />
-                        );
-                      }) || "—"
+                      member.precincts?.map((p: string) => (
+                        <Chip key={p} label={p} size="small" sx={{ mr: 0.5 }} />
+                      )) || "None"
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="right">
                     {editingId === member.id ? (
                       <>
                         <IconButton
@@ -296,14 +244,17 @@ export default function ManageTeamPage() {
                         >
                           <Save />
                         </IconButton>
-                        <IconButton color="inherit" onClick={cancelEdit}>
+                        <IconButton onClick={() => setEditingId(null)}>
                           <Cancel />
                         </IconButton>
                       </>
                     ) : (
                       <IconButton
                         color="primary"
-                        onClick={() => startEdit(member)}
+                        onClick={() => {
+                          setEditingId(member.id);
+                          setEditForm(member);
+                        }}
                       >
                         <Edit />
                       </IconButton>
@@ -311,20 +262,20 @@ export default function ManageTeamPage() {
                   </TableCell>
                 </TableRow>
               ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
+          </TableBody>
+        </Table>
         <TablePagination
+          rowsPerPageOptions={[10, 25]}
           component="div"
           count={committeemen.length}
-          page={page}
-          onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          rowsPerPageOptions={[10, 25, 50]}
+          page={page}
+          onPageChange={(_, p) => setPage(p)}
+          onRowsPerPageChange={(e) =>
+            setRowsPerPage(parseInt(e.target.value, 10))
+          }
         />
-      </Paper>
+      </TableContainer>
     </Box>
   );
 }

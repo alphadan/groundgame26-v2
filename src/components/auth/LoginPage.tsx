@@ -92,9 +92,7 @@ export default function LoginPage() {
         return;
       }
     } catch (err: any) {
-      logFailure(err.code || "unknown_error", {
-        email: email.toLowerCase(),
-      });
+      logFailure(err.code || "unknown_error", email.toLowerCase());
       if (err.code === "auth/multi-factor-auth-required") {
         // ← THIS IS THE CASE YOU'RE HITTING
         await handleMFAChallenge(err);

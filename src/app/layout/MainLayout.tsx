@@ -101,8 +101,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
       : "Dashboard";
 
   const baseMenuItems = [
-    // { text: "My Dashboard", icon: <HomeWork />, path: "/dashboard" },
-    { text: "My Test", icon: <HomeWork />, path: "/dashboard/TestFetch" },
+    { text: "My Dashboard", icon: <HomeWork />, path: "/dashboard/Dashboard" },
+    // { text: "My Test", icon: <HomeWork />, path: "/dashboard/TestFetch" },
     { text: "Reports", icon: <BarChart />, path: "/reports" },
     { text: "Analysis", icon: <Analytics />, path: "/analysis" },
     { text: "Actions", icon: <Campaign />, path: "/actions" },
