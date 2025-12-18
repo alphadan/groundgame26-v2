@@ -1,5 +1,5 @@
 // functions/index.js — FINAL, PRODUCTION-READY (Dec 2025)
-import * as functionsV1 from "firebase-functions/v1"; // replaces const functionsV1 = require("firebase-functions/v1");
+import * as functions from "firebase-functions/v1";
 
 // For 2nd gen HTTPS (or other v2 triggers)
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
@@ -67,7 +67,7 @@ export const queryVoters = onRequest(
 // ================================================================
 // 2. AUTO-CREATE users/{uid} — GEN 1
 // ================================================================
-export const createUserProfile = functionsV1.auth
+export const createUserProfile = functions.auth
   .user()
   .onCreate(async (user) => {
     const uid = user.uid;
@@ -231,7 +231,7 @@ const getPermissionsForRole = (role) => {
 // ================================================================
 // 5. SYNC org_roles → Custom Claims + Permissions
 // ================================================================
-export const syncOrgRolesToClaims = functionsV1.firestore
+export const syncOrgRolesToClaims = functions.firestore
   .document("org_roles/{docId}")
   .onWrite(async (change, context) => {
     const before = change.before.exists ? change.before.data() : null;

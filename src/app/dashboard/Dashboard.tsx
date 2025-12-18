@@ -21,6 +21,12 @@ import {
   QuerySnapshot,
   DocumentData,
   FirestoreError,
+  getDocs,
+  where,
+  getDocsFromServer,
+  serverTimestamp,
+  doc,
+  setDoc,
 } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { County } from "../../types/County";
@@ -36,6 +42,85 @@ export default function Dashboard() {
   const role = claims?.role || "unknown";
   const isStateAdmin = useMemo(() => claims?.role === "state_admin", [claims]);
 
+  // 0. Define the shape of your document
+
+  useEffect(() => {
+    interface TestData {
+      active: boolean;
+      test_field: string;
+      [key: string]: any;
+    }
+
+    // 1. Only run if we have a user AND the Auth Gatekeeper is finished
+    if (!isLoaded || !user?.uid) return;
+
+    let isMounted = true; // Prevents logging on unmounted components
+
+    async function runDiagnostic() {
+      try {
+        const usersRef = collection(db, "test_data");
+        // Use getDocs instead of a persistent listener for a one-time test
+        const querySnapshot = await getDocs(usersRef);
+
+        if (isMounted) {
+          console.log(
+            `✅ [App] Connection Stable. Docs found: ${querySnapshot.size}`
+          );
+        }
+      } catch (error: any) {
+        if (isMounted) console.error("[App] Diagnostic failed:", error.code);
+      }
+    }
+
+    runDiagnostic();
+
+    return () => {
+      isMounted = false;
+    }; // Cleanup
+  }, [user?.uid, isLoaded]); // Depend on isLoaded!
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    interface TestData {
+      active: boolean;
+      test_field: string;
+      [key: string]: any;
+    }
+
+    console.log("[App] user: ", user.uid);
+    console.log("[App] db.app.options.projectId: ", db.app.options.projectId);
+
+    async function testDB(): Promise<void> {
+      try {
+        const usersRef = collection(db, "test_data");
+
+        // You can skip query() and where() entirely
+        const querySnapshot = await getDocs(usersRef);
+
+        if (querySnapshot.empty) {
+          console.log("⚠️ [App] Collection is empty.");
+        } else {
+          console.log(
+            `✅ [App] READ SUCCESS: Found ${querySnapshot.size} docs.`
+          );
+          querySnapshot.forEach((doc) => {
+            console.log(`- Doc ID: ${doc.id}`, doc.data());
+          });
+        }
+      } catch (error: any) {
+        console.error(
+          "[App] Error reading collection:",
+          error.code,
+          error.message
+        );
+      }
+    }
+
+    testDB();
+  }, [user?.uid]);
+
+  /*
   useEffect(() => {
     // 1. Create a variable to hold the 'hang up' function
     let unsubscribe: () => void;
@@ -60,6 +145,7 @@ export default function Dashboard() {
       }
     };
   }, [user?.uid, isStateAdmin]);
+  */
 
   // Phase 1: Wait for AuthContext Gatekeeper
   if (!isLoaded) {

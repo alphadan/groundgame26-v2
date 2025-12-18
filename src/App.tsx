@@ -67,6 +67,7 @@ export default function App() {
     if (user && claims?.role && !hasLoggedEntry.current) {
       logSuccess();
       hasLoggedEntry.current = true;
+      console.log("[App]claims: ", claims);
     }
   }, [user, claims, logSuccess]);
 
