@@ -84,8 +84,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
     county_chair: CountyChairCrown,
     area_chair: AreaChairBadge,
     committeeperson: CommitteepersonShield,
-    committeeman: CommitteepersonShield,
-    committeewoman: CommitteepersonShield,
+    ambassador: CandidateRosette,
   };
 
   // 🛑 FIX: REMOVE the entire useEffect that was re-fetching auth/claims

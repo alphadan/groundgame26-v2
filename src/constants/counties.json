@@ -1,0 +1,471 @@
+[
+  {
+    "code": "01",
+    "name": "Adams County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "02",
+    "name": "Allegheny County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "03",
+    "name": "Armstrong County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "04",
+    "name": "Beaver County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "05",
+    "name": "Bedford County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "06",
+    "name": "Berks County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "07",
+    "name": "Blair County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "08",
+    "name": "Bradford County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "09",
+    "name": "Bucks County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "10",
+    "name": "Butler County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "11",
+    "name": "Cambria County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "12",
+    "name": "Cameron County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "13",
+    "name": "Carbon County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "14",
+    "name": "Centre County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "15",
+    "name": "Chester County",
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "16",
+    "name": "Clarion County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "17",
+    "name": "Clearfield County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "18",
+    "name": "Clinton County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "19",
+    "name": "Columbia County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "20",
+    "name": "Crawford County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "21",
+    "name": "Cumberland County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "22",
+    "name": "Dauphin County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "23",
+    "name": "Delaware County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "24",
+    "name": "Elk County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "25",
+    "name": "Erie County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "26",
+    "name": "Fayette County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "27",
+    "name": "Forest County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "28",
+    "name": "Franklin County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "29",
+    "name": "Fulton County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "30",
+    "name": "Greene County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "31",
+    "name": "Huntingdon County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "32",
+    "name": "Indiana County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "33",
+    "name": "Jefferson County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "34",
+    "name": "Juniata County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "35",
+    "name": "Lackawanna County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "36",
+    "name": "Lancaster County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "37",
+    "name": "Lawrence County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "38",
+    "name": "Lebanon County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "39",
+    "name": "Lehigh County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "40",
+    "name": "Luzerne County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "41",
+    "name": "Lycoming County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "42",
+    "name": "McKean County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "43",
+    "name": "Mercer County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "44",
+    "name": "Mifflin County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "45",
+    "name": "Monroe County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "46",
+    "name": "Montgomery County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "47",
+    "name": "Montour County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "48",
+    "name": "Northampton County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "49",
+    "name": "Northumberland County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "50",
+    "name": "Perry County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "51",
+    "name": "Philadelphia County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "52",
+    "name": "Pike County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "53",
+    "name": "Potter County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "54",
+    "name": "Schuylkill County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "55",
+    "name": "Snyder County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "56",
+    "name": "Somerset County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "57",
+    "name": "Sullivan County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "58",
+    "name": "Susquehanna County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "59",
+    "name": "Tioga County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "60",
+    "name": "Union County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "61",
+    "name": "Venango County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "62",
+    "name": "Warren County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "63",
+    "name": "Washington County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "64",
+    "name": "Wayne County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "65",
+    "name": "Westmoreland County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "66",
+    "name": "Wyoming County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  },
+  {
+    "code": "67",
+    "name": "York County",
+    "active": false,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
+  }
+]

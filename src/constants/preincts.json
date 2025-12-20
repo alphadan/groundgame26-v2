@@ -9,7 +9,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -21,7 +23,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -33,7 +37,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -45,7 +51,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -57,7 +65,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -69,7 +79,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -81,7 +93,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -93,7 +107,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -105,7 +121,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -117,7 +135,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -129,7 +149,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -141,7 +163,9 @@
     "house_district": "S158",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -153,7 +177,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -165,7 +191,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -177,7 +205,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -189,7 +219,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -201,7 +233,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -213,7 +247,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -225,7 +261,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -237,7 +275,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -249,7 +289,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -261,7 +303,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -273,7 +317,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -285,7 +331,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -297,7 +345,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -309,7 +359,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -321,7 +373,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -333,7 +387,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -345,7 +401,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -357,7 +415,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -369,7 +429,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -381,7 +443,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -393,7 +457,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -405,7 +471,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -417,7 +485,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -429,7 +499,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -441,7 +513,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -453,7 +527,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -465,7 +541,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -477,7 +555,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -489,7 +569,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -501,7 +583,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -513,7 +597,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -525,7 +611,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -537,7 +625,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -549,7 +639,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -561,7 +653,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -573,7 +667,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -585,7 +681,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -597,7 +695,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -609,7 +709,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -621,7 +723,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -633,7 +737,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -645,7 +751,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -657,7 +765,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -669,7 +779,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -681,7 +793,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -693,7 +807,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -705,7 +821,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -717,7 +835,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -729,7 +849,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -741,7 +863,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -753,7 +877,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -765,7 +891,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -777,7 +905,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -789,7 +919,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -801,7 +933,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -813,7 +947,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -825,7 +961,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -837,7 +975,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -849,7 +989,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -861,7 +1003,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -873,7 +1017,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -885,7 +1031,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -897,7 +1045,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -909,7 +1059,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -921,7 +1073,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -933,7 +1087,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -945,7 +1101,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -957,7 +1115,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -969,7 +1129,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -981,7 +1143,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -993,7 +1157,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1005,7 +1171,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1017,7 +1185,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1029,7 +1199,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1041,7 +1213,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1053,7 +1227,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1065,7 +1241,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1077,7 +1255,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1089,7 +1269,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1101,7 +1283,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1113,7 +1297,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1125,7 +1311,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1137,7 +1325,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1149,7 +1339,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1161,7 +1353,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1173,7 +1367,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1185,7 +1381,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1197,7 +1395,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1209,7 +1409,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1221,7 +1423,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1233,7 +1437,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1245,7 +1451,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1257,7 +1465,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1269,7 +1479,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1281,7 +1493,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1293,7 +1507,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1305,7 +1521,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1317,7 +1535,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1329,7 +1549,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1341,7 +1563,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1353,7 +1577,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1365,7 +1591,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1377,7 +1605,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1389,7 +1619,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1401,7 +1633,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1413,7 +1647,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1425,7 +1661,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1437,7 +1675,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1449,7 +1689,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1461,7 +1703,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1473,7 +1717,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1485,7 +1731,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1497,7 +1745,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1509,7 +1759,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1521,7 +1773,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1533,7 +1787,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1545,7 +1801,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1557,7 +1815,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1569,7 +1829,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1581,7 +1843,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1593,7 +1857,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1605,7 +1871,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1617,7 +1885,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1629,7 +1899,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1641,7 +1913,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1653,7 +1927,9 @@
     "house_district": "158",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1665,7 +1941,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1677,7 +1955,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1689,7 +1969,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1701,7 +1983,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1713,7 +1997,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1725,7 +2011,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1737,7 +2025,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1749,7 +2039,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1761,7 +2053,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1773,7 +2067,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1785,7 +2081,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1797,7 +2095,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1809,7 +2109,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1821,7 +2123,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1833,7 +2137,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1845,7 +2151,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1857,7 +2165,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1869,7 +2179,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1881,7 +2193,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1893,7 +2207,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1905,7 +2221,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1917,7 +2235,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1929,7 +2249,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1941,7 +2263,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1953,7 +2277,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1965,7 +2291,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1977,7 +2305,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -1989,7 +2319,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2001,7 +2333,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2013,7 +2347,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2025,7 +2361,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2037,7 +2375,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2049,7 +2389,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2061,7 +2403,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2073,7 +2417,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2085,7 +2431,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2097,7 +2445,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2109,7 +2459,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "ddistrict_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2121,7 +2473,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2133,7 +2487,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2145,7 +2501,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2157,7 +2515,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2169,7 +2529,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2181,7 +2543,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2193,7 +2557,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2205,7 +2571,9 @@
     "house_district": "74",
     "county_district": "15",
     "party_rep_district": "district_2",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2217,7 +2585,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2229,7 +2599,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2241,7 +2613,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2253,7 +2627,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2265,7 +2641,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2277,7 +2655,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_7",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2289,7 +2669,9 @@
     "house_district": "155",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2301,7 +2683,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2313,7 +2697,9 @@
     "house_district": "26",
     "county_district": "15",
     "party_rep_district": "district_5",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2325,7 +2711,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2337,7 +2725,9 @@
     "house_district": "13",
     "county_district": "15",
     "party_rep_district": "district_3",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2349,7 +2739,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2361,7 +2753,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2373,7 +2767,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2385,7 +2781,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2397,7 +2795,9 @@
     "house_district": "160",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2409,7 +2809,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2421,7 +2823,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2433,7 +2837,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2445,7 +2851,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2457,7 +2865,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2469,7 +2879,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2481,7 +2893,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2493,7 +2907,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2505,7 +2921,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2517,7 +2935,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2529,7 +2949,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2541,7 +2963,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2553,7 +2977,9 @@
     "house_district": "167",
     "county_district": "15",
     "party_rep_district": "district_6",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2565,7 +2991,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2577,7 +3005,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2589,7 +3019,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2601,7 +3033,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2613,7 +3047,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2625,7 +3061,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2637,7 +3075,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2649,7 +3089,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2661,7 +3103,9 @@
     "house_district": "157",
     "county_district": "15",
     "party_rep_district": "district_1",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2673,7 +3117,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2685,7 +3131,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2697,7 +3145,9 @@
     "house_district": "S156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2709,7 +3159,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2721,7 +3173,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2733,7 +3187,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2745,7 +3201,9 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "county_code": "15",
@@ -2757,6 +3215,8 @@
     "house_district": "156",
     "county_district": "15",
     "party_rep_district": "district_4",
-    "active": true
+    "active": true,
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   }
 ]

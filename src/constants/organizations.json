@@ -15,8 +15,8 @@
     "social_x": "https://x.com/ChesterGOP",
     "social_instagram": "https://instagram.com/chestergop",
     "active": true,
-    "created_at": "timestamp",
-    "updated_at": "timestamp"
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "org_id": "pagop",
@@ -34,8 +34,8 @@
     "social_x": "https://x.com/PAGOP",
     "social_instagram": "https://www.instagram.com/pennsylvaniagop/#",
     "active": true,
-    "created_at": "timestamp",
-    "updated_at": "timestamp"
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "org_id": "chester_tpa",
@@ -52,8 +52,8 @@
     "social_x": "https://x.com/ChesCoGOP/status/1966251346757300600",
     "social_instagam": "https://www.instagram.com/p/DP7rxv2EeT2/",
     "active": true,
-    "created_at": "timestamp",
-    "updated_at": "timestamp"
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "org_id": "chester_yp",
@@ -69,8 +69,8 @@
     "social_facebook": "https://www.facebook.com/ChescoYR/",
     "social_instagram": "https://www.instagram.com/chescoyr/",
     "active": true,
-    "created_at": "timestamp",
-    "updated_at": "timestamp"
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   },
   {
     "org_id": "chester_women",
@@ -84,7 +84,7 @@
     "chair_email": "rwcc17@gmail.com",
     "website": "https://www.republicanwomenchestercounty.com/",
     "active": true,
-    "created_at": "timestamp",
-    "updated_at": "timestamp"
+    "created_at": 1766155224,
+    "last_updated": 1766155224
   }
 ]

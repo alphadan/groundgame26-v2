@@ -8,8 +8,8 @@
     "alternate_name": "Regina Mauro",
     "alternate_uid": null,
     "active": true,
-    "created_at": { ".sv": "timestamp" },
-    "updated_at": { ".sv": "timestamp" }
+    "created_at": 1766155224,
+    "updated_at": 1766155224
   },
   {
     "org_id": "chester_state_party_rep",
@@ -20,8 +20,8 @@
     "alternate_name": "Matthew Thompson",
     "alternate_uid": null,
     "active": true,
-    "created_at": { ".sv": "timestamp" },
-    "updated_at": { ".sv": "timestamp" }
+    "created_at": 1766155224,
+    "updated_at": 1766155224
   },
   {
     "org_id": "chester_state_party_rep",
@@ -32,8 +32,8 @@
     "alternate_name": "Bunny Welsh",
     "alternate_uid": null,
     "active": true,
-    "created_at": { ".sv": "timestamp" },
-    "updated_at": { ".sv": "timestamp" }
+    "created_at": 1766155224,
+    "updated_at": 1766155224
   },
   {
     "org_id": "chester_state_party_rep",
@@ -44,8 +44,8 @@
     "alternate_name": "Paul Linkmeyer",
     "alternate_uid": null,
     "active": true,
-    "created_at": { ".sv": "timestamp" },
-    "updated_at": { ".sv": "timestamp" }
+    "created_at": 1766155224,
+    "updated_at": 1766155224
   },
   {
     "org_id": "chester_state_party_rep",
@@ -56,8 +56,8 @@
     "alternate_name": "Robert Gebhardt",
     "alternate_uid": null,
     "active": true,
-    "created_at": { ".sv": "timestamp" },
-    "updated_at": { ".sv": "timestamp" }
+    "created_at": 1766155224,
+    "updated_at": 1766155224
   },
   {
     "org_id": "chester_state_party_rep",
@@ -67,9 +67,9 @@
     "member_uid": null,
     "alternate_name": "Mike Melesky",
     "alternate_uid": null,
-    "active": true,
-    "created_at": { ".sv": "timestamp" },
-    "updated_at": { ".sv": "timestamp" }
+    "active": true,,
+    "created_at": 1766155224,
+    "updated_at": 1766155224
   },
   {
     "org_id": "chester_state_party_rep",
@@ -80,7 +80,7 @@
     "alternate_name": "Jerry Moore",
     "alternate_uid": null,
     "active": true,
-    "created_at": { ".sv": "timestamp" },
-    "updated_at": { ".sv": "timestamp" }
+    "created_at": 1766155224,
+    "updated_at": 1766155224
   }
 ]

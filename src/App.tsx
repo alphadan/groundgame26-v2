@@ -1,3 +1,4 @@
+// src/App.tsx
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { User, onIdTokenChanged, multiFactor } from "firebase/auth";
@@ -8,6 +9,7 @@ import { Box, CircularProgress, Typography } from "@mui/material";
 
 // Context & Layout
 import { AuthProvider } from "./context/AuthContext";
+import { syncReferenceData } from "./services/referenceDataSync";
 import MainLayout from "./app/layout/MainLayout";
 
 // Components & Security
@@ -17,7 +19,7 @@ import EnrollMFAScreen from "./components/auth/EnrollMFAScreen";
 // Hooks
 import { useActivityLogger } from "./hooks/useActivityLogger";
 
-// PAGE IMPORTS — Ensure these paths match your folder structure
+// PAGE IMPORTS
 import Dashboard from "./app/dashboard/Dashboard";
 import ReportsPage from "./app/reports/ReportsPage";
 import AnalysisPage from "./app/analysis/AnalysisPage";
@@ -32,29 +34,35 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [claims, setClaims] = useState<any>(null);
   const [isReady, setIsReady] = useState(false);
+  const [isSynced, setIsSynced] = useState(false);
+  const [syncError, setSyncError] = useState<Error | null>(null);
 
   const { logSuccess } = useActivityLogger();
   const hasLoggedEntry = useRef(false);
 
+  // Auth listener – runs once on mount
   useEffect(() => {
-    // Single observer for all Auth/Claims logic
     const unsubscribe = onIdTokenChanged(auth, async (currentUser) => {
       if (currentUser) {
         try {
           let tokenResult = await currentUser.getIdTokenResult();
 
-          // Force network refresh only if the 'role' is missing
+          // Force refresh if role is missing
           if (!tokenResult.claims.role) {
-            console.log("⏳ Role missing, syncing from server...");
+            console.log("⏳ Role missing, forcing token refresh...");
             tokenResult = await currentUser.getIdTokenResult(true);
           }
+
           setClaims(tokenResult.claims);
         } catch (err) {
           console.error("Claims sync failed:", err);
         }
       } else {
         setClaims(null);
+        setIsSynced(false); // Reset sync state on logout
+        hasLoggedEntry.current = false;
       }
+
       setUser(currentUser);
       setIsReady(true);
     });
@@ -62,47 +70,35 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Professional Session Logging
+  // Reference data sync – runs only once after auth is ready
   useEffect(() => {
-    if (user && claims?.role && !hasLoggedEntry.current) {
-      logSuccess();
-      hasLoggedEntry.current = true;
-      console.log("[App]claims: ", claims);
-    }
-  }, [user, claims, logSuccess]);
+    if (!user || !claims?.role || !isReady) return;
+    if (hasLoggedEntry.current) return;
 
-  // Memoize routes to prevent layout "flicker" on re-renders
-  const authenticatedRoutes = useMemo(
-    () => (
-      <MainLayout>
-        <Routes>
-          {/* Core Navigation */}
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/analysis" element={<AnalysisPage />} />
-          <Route path="/actions" element={<ActionsPage />} />
+    hasLoggedEntry.current = true;
 
-          {/* Field Operations */}
-          <Route path="/voters" element={<VoterListPage />} />
-          <Route path="/walk-lists" element={<WalkListPage />} />
-          <Route path="/name-search" element={<NameSearchPage />} />
+    console.log("[App] User authenticated — starting one-time reference sync");
 
-          {/* Management & Admin */}
-          <Route path="/manage-team" element={<ManageTeamPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+    // Uncomment to bypass sync during testing (temporary)
+    // setIsSynced(true);
+    // logSuccess();
+    // return;
 
-          {/* Fallbacks */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </MainLayout>
-    ),
-    []
-  );
+    syncReferenceData()
+      .then(() => {
+        console.log("[App] SYNC SUCCESS – setting isSynced to true");
+        setIsSynced(true);
+        logSuccess(); // Assuming it takes no args; remove if your hook needs a message
+      })
+      .catch((err) => {
+        console.error("[App] Sync failed:", err);
+        setSyncError(err);
+        setIsSynced(true); // Proceed anyway (graceful degradation)
+      });
+  }, [user, isReady, claims?.role, logSuccess]);
 
-  // --- SECURITY GATES ---
-
-  if (!isReady) {
+  // Loading screen while auth or sync is in progress
+  if (!isReady || (user && !isSynced)) {
     return (
       <Box
         display="flex"
@@ -114,21 +110,65 @@ export default function App() {
       >
         <CircularProgress size={60} sx={{ color: "#B22234" }} />
         <Typography variant="h6" fontWeight="medium">
-          Initializing GroundGame26...
+          {user
+            ? "Syncing reference data... (this should take a few seconds)"
+            : "Initializing GroundGame26..."}
         </Typography>
       </Box>
     );
   }
 
-  if (!user) return <LoginPage />;
+  // Error screen if sync fails (optional)
+  if (syncError) {
+    return (
+      <Box
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="100vh"
+        gap={3}
+      >
+        <Typography variant="h5" color="error">
+          Failed to load reference data
+        </Typography>
+        <Typography variant="body1">{syncError.message}</Typography>
+        <Typography variant="body2">
+          Please refresh the page or contact support.
+        </Typography>
+      </Box>
+    );
+  }
 
-  // MFA Enforcement
-  const mfaFactors = multiFactor(user).enrolledFactors;
-  if (mfaFactors.length === 0) return <EnrollMFAScreen />;
+  // No user → Login page
+  if (!user) {
+    return <LoginPage />;
+  }
 
+  // User logged in but no MFA → Enroll MFA screen
+  const mfaFactors = multiFactor(user).enrolledFactors ?? [];
+  if (mfaFactors.length === 0) {
+    return <EnrollMFAScreen />;
+  }
+
+  // Success → Authenticated routes
   return (
     <AuthProvider user={user} claims={claims}>
-      {authenticatedRoutes}
+      <MainLayout>
+        <Routes>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/analysis" element={<AnalysisPage />} />
+          <Route path="/actions" element={<ActionsPage />} />
+          <Route path="/voters" element={<VoterListPage />} />
+          <Route path="/walk-lists" element={<WalkListPage />} />
+          <Route path="/name-search" element={<NameSearchPage />} />
+          <Route path="/manage-team" element={<ManageTeamPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </MainLayout>
     </AuthProvider>
   );
 }

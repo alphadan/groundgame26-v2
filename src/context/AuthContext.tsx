@@ -1,9 +1,10 @@
+// src/context/AuthContext.tsx
+
 import React, { createContext, useContext, useMemo } from "react";
 import { User } from "firebase/auth";
 
-// 1. DEFINE INTERFACES FIRST
+// 1. Interfaces
 interface CustomClaims {
-  // Added 'state_admin' here to resolve the comparison error
   role?:
     | "admin"
     | "user"
@@ -20,29 +21,36 @@ interface AuthContextType {
   claims: CustomClaims | null;
   role: string | null;
   isAdmin: boolean;
-  isStateAdmin: boolean; // Added for convenience
+  isStateAdmin: boolean;
   isLoaded: boolean;
 }
 
-// 2. CREATE CONTEXT SECOND (Now it knows what AuthContextType is)
+// 2. Create Context
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// 3. EXPORT HOOK
+// 3. Custom hook (this is what you need to export!)
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
   return context;
 };
 
-// 4. DEFINE PROVIDER
-export const AuthProvider: React.FC<{
+// 4. Provider
+interface AuthProviderProps {
   children: React.ReactNode;
   user: User | null;
   claims: CustomClaims | null;
-}> = ({ children, user, claims }) => {
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({
+  children,
+  user,
+  claims,
+}) => {
   const contextValue = useMemo(() => {
     const role = claims?.role || null;
-
     return {
       user,
       claims,
@@ -57,3 +65,6 @@ export const AuthProvider: React.FC<{
     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };
+
+// Optional: Export the context type if you need it elsewhere
+export type { AuthContextType };
