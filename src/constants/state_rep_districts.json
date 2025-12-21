@@ -1,5 +1,6 @@
 [
   {
+    "id": "PA-SRD-district_1",
     "org_id": "chester_state_party_rep",
     "party_rep_district": "distict_1",
     "name": "Chester County State Republican Party - District 1",
@@ -9,9 +10,10 @@
     "alternate_uid": null,
     "active": true,
     "created_at": 1766155224,
-    "updated_at": 1766155224
+    "last_updated": 1766155224
   },
   {
+    "id": "PA-SRD-district_2",
     "org_id": "chester_state_party_rep",
     "party_rep_district": "distict_2",
     "name": "Chester County State Republican Party - District 2",
@@ -21,9 +23,10 @@
     "alternate_uid": null,
     "active": true,
     "created_at": 1766155224,
-    "updated_at": 1766155224
+    "last_updated": 1766155224
   },
   {
+    "id": "PA-SRD-district_3",
     "org_id": "chester_state_party_rep",
     "party_rep_district": "distict_3",
     "name": "Chester County State Republican Party - District 3",
@@ -33,9 +36,10 @@
     "alternate_uid": null,
     "active": true,
     "created_at": 1766155224,
-    "updated_at": 1766155224
+    "last_updated": 1766155224
   },
   {
+    "id": "PA-SRD-district_4",
     "org_id": "chester_state_party_rep",
     "party_rep_district": "distict_4",
     "name": "Chester County State Republican Party - District 4",
@@ -45,9 +49,10 @@
     "alternate_uid": null,
     "active": true,
     "created_at": 1766155224,
-    "updated_at": 1766155224
+    "last_updated": 1766155224
   },
   {
+    "id": "PA-SRD-district_5",
     "org_id": "chester_state_party_rep",
     "party_rep_district": "distict_5",
     "name": "Chester County State Republican Party - District 5",
@@ -57,9 +62,10 @@
     "alternate_uid": null,
     "active": true,
     "created_at": 1766155224,
-    "updated_at": 1766155224
+    "last_updated": 1766155224
   },
   {
+    "id": "PA-SRD-district_6",
     "org_id": "chester_state_party_rep",
     "party_rep_district": "distict_6",
     "name": "Chester County State Republican Party - District 6",
@@ -69,9 +75,10 @@
     "alternate_uid": null,
     "active": true,,
     "created_at": 1766155224,
-    "updated_at": 1766155224
+    "last_updated": 1766155224
   },
   {
+    "id": "PA-SRD-district_7",
     "org_id": "chester_state_party_rep",
     "party_rep_district": "distict_7",
     "name": "Chester County State Republican Party - District 7",
@@ -81,6 +88,6 @@
     "alternate_uid": null,
     "active": true,
     "created_at": 1766155224,
-    "updated_at": 1766155224
+    "last_updated": 1766155224
   }
 ]

@@ -14,8 +14,8 @@ export interface BaseMetadata {
 // --- Domain Models ---
 
 export interface Organization extends BaseMetadata {
-  // Primary Key in DB: id (formerly org_id)
-  code: string; // e.g., 'gop'
+  id: string;
+  code: string;
   name: string;
   short_name: string;
   county_code: string;
@@ -32,12 +32,13 @@ export interface Organization extends BaseMetadata {
 
 export interface County extends BaseMetadata {
   // Primary Key in DB: id (formerly code '15')
+  id: string;
   name: string;
 }
 
 export interface Area extends BaseMetadata {
   // Compound Key in DB: [org_id+area_district]
-  // 'id' is still present for general reference
+  id: string;
   org_id: string;
   area_district: string;
   name: string;
@@ -47,7 +48,7 @@ export interface Area extends BaseMetadata {
 }
 
 export interface Precinct extends BaseMetadata {
-  // Compound Key in DB: [county_code+precinct_code]
+  id: string;
   county_code: string;
   precinct_code: string;
   name: string;
@@ -59,12 +60,36 @@ export interface Precinct extends BaseMetadata {
   party_rep_district: string;
 }
 
+// --- UserProfile ---
+
+export interface UserProfile {
+  uid: string; // Primary Key
+  display_name: string | null;
+  email: string | null;
+  role: string | null;
+  org_id: string | null;
+  // Use null for empty relational fields to satisfy TypeScript
+  photo_url: string | null;
+}
+
+// --- Org_Role ---
+export interface OrgRole {
+  id: string; // "PA15-R-committeeperson-220"
+  uid: string | null; // ID of the user assigned (null if vacant)
+  role: string;
+  org_id: string;
+  county_code: string;
+  area_district: string;
+  precinct_code: string;
+  is_vacant: boolean;
+}
+
 // --- App Metadata & Sync ---
 
 export interface AppSyncMetadata {
-  key: string; // e.g., 'app_control' or 'reference_data'
-  last_updated: number;
+  key: string;
   current_version: string;
+  last_updated: number;
 }
 
 export interface AppVersionMetadata {

@@ -65,7 +65,7 @@ export const queryVoters = onRequest(
 );
 
 // ================================================================
-// 2. AUTO-CREATE users/{uid} — GEN 1
+// 2. AUTO-CREATE users/{uid} — UPDATED FOR USER INTERFACE
 // ================================================================
 export const createUserProfile = functions.auth
   .user()
@@ -75,24 +75,30 @@ export const createUserProfile = functions.auth
     const displayName = user.displayName || email.split("@")[0];
 
     try {
+      // Aligned with UserProfile interface
       await db.doc(`users/${uid}`).set({
         uid,
         display_name: displayName,
+        preferred_name: displayName.split(" ")[0], // Default to first name
         email,
-        phone: user.phoneNumber || "",
-        photo_url: user.photoURL || "",
-        created_at: FieldValue.serverTimestamp(),
-        last_login: FieldValue.serverTimestamp(),
-        last_ip: "auth-trigger",
+        phone: user.phoneNumber || null,
+        photo_url: user.photoURL || null,
+        role: "base", // Default starting role
+        org_id: "pending", // Placeholder until syncOrgRolesToClaims runs
+        notifications_enabled: true,
         login_count: 1,
+        last_ip: "auth-trigger",
+        created_at: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+        last_login: FieldValue.serverTimestamp(),
       });
 
       await db.collection("login_attempts").add({
         uid,
         email,
         success: true,
+        type: "initial_registration",
         ip: "auth-trigger",
-        user_agent: "firebase-auth",
         timestamp: FieldValue.serverTimestamp(),
       });
     } catch (err) {
@@ -101,43 +107,47 @@ export const createUserProfile = functions.auth
   });
 
 // ================================================================
-// 3. USER ACTIVITY LOG — REFACTORED FOR AUTH STABILITY
+// 3. USER ACTIVITY LOG — UPDATED FOR MFA HANDLING
 // ================================================================
-
 export const logLoginActivity = onCall({ cors: true }, async (request) => {
   const data = request.data || {};
-  const success = Boolean(data.success);
+  const errorCode = data.errorCode || null;
 
-  // 1. Identify the user
-  // If successful login, use request.auth. If failed, use UID passed in data (if available)
+  // 🚀 FIX: If MFA is required, this is a "half-success".
+  // We do NOT want to log a failure or increment login counts yet.
+  if (errorCode === "auth/multi-factor-auth-required") {
+    logger.info(
+      `[Auth] MFA Challenge required for ${data.email}. Skipping failure log.`
+    );
+    return { success: true, mfa_pending: true };
+  }
+
+  const success = Boolean(data.success);
   const uid = request.auth?.uid || data.uid || "anonymous";
   const email =
     request.auth?.token?.email?.toLowerCase() ||
     data.email?.toLowerCase() ||
     "unknown";
-
   const ip = request.rawRequest?.ip || "unknown";
   const userAgent = request.rawRequest?.headers["user-agent"] || "unknown";
 
   try {
-    // 2. Log the attempt (This works for both success and failure)
+    // 1. Log the activity
     await db.collection("login_activity").add({
-      uid: uid,
-      email: email,
-      success: success,
-      error_code: data.errorCode || null,
-      ip: ip,
+      uid,
+      email,
+      success,
+      error_code: errorCode,
+      ip,
       user_agent: userAgent,
       client_timestamp: data.timestamp || null,
       server_timestamp: FieldValue.serverTimestamp(),
       type: success ? "login_success" : "login_failed",
     });
 
-    // 3. Update User Metadata (ONLY if authenticated and successful)
+    // 2. Update Metadata ONLY on full success
     if (success && request.auth) {
       const userRef = db.doc(`users/${request.auth.uid}`);
-
-      // Use a set with merge:true in case the user doc doesn't exist yet
       await userRef.set(
         {
           last_ip: ip,
@@ -151,11 +161,7 @@ export const logLoginActivity = onCall({ cors: true }, async (request) => {
 
     return { success: true };
   } catch (err) {
-    // Log the ACTUAL error to Firebase Logs so you can see it in the console
-    console.error("CRITICAL: logLoginActivity failed internal execution:", err);
-
-    // Do not throw HttpsError for logging—just return a graceful failure
-    // so the user's login experience isn't interrupted by a logging bug
+    console.error("CRITICAL: logLoginActivity failed:", err);
     return { success: false, error: "Internal logging failure" };
   }
 });

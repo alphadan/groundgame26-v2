@@ -13,9 +13,11 @@ firebase.json
 
 # Environment
 .env
+.env*
 .env.local
 .env.production
 .env.*.local
+.env.development
 
 
 # Certs

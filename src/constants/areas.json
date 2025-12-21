@@ -1,6 +1,7 @@
 [
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-01",
+    "org_id": "PA15-O-01",
     "area_district": "01",
     "name": "Area 1",
     "chair_uid": null,
@@ -11,7 +12,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-02",
+    "org_id": "PA15-O-01",
     "area_district": "02",
     "name": "Area 2",
     "chair_uid": null,
@@ -22,7 +24,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-03",
+    "org_id": "PA15-O-01",
     "area_district": "03",
     "name": "Area 3",
     "chair_uid": null,
@@ -33,7 +36,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-04",
+    "org_id": "PA15-O-01",
     "area_district": "04",
     "name": "Area 4",
     "chair_uid": null,
@@ -44,7 +48,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-05",
+    "org_id": "PA15-O-01",
     "area_district": "05",
     "name": "Area 5",
     "chair_uid": null,
@@ -55,7 +60,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-06",
+    "org_id": "PA15-O-01",
     "area_district": "06",
     "name": "Area 6",
     "chair_uid": null,
@@ -66,7 +72,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-07",
+    "org_id": "PA15-O-01",
     "area_district": "07",
     "name": "Area 7",
     "chair_uid": null,
@@ -77,7 +84,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-08",
+    "org_id": "PA15-O-01",
     "area_district": "08",
     "name": "Area 8",
     "chair_uid": null,
@@ -88,7 +96,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-09",
+    "org_id": "PA15-O-01",
     "area_district": "09",
     "name": "Area 9",
     "chair_uid": null,
@@ -99,7 +108,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-10",
+    "org_id": "PA15-O-01",
     "area_district": "10",
     "name": "Area 10",
     "chair_uid": null,
@@ -110,7 +120,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-11",
+    "org_id": "PA15-O-01",
     "area_district": "11",
     "name": "Area 11",
     "chair_uid": null,
@@ -121,7 +132,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-012",
+    "org_id": "PA15-O-01",
     "area_district": "12",
     "name": "Area 12",
     "chair_uid": null,
@@ -132,7 +144,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-13",
+    "org_id": "PA15-O-01",
     "area_district": "13",
     "name": "Area 13",
     "chair_uid": null,
@@ -143,7 +156,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-14",
+    "org_id": "PA15-O-01",
     "area_district": "14",
     "name": "Area 14",
     "chair_uid": null,
@@ -154,7 +168,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-15",
+    "org_id": "PA15-O-01",
     "area_district": "15",
     "name": "Area 15",
     "chair_uid": null,
@@ -165,7 +180,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-16",
+    "org_id": "PA15-O-01",
     "area_district": "16",
     "name": "Area 16",
     "chair_uid": null,
@@ -176,7 +192,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-17",
+    "org_id": "PA15-O-01",
     "area_district": "17",
     "name": "Area 17",
     "chair_uid": null,
@@ -187,7 +204,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-18",
+    "org_id": "PA15-O-01",
     "area_district": "18",
     "name": "Area 18",
     "chair_uid": null,
@@ -198,7 +216,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-19",
+    "org_id": "PA15-O-01",
     "area_district": "19",
     "name": "Area 19",
     "chair_uid": null,
@@ -209,7 +228,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-20",
+    "org_id": "PA15-O-01",
     "area_district": "20",
     "name": "Area 20",
     "chair_uid": null,
@@ -220,7 +240,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-21",
+    "org_id": "PA15-O-01",
     "area_district": "21",
     "name": "Area 21",
     "chair_uid": null,
@@ -231,7 +252,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-22",
+    "org_id": "PA15-O-01",
     "area_district": "22",
     "name": "Area 22",
     "chair_uid": null,
@@ -242,7 +264,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-23",
+    "org_id": "PA15-O-01",
     "area_district": "23",
     "name": "Area 23",
     "chair_uid": null,
@@ -253,7 +276,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-24",
+    "org_id": "PA15-O-01",
     "area_district": "24",
     "name": "Area 24",
     "chair_uid": null,
@@ -264,7 +288,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-25",
+    "org_id": "PA15-O-01",
     "area_district": "25",
     "name": "Area 25",
     "chair_uid": null,
@@ -275,7 +300,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-26",
+    "org_id": "PA15-O-01",
     "area_district": "26",
     "name": "Area 26",
     "chair_uid": null,
@@ -286,7 +312,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-27",
+    "org_id": "PA15-O-01",
     "area_district": "27",
     "name": "Area 27",
     "chair_uid": null,
@@ -297,7 +324,8 @@
     "last_updated": 1766155224
   },
   {
-    "org_id": "chester_gop",
+    "id": "PA15-A-28",
+    "org_id": "PA15-O-01",
     "area_district": "28",
     "name": "Area 28",
     "chair_uid": null,

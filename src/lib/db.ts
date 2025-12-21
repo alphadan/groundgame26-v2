@@ -1,3 +1,4 @@
+// src/lib/db.ts
 import Dexie, { Table } from "dexie";
 import {
   Area,
@@ -8,7 +9,6 @@ import {
 } from "../types";
 
 export class GroundGame26DB extends Dexie {
-  // Define tables with their Typescript interfaces
   organizations!: Table<Organization>;
   counties!: Table<County>;
   areas!: Table<Area>;
@@ -18,12 +18,12 @@ export class GroundGame26DB extends Dexie {
   constructor() {
     super("GroundGame26V2DB");
 
-    this.version(2).stores({
-      organizations: "id, code, county_code",
-      counties: "id, name",
-      areas: "[org_id+area_district], id, active",
-      precincts: "[county_code+precinct_code], id, area_district",
-      app_metadata: "key",
+    // Version 4: Shifting to standardized string IDs as Primary Keys
+    this.version(4).stores({
+      users: "uid, email, org_id, role",
+      state_rep_districts: "id, party_rep_district, member_uid",
+      org_roles: "id, uid, [org_id+role], precinct_code",
+      committeemen_roles: "id, uid, [county_code+area_district+precinct_code]",
     });
   }
 }

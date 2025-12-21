@@ -12,6 +12,10 @@ import {
 // Import your local constants for development
 import * as LocalData from "../constants/referenceData";
 
+/**
+ * ONLY core reference data that is shared across all users.
+ * Sensitive data (users/roles) is fetched fresh via Auth/Firestore.
+ */
 const REFERENCE_COLLECTIONS = [
   "counties",
   "areas",
@@ -20,59 +24,113 @@ const REFERENCE_COLLECTIONS = [
 ] as const;
 
 /**
- * dualPathFetch: Helper to decide whether to use Local Constants or Firestore
+ * ID Generator based on your specified nomenclature
  */
+const generateNomenclatureId = (coll: string, data: any): string => {
+  const state = "PA";
+  const county = data.county_code || "00";
+
+  switch (coll) {
+    case "counties":
+      return `${state}-C-${data.code}`;
+    case "areas":
+      return `${state}${county}-A-${data.area_district}`;
+    case "precincts":
+      return `${state}${county}-P-${data.precinct_code}`;
+    case "organizations":
+      // Uses org_id if available, otherwise falls back to code
+      const orgId = data.org_id || data.code;
+      return `${state}${county}-O-${orgId}`;
+    default:
+      return data.id || "auto";
+  }
+};
+
+/**
+ * dualPathSync: Loads data from local constants during development
+ * to bypass App Check and Firestore 429 rate limits on localhost.
+ */
+// src/services/referenceDataSync.ts
+
 const dualPathSync = async (force: boolean) => {
   const isDev = process.env.NODE_ENV === "development";
 
   if (isDev && !force) {
-    console.log(
-      "💾 [Sync] DEVELOPMENT MODE: Loading reference data from local constants..."
-    );
+    console.log("💾 [Sync] DEV MODE: Mapping local reference constants...");
 
-    // Clear existing tables to ensure a clean local state
     await Promise.all(
       REFERENCE_COLLECTIONS.map((coll) => indexedDb.table(coll).clear())
     );
 
-    // Map local data to their respective IndexedDB tables
-    await indexedDb.counties.bulkPut(LocalData.LOCAL_COUNTIES || []);
-    await indexedDb.areas.bulkPut(LocalData.LOCAL_AREAS || []);
-    await indexedDb.precincts.bulkPut(LocalData.LOCAL_PRECINCTS || []);
-    await indexedDb.organizations.bulkPut(LocalData.LOCAL_ORGANIZATIONS || []);
+    // 1. Map and Load Counties
+    await indexedDb.counties.bulkPut(
+      (LocalData.LOCAL_COUNTIES || []).map((c) => ({
+        ...c,
+        id: generateNomenclatureId("counties", c),
+      }))
+    );
 
-    // Update local metadata so the app knows it is in a "DEV" sync state
-    await indexedDb.app_metadata.put({
-      key: "app_control",
-      current_version: "0.1.0-dev-local",
-      last_updated: Date.now(),
-    });
+    // 2. Map and Load AREAS
+    await indexedDb.areas.bulkPut(
+      ((LocalData.LOCAL_AREAS as any[]) || []).map((a) => ({
+        // Use explicit field mapping to ensure the interface is satisfied
+        id: generateNomenclatureId("areas", a),
+        org_id: a.org_id,
+        area_district: a.area_district,
+        name: a.name || "Unknown Area", // Fallback for the missing 'name' property
+        active: a.active ?? true, // Fallback for missing 'active'
+        created_at: a.created_at || Date.now(),
+        last_updated: a.last_updated || Date.now(),
+        chair_uid: a.chair_uid ?? null,
+        vice_chair_uid: a.vice_chair_uid ?? null,
+        chair_email: a.chair_email ?? null,
+      }))
+    );
 
-    console.log("🏁 [Sync] Local dev sync complete via constants.");
+    // 3. Map and Load Precincts
+    await indexedDb.precincts.bulkPut(
+      (LocalData.LOCAL_PRECINCTS || []).map((p) => ({
+        ...p,
+        id: generateNomenclatureId("precincts", p),
+      }))
+    );
+
+    // 4. Map and Load Organizations
+    await indexedDb.organizations.bulkPut(
+      (LocalData.LOCAL_ORGANIZATIONS || []).map((o) => ({
+        ...o,
+        id: generateNomenclatureId("organizations", o),
+        vice_chair_uid: o.vice_chair_uid ?? null,
+        president_uid: o.president_uid ?? null,
+      }))
+    );
+
+    // ... rest of metadata update
     return true;
   }
-  return false; // Continue to Production Firestore sync
+  return false;
 };
 
 export const syncReferenceData = async (force = false): Promise<boolean> => {
-  // 1. Check if we should use the Local Path (Dev Mode)
+  // Check Dev Path first
   const usedLocalPath = await dualPathSync(force);
   if (usedLocalPath) return true;
 
-  // 2. PRODUCTION PATH: Real-time Cloud Firestore Sync
+  // PRODUCTION PATH: Sync from Firestore
   console.log(
     "🛠️ [Sync] PRODUCTION MODE: Starting handshake with Firestore..."
   );
   try {
     const metadataRef = doc(firestoreDb, "metadata", "app_control");
 
-    console.log("[DEBUG] Attempting to fetch metadata/app_control...");
+    // Fetch metadata to check version
     const metadataSnap = (await Promise.race([
       getDoc(metadataRef),
       new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          reject(new Error("Firestore metadata fetch timeout (10s)"));
-        }, 10000);
+        setTimeout(
+          () => reject(new Error("Firestore handshake timeout (10s)")),
+          10000
+        );
       }),
     ])) as DocumentSnapshot;
 
@@ -81,24 +139,23 @@ export const syncReferenceData = async (force = false): Promise<boolean> => {
       return true;
     }
 
-    const serverData = metadataSnap.data();
-    const serverVersion = serverData?.current_version || "0.0.0";
-    const serverUpdated = serverData?.last_updated || 0;
-
+    const { current_version: serverVersion, last_updated: serverUpdated } =
+      metadataSnap.data() as any;
     const localMeta = await indexedDb.app_metadata.get("app_control");
-    const localVersion = localMeta?.current_version || "0.0.0";
 
-    // Skip download if versions match
-    if (!force && localVersion === serverVersion) {
-      console.log(`✅ [Sync] App is up to date: ${localVersion}`);
+    // Only proceed if version mismatch or forced
+    if (!force && localMeta?.current_version === serverVersion) {
+      console.log(`✅ [Sync] App is up to date: ${serverVersion}`);
       return true;
     }
 
     console.log(
-      `📡 [Sync] Version Mismatch: Local(${localVersion}) -> Server(${serverVersion})`
+      `📡 [Sync] Version Mismatch: Local(${
+        localMeta?.current_version || "none"
+      }) -> Server(${serverVersion})`
     );
 
-    // Clear and re-fill tables from Firestore
+    // Clear and reload
     await Promise.all(
       REFERENCE_COLLECTIONS.map((coll) => indexedDb.table(coll).clear())
     );
@@ -111,9 +168,9 @@ export const syncReferenceData = async (force = false): Promise<boolean> => {
         const data = snapshot.docs
           .map((d) => {
             const docData = d.data();
-            const standardizedDoc = { id: d.id, ...docData };
+            const standardizedId = generateNomenclatureId(coll, docData);
 
-            // Apply standard data integrity filters
+            // Standard data integrity filters
             if (
               coll === "precincts" &&
               (!docData.county_code || !docData.precinct_code)
@@ -121,7 +178,8 @@ export const syncReferenceData = async (force = false): Promise<boolean> => {
               return null;
             if (coll === "areas" && (!docData.org_id || !docData.area_district))
               return null;
-            return standardizedDoc;
+
+            return { ...docData, id: standardizedId };
           })
           .filter((item) => item !== null);
 
@@ -145,6 +203,6 @@ export const syncReferenceData = async (force = false): Promise<boolean> => {
     return true;
   } catch (globalErr) {
     console.error("❌ [Sync] CRITICAL GLOBAL ERROR:", globalErr);
-    return true; // Always return true to release App.tsx loading gate
+    return true; // Return true to unlock the app loading gate
   }
 };
