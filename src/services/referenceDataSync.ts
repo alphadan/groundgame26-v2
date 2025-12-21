@@ -55,6 +55,20 @@ const generateNomenclatureId = (coll: string, data: any): string => {
 const dualPathSync = async (force: boolean) => {
   const isDev = process.env.NODE_ENV === "development";
 
+  // 🚀 DEBUG LOGS TO CLEAR THE CONFUSION
+  console.log(
+    "🔍 [Sync Debug] Exported Names from referenceData:",
+    Object.keys(LocalData)
+  );
+  console.log(
+    "🔍 [Sync Debug] Is LOCAL_COUNTIES defined?",
+    !!LocalData.LOCAL_COUNTIES
+  );
+  console.log(
+    "🔍 [Sync Debug] IndexedDB Tables known to Dexie:",
+    indexedDb.tables.map((t) => t.name)
+  );
+
   if (isDev && !force) {
     console.log("💾 [Sync] DEV MODE: Mapping local reference constants...");
 
