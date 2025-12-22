@@ -68,7 +68,8 @@ export interface UserProfile {
   email: string | null;
   role: string | null;
   org_id: string | null;
-  // Use null for empty relational fields to satisfy TypeScript
+  preferred_name: string | null;
+  phone: string | null;
   photo_url: string | null;
 }
 

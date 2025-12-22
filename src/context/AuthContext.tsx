@@ -12,6 +12,7 @@ interface CustomClaims {
     | "state_admin"
     | "county_admin"
     | "chairman"
+    | "committeeperson"
     | "committeeman";
   [key: string]: any;
 }

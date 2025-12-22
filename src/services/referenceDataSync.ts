@@ -1,4 +1,3 @@
-// src/services/referenceDataSync.ts
 import { db as firestoreDb } from "../lib/firebase";
 import { db as indexedDb } from "../lib/db";
 import {
@@ -11,10 +10,10 @@ import {
 
 // Import your local constants for development
 import * as LocalData from "../constants/referenceData";
+import { UserProfile } from "../types";
 
 /**
  * ONLY core reference data that is shared across all users.
- * Sensitive data (users/roles) is fetched fresh via Auth/Firestore.
  */
 const REFERENCE_COLLECTIONS = [
   "counties",
@@ -27,51 +26,28 @@ const REFERENCE_COLLECTIONS = [
  * ID Generator based on your specified nomenclature
  */
 const generateNomenclatureId = (coll: string, data: any): string => {
-  const state = "PA";
-  const county = data.county_code || "00";
-
   switch (coll) {
     case "counties":
-      return `${state}-C-${data.code}`;
     case "areas":
-      return `${state}${county}-A-${data.area_district}`;
     case "precincts":
-      return `${state}${county}-P-${data.precinct_code}`;
     case "organizations":
-      // Uses org_id if available, otherwise falls back to code
-      const orgId = data.org_id || data.code;
-      return `${state}${county}-O-${orgId}`;
+      return `${data.id}`;
     default:
       return data.id || "auto";
   }
 };
 
 /**
- * dualPathSync: Loads data from local constants during development
- * to bypass App Check and Firestore 429 rate limits on localhost.
+ * dualPathSync: Loads data from local constants during development.
+ * Now incorporates a mock UserProfile for local testing.
  */
-// src/services/referenceDataSync.ts
-
-const dualPathSync = async (force: boolean) => {
+const dualPathSync = async (force: boolean, currentUid?: string) => {
   const isDev = process.env.NODE_ENV === "development";
-
-  // 🚀 DEBUG LOGS TO CLEAR THE CONFUSION
-  console.log(
-    "🔍 [Sync Debug] Exported Names from referenceData:",
-    Object.keys(LocalData)
-  );
-  console.log(
-    "🔍 [Sync Debug] Is LOCAL_COUNTIES defined?",
-    !!LocalData.LOCAL_COUNTIES
-  );
-  console.log(
-    "🔍 [Sync Debug] IndexedDB Tables known to Dexie:",
-    indexedDb.tables.map((t) => t.name)
-  );
 
   if (isDev && !force) {
     console.log("💾 [Sync] DEV MODE: Mapping local reference constants...");
 
+    // Clear reference tables but NOT users (unless forced)
     await Promise.all(
       REFERENCE_COLLECTIONS.map((coll) => indexedDb.table(coll).clear())
     );
@@ -87,12 +63,11 @@ const dualPathSync = async (force: boolean) => {
     // 2. Map and Load AREAS
     await indexedDb.areas.bulkPut(
       ((LocalData.LOCAL_AREAS as any[]) || []).map((a) => ({
-        // Use explicit field mapping to ensure the interface is satisfied
         id: generateNomenclatureId("areas", a),
         org_id: a.org_id,
         area_district: a.area_district,
-        name: a.name || "Unknown Area", // Fallback for the missing 'name' property
-        active: a.active ?? true, // Fallback for missing 'active'
+        name: a.name || "Unknown Area",
+        active: a.active ?? true,
         created_at: a.created_at || Date.now(),
         last_updated: a.last_updated || Date.now(),
         chair_uid: a.chair_uid ?? null,
@@ -119,34 +94,43 @@ const dualPathSync = async (force: boolean) => {
       }))
     );
 
-    // ... rest of metadata update
+    // 5. MOCK USER PROFILE (DEV ONLY)
+    if (currentUid) {
+      const mockProfile: UserProfile = {
+        uid: currentUid,
+        display_name: "Daniel Keane",
+        email: "info@alphabetsigns.com",
+        role: "state_admin",
+        org_id: "PA15-O-1",
+        photo_url: null,
+        preferred_name: "Dan",
+        phone: "+16108066875",
+      };
+      await indexedDb.users.put(mockProfile);
+      console.log("👤 [Sync] DEV MODE: Mock user profile created.");
+    }
+
     return true;
   }
   return false;
 };
 
-export const syncReferenceData = async (force = false): Promise<boolean> => {
+/**
+ * syncReferenceData: Main entry point.
+ * currentUid is passed in to ensure the profile is synced alongside reference data.
+ */
+export const syncReferenceData = async (
+  force = false,
+  currentUid?: string
+): Promise<boolean> => {
   // Check Dev Path first
-  const usedLocalPath = await dualPathSync(force);
+  const usedLocalPath = await dualPathSync(force, currentUid);
   if (usedLocalPath) return true;
 
-  // PRODUCTION PATH: Sync from Firestore
-  console.log(
-    "🛠️ [Sync] PRODUCTION MODE: Starting handshake with Firestore..."
-  );
+  console.log("🛠️ [Sync] PRODUCTION MODE: Handshaking with Firestore...");
   try {
     const metadataRef = doc(firestoreDb, "metadata", "app_control");
-
-    // Fetch metadata to check version
-    const metadataSnap = (await Promise.race([
-      getDoc(metadataRef),
-      new Promise<never>((_, reject) => {
-        setTimeout(
-          () => reject(new Error("Firestore handshake timeout (10s)")),
-          10000
-        );
-      }),
-    ])) as DocumentSnapshot;
+    const metadataSnap = await getDoc(metadataRef);
 
     if (!metadataSnap.exists()) {
       console.error("❌ [Sync] FAILED: metadata/app_control doc not found.");
@@ -157,66 +141,45 @@ export const syncReferenceData = async (force = false): Promise<boolean> => {
       metadataSnap.data() as any;
     const localMeta = await indexedDb.app_metadata.get("app_control");
 
-    // Only proceed if version mismatch or forced
-    if (!force && localMeta?.current_version === serverVersion) {
-      console.log(`✅ [Sync] App is up to date: ${serverVersion}`);
-      return true;
-    }
+    // Check version - if forced or outdated, sync reference data
+    if (force || localMeta?.current_version !== serverVersion) {
+      await Promise.all(
+        REFERENCE_COLLECTIONS.map((coll) => indexedDb.table(coll).clear())
+      );
 
-    console.log(
-      `📡 [Sync] Version Mismatch: Local(${
-        localMeta?.current_version || "none"
-      }) -> Server(${serverVersion})`
-    );
-
-    // Clear and reload
-    await Promise.all(
-      REFERENCE_COLLECTIONS.map((coll) => indexedDb.table(coll).clear())
-    );
-
-    for (const coll of REFERENCE_COLLECTIONS) {
-      try {
-        console.log(`📥 [Sync] Fetching ${coll}...`);
+      for (const coll of REFERENCE_COLLECTIONS) {
         const snapshot = await getDocs(collection(firestoreDb, coll));
-
         const data = snapshot.docs
-          .map((d) => {
-            const docData = d.data();
-            const standardizedId = generateNomenclatureId(coll, docData);
-
-            // Standard data integrity filters
-            if (
-              coll === "precincts" &&
-              (!docData.county_code || !docData.precinct_code)
-            )
-              return null;
-            if (coll === "areas" && (!docData.org_id || !docData.area_district))
-              return null;
-
-            return { ...docData, id: standardizedId };
-          })
+          .map((d) => ({
+            ...d.data(),
+            id: generateNomenclatureId(coll, d.data()),
+          }))
           .filter((item) => item !== null);
 
-        if (data.length > 0) {
-          await indexedDb.table(coll).bulkPut(data);
-          console.log(`✔️ [Sync] Saved ${data.length} records to ${coll}`);
-        }
-      } catch (err) {
-        console.error(`❌ [Sync] Failed to sync ${coll}:`, err);
+        if (data.length > 0) await indexedDb.table(coll).bulkPut(data);
+      }
+
+      await indexedDb.app_metadata.put({
+        key: "app_control",
+        current_version: serverVersion,
+        last_updated: serverUpdated,
+      });
+    }
+
+    // PRODUCTION USER PROFILE SYNC
+    if (currentUid) {
+      const userRef = doc(firestoreDb, "users", currentUid);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const profile = { ...userSnap.data(), uid: currentUid } as UserProfile;
+        await indexedDb.users.put(profile);
+        console.log("👤 [Sync] User profile synced from Firestore.");
       }
     }
 
-    // Save final production metadata
-    await indexedDb.app_metadata.put({
-      key: "app_control",
-      current_version: serverVersion,
-      last_updated: serverUpdated,
-    });
-
-    console.log("🏁 [Sync] Reference data sync complete via Firestore.");
     return true;
   } catch (globalErr) {
     console.error("❌ [Sync] CRITICAL GLOBAL ERROR:", globalErr);
-    return true; // Return true to unlock the app loading gate
+    return true;
   }
 };

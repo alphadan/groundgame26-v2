@@ -6,6 +6,7 @@ import {
   Organization,
   Precinct,
   AppSyncMetadata,
+  UserProfile,
 } from "../types";
 
 export class GroundGame26DB extends Dexie {
@@ -13,12 +14,13 @@ export class GroundGame26DB extends Dexie {
   counties!: Table<County>;
   areas!: Table<Area>;
   precincts!: Table<Precinct>;
+  users!: Table<UserProfile>;
   app_metadata!: Table<AppSyncMetadata>;
 
   constructor() {
     super("GroundGame26V2DB");
 
-    console.log("Initializing DB Version 4");
+    console.log("Initializing DB Version 5");
 
     // Version 4: Shifting to standardized string IDs as Primary Keys
     this.version(5).stores({

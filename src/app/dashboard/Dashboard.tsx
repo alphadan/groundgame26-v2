@@ -1,9 +1,11 @@
 // src/app/dashboard/Dashboard.tsx
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db as indexedDb } from "../../lib/db";
-import { syncReferenceData } from "../../services/referenceDataSync";
+import { getCountySchema } from "../../schemas";
+import { useVoters } from "../../hooks/useVoters";
+import { User } from "firebase/auth";
 import {
   Box,
   Typography,
@@ -13,55 +15,161 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Alert,
   Chip,
+  SelectChangeEvent,
+  Card,
+  CardContent,
+  Grid,
 } from "@mui/material";
+import { BarChart } from "@mui/x-charts/BarChart";
+import { County, Area, CustomClaims } from "../../types";
+
+const VOTER_TURNOUT_STATUS_SQL = (filters: {
+  area?: string;
+  precincts?: string[];
+}) => {
+  const schema = getCountySchema("PA-C-15"); // Force Chester for now
+  const { columns, tableName } = schema;
+
+  let whereClause = "WHERE 1=1";
+  if (filters.area)
+    whereClause += ` AND ${columns.areaDistrict} = '${filters.area}'`;
+  if (filters.precincts?.length)
+    whereClause += ` AND ${columns.precinctCode} IN ('${filters.precincts.join(
+      "','"
+    )}')`;
+
+  return `
+    SELECT 
+      COUNTIF(${columns.party} = 'R') AS total_r,
+      COUNTIF(${columns.party} = 'D') AS total_d,
+      COUNTIF(${columns.party} NOT IN ('R','D') AND ${columns.party} IS NOT NULL) AS total_nf,
+      COUNTIF(${columns.hasMailBallot} = TRUE AND ${columns.party} = 'R') AS mail_r,
+      COUNTIF(${columns.hasMailBallot} = TRUE AND ${columns.party} = 'D') AS mail_d,
+      COUNTIF(${columns.hasMailBallot} = TRUE AND ${columns.party} NOT IN ('R','D') AND ${columns.party} IS NOT NULL) AS mail_nf,
+      COUNTIF(${columns.mailBallotReturned} = TRUE AND ${columns.party} = 'R') AS returned_r,
+      COUNTIF(${columns.mailBallotReturned} = TRUE AND ${columns.party} = 'D') AS returned_d,
+      COUNTIF(${columns.mailBallotReturned} = TRUE AND ${columns.party} NOT IN ('R','D') AND ${columns.party} IS NOT NULL) AS returned_nf,
+      COUNTIF(${columns.modeledParty} = '1 - Hard Republican') AS hard_r,
+      COUNTIF(${columns.modeledParty} LIKE '2 - Weak%') AS weak_r,
+      COUNTIF(${columns.modeledParty} = '3 - Swing') AS swing,
+      COUNTIF(${columns.modeledParty} LIKE '4 - Weak%') AS weak_d,
+      COUNTIF(${columns.modeledParty} = '5 - Hard Democrat') AS hard_d
+    FROM \`${tableName}\`
+    ${whereClause}
+  `;
+};
 
 export default function Dashboard() {
-  const [syncStatus, setSyncStatus] = useState<string>("");
-  const [isSyncing, setIsSyncing] = useState(false);
-  const { user, claims, isLoaded } = useAuth();
-  const [selectedCounty, setSelectedCounty] = useState("");
-
-  const handleManualSync = async () => {
-    setIsSyncing(true);
-    setSyncStatus("Starting manual sync...");
-    try {
-      // We pass 'true' to force the sync regardless of version mismatch
-      const result = await syncReferenceData(true);
-      setSyncStatus(
-        result ? "✅ Sync Success!" : "⚠️ Sync returned false (check console)"
-      );
-    } catch (err: any) {
-      setSyncStatus(`❌ Error: ${err.message}`);
-      console.error("Manual Sync Error:", err);
-    } finally {
-      setIsSyncing(false);
-    }
+  const { user, claims, isLoaded } = useAuth() as {
+    user: User | null;
+    claims: CustomClaims | null;
+    isLoaded: boolean;
   };
 
-  // 1. LIVE QUERY: Replaces manual useState/useEffect for counties
-  // It observes IndexedDB and re-renders automatically when syncReferenceData() finishes.
+  // 1. DEFAULT TO CHESTER COUNTY
+  const [selectedCounty, setSelectedCounty] = useState<string>("pa-c-15");
+  const [selectedArea, setSelectedArea] = useState<string>("");
+  const [selectedPrecinct, setSelectedPrecinct] = useState<string>("");
+
   const counties = useLiveQuery(async () => {
-    if (claims?.role !== "state_admin") return [];
+    if (!isLoaded || !claims?.role || claims.role !== "state_admin") return [];
+    const allCounties = await indexedDb.counties
+      .filter((c: County) => c.active === true)
+      .toArray();
+    const allowedCounties = claims.counties || [];
+    const filtered = allCounties.filter((c) => allowedCounties.includes(c.id));
+    return filtered.sort((a, b) => a.name.localeCompare(b.name));
+  }, [claims, isLoaded]);
 
-    // 1. Get all counties sorted by name
-    const allCounties = await indexedDb.counties.orderBy("name").toArray();
+  const areas = useLiveQuery(async () => {
+    if (!selectedCounty || !claims?.role || claims.role !== "state_admin")
+      return [];
+    const allAreas = await indexedDb.areas
+      .filter((a: Area) => a.active === true)
+      .toArray();
+    const allowedAreas = claims.areas || [];
+    const filtered = allAreas.filter((a) => allowedAreas.includes(a.id));
+    return filtered.sort((a, b) => a.name.localeCompare(b.name));
+  }, [selectedCounty, claims]);
 
-    // 2. Filter by the 'active' property using standard JS logic
-    // This avoids the IndexedDB boolean indexing limitation
-    return allCounties.filter((county) => county.active === true);
-  }, [claims]);
+  const precincts = useLiveQuery(async () => {
+    if (!selectedArea || !claims?.role || claims.role !== "state_admin")
+      return [];
+    const allowedPrecincts = claims.precincts || [];
+    if (allowedPrecincts.length > 0) {
+      const filtered = await indexedDb.precincts
+        .filter((p) => p.active === true && allowedPrecincts.includes(p.id))
+        .toArray();
+      return filtered.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    const allPrecincts = await indexedDb.precincts
+      .filter((p) => p.active === true && p.area_district === selectedArea)
+      .toArray();
+    return allPrecincts.sort((a, b) => a.name.localeCompare(b.name));
+  }, [selectedArea, claims]);
 
-  // 2. Derived States
-  // useLiveQuery returns 'undefined' while loading the initial result
+  const extractAreaCode = (fullId: string | undefined): string | undefined => {
+    if (!fullId) return undefined;
+    const match = fullId.match(/A-(\d+)$/);
+    return match ? match[1] : undefined;
+  };
+
+  const profile = useLiveQuery(
+    () => indexedDb.users.get(user?.uid || ""),
+    [user?.uid]
+  );
+
+  const preferredName =
+    profile?.preferred_name || user?.displayName || user?.email;
+
+  const extractPrecinctCode = (
+    fullId: string | undefined
+  ): string | undefined => {
+    if (!fullId) return undefined;
+    const match = fullId.match(/P-(\d+)$/);
+    if (!match) return undefined;
+    return String(parseInt(match[1], 10));
+  };
+
+  const rawArea =
+    selectedArea !== "" ? extractAreaCode(selectedArea) : undefined;
+  const rawPrecincts =
+    selectedPrecinct !== ""
+      ? [extractPrecinctCode(selectedPrecinct)].filter(
+          (code): code is string => !!code
+        )
+      : claims?.precincts
+          ?.map(extractPrecinctCode)
+          .filter((code): code is string => !!code) || [];
+
+  const filters = {
+    area: rawArea,
+    precincts: rawPrecincts.length > 0 ? rawPrecincts : undefined,
+  };
+  const sql = VOTER_TURNOUT_STATUS_SQL(filters);
+  const { data: turnoutData, isLoading: turnoutLoading } = useVoters(sql);
+  const turnoutStats = turnoutData?.[0] || {};
+
   const isLoadingCounties = isLoaded && counties === undefined;
+  const isLoadingAreas = selectedCounty && areas === undefined;
+  const isLoadingPrecincts = selectedArea && precincts === undefined;
 
-  // Use a different name from the global 'role' to avoid confusion
-  const currentRole = claims?.role || "unknown";
-  const isStateAdmin = useMemo(() => claims?.role === "state_admin", [claims]);
+  const handleCountyChange = (event: SelectChangeEvent) => {
+    setSelectedCounty(event.target.value);
+    setSelectedArea("");
+    setSelectedPrecinct("");
+  };
 
-  // Phase 1: Wait for AuthContext (Gatekeeper)
+  const handleAreaChange = (event: SelectChangeEvent) => {
+    setSelectedArea(event.target.value);
+    setSelectedPrecinct("");
+  };
+
+  const handlePrecinctChange = (event: SelectChangeEvent) => {
+    setSelectedPrecinct(event.target.value);
+  };
+
   if (!isLoaded) {
     return (
       <Box
@@ -80,88 +188,258 @@ export default function Dashboard() {
       <Typography variant="h4" gutterBottom color="#B22234" fontWeight="bold">
         Dashboard
       </Typography>
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" color="text.secondary" mb={3}>
         Last synced: {new Date().toLocaleString()}
       </Typography>
 
-      <Paper sx={{ p: 2, mb: 4, bgcolor: "#f8f9fa", border: "1px solid #ddd" }}>
-        <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-          System Diagnostics
-        </Typography>
-        <Box display="flex" alignItems="center" gap={2}>
-          <button
-            onClick={handleManualSync}
-            disabled={isSyncing}
-            style={{
-              padding: "8px 16px",
-              cursor: isSyncing ? "not-allowed" : "pointer",
-            }}
-          >
-            {isSyncing ? "Syncing..." : "Force One-Click Sync"}
-          </button>
-          <Typography variant="body2">{syncStatus}</Typography>
-        </Box>
-      </Paper>
-
+      {/* WELCOME SECTION */}
       <Paper sx={{ p: 4, mb: 4, borderRadius: 2 }}>
-        <Typography variant="h6">
-          Welcome, {user?.displayName || user?.email}
+        <Typography variant="h6" gutterBottom>
+          Welcome, {preferredName || user?.email}
         </Typography>
-        <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+        <Typography variant="body2" color="text.secondary">
           <strong>Authorized Role:</strong>{" "}
-          {currentRole.replace("_", " ").toUpperCase()}
+          {(claims?.role || "unknown").replace("_", " ").toUpperCase()}
         </Typography>
       </Paper>
 
-      {isStateAdmin && (
+      {/* 2. CHARTS SECTION - REMOVED COLLAPSE */}
+      {selectedCounty && (
+        <Card sx={{ mb: 4 }}>
+          <Box p={2} sx={{ bgcolor: "#D3D3D3", color: "black" }}>
+            <Typography variant="h6" fontWeight="bold">
+              Voter Turnout Status — Detailed Breakdown
+            </Typography>
+            <Typography variant="body2">
+              Party • Mail Ballots • Modeled Strength
+            </Typography>
+          </Box>
+          <CardContent sx={{ pt: 3 }}>
+            {turnoutLoading ? (
+              <Box textAlign="center" py={8}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Grid container spacing={3}>
+                <Grid>
+                  <Paper sx={{ p: 3, height: "100%" }}>
+                    <Typography variant="subtitle1" fontWeight="bold" mb={2}>
+                      Total Voters by Party
+                    </Typography>
+                    <BarChart
+                      dataset={[
+                        { strength: "Hard R", count: turnoutStats.hard_r || 0 },
+                        { strength: "Weak R", count: turnoutStats.weak_r || 0 },
+                        { strength: "Swing", count: turnoutStats.swing || 0 },
+                        { strength: "Weak D", count: turnoutStats.weak_d || 0 },
+                        { strength: "Hard D", count: turnoutStats.hard_d || 0 },
+                      ]}
+                      xAxis={[
+                        {
+                          scaleType: "band",
+                          dataKey: "strength",
+                          colorMap: {
+                            type: "ordinal",
+                            values: [
+                              "Hard R",
+                              "Weak R",
+                              "Swing",
+                              "Weak D",
+                              "Hard D",
+                            ],
+                            colors: [
+                              "#B22234",
+                              "#FF6347",
+                              "#9370DB",
+                              "#6495ED",
+                              "#1E90FF",
+                            ],
+                          },
+                        },
+                      ]}
+                      series={[{ dataKey: "count", label: "Voters" }]}
+                      height={280}
+                      barLabel="value"
+                    />
+                  </Paper>
+                </Grid>
+
+                <Grid>
+                  <Paper sx={{ p: 3, height: "100%" }}>
+                    <Typography variant="subtitle1" fontWeight="bold" mb={2}>
+                      Mail Ballots by Party
+                    </Typography>
+                    <BarChart
+                      dataset={[
+                        { strength: "R", count: turnoutStats.mail_r || 0 },
+                        { strength: "NF", count: turnoutStats.mail_nf || 0 },
+                        { strength: "D", count: turnoutStats.mail_d || 0 },
+                      ]}
+                      xAxis={[
+                        {
+                          scaleType: "band",
+                          dataKey: "strength",
+                          colorMap: {
+                            type: "ordinal",
+                            values: ["R", "NF", "D"],
+                            colors: ["#B22234", "#9370DB", "#1E90FF"],
+                          },
+                        },
+                      ]}
+                      series={[{ dataKey: "count", label: "Voters" }]}
+                      height={280}
+                      barLabel="value"
+                    />
+                  </Paper>
+                </Grid>
+
+                <Grid>
+                  <Paper sx={{ p: 3, height: "100%" }}>
+                    <Typography variant="subtitle1" fontWeight="bold" mb={2}>
+                      Modeled Party Strength
+                    </Typography>
+                    <BarChart
+                      dataset={[
+                        { strength: "1", count: turnoutStats.hard_r || 0 },
+                        { strength: "2", count: turnoutStats.weak_r || 0 },
+                        { strength: "3", count: turnoutStats.swing || 0 },
+                        { strength: "4", count: turnoutStats.weak_d || 0 },
+                        { strength: "5", count: turnoutStats.hard_d || 0 },
+                      ]}
+                      xAxis={[
+                        {
+                          scaleType: "band",
+                          dataKey: "strength",
+                          colorMap: {
+                            type: "ordinal",
+                            values: ["1", "2", "3", "4", "5"],
+                            colors: [
+                              "#FF4500",
+                              "#FFA500",
+                              "#FFD700",
+                              "#32CD32",
+                              "#228B22",
+                            ],
+                          },
+                        },
+                      ]}
+                      series={[{ dataKey: "count", label: "Strength" }]}
+                      height={280}
+                      barLabel="value"
+                    />
+                  </Paper>
+                </Grid>
+              </Grid>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* CONTROLS SECTION */}
+      {claims?.role === "state_admin" && (
         <Paper sx={{ p: 4, mb: 4, borderRadius: 2 }}>
           <Typography variant="h6" gutterBottom>
-            State Administrator: County Control
+            State Administrator Control
           </Typography>
-
-          {/* Show loading indicator ONLY while IndexedDB is initially being read */}
           {isLoadingCounties ? (
-            <Box display="flex" alignItems="center" gap={2} my={2}>
-              <CircularProgress size={24} />
-              <Typography>Accessing local database...</Typography>
-            </Box>
+            <CircularProgress size={24} />
           ) : (
-            <FormControl fullWidth>
+            <FormControl fullWidth sx={{ mb: 3 }}>
               <InputLabel>Active Counties</InputLabel>
               <Select
                 value={selectedCounty}
                 label="Active Counties"
-                onChange={(e) => setSelectedCounty(e.target.value)}
+                onChange={handleCountyChange}
               >
                 <MenuItem value="">
-                  <em>Show All Active</em>
+                  <em>Select a County</em>
                 </MenuItem>
-                {counties?.map((county) => (
-                  <MenuItem key={county.id} value={county.id}>
-                    {county.name}
+                {counties?.map((c: County) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
           )}
+
+          {selectedCounty &&
+            (isLoadingAreas ? (
+              <CircularProgress size={24} sx={{ mb: 3 }} />
+            ) : (
+              <FormControl fullWidth sx={{ mb: 3 }}>
+                <InputLabel>Active Areas</InputLabel>
+                <Select
+                  value={selectedArea}
+                  label="Active Areas"
+                  onChange={handleAreaChange}
+                >
+                  <MenuItem value="">
+                    <em>All Areas</em>
+                  </MenuItem>
+                  {areas?.map((a: Area) => (
+                    <MenuItem key={a.id} value={a.id}>
+                      {a.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ))}
+
+          {selectedArea &&
+            (isLoadingPrecincts ? (
+              <CircularProgress size={24} />
+            ) : (
+              <FormControl fullWidth>
+                <InputLabel>Active Precincts</InputLabel>
+                <Select
+                  value={selectedPrecinct}
+                  label="Active Precincts"
+                  onChange={handlePrecinctChange}
+                >
+                  <MenuItem value="">
+                    <em>All Precincts</em>
+                  </MenuItem>
+                  {precincts?.map((p) => (
+                    <MenuItem key={p.id} value={p.id}>
+                      {p.name} ({p.precinct_code})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ))}
         </Paper>
       )}
 
+      {/* KPI INFO CHIPS */}
       <Paper sx={{ p: 4, borderRadius: 2 }}>
         <Typography variant="h6" gutterBottom>
           Key Performance Indicators
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Data visualization modules will initialize once a county is selected
-          above.
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 1,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            Applied Filters:
+          </Typography>
           {selectedCounty && (
             <Chip
-              label={`Focus: ${selectedCounty.toUpperCase()}`}
-              sx={{ ml: 1 }}
+              label={`County: ${selectedCounty.toUpperCase()}`}
               size="small"
             />
           )}
-        </Typography>
+          {selectedArea && (
+            <Chip label={`Area: ${selectedArea}`} size="small" />
+          )}
+          {selectedPrecinct && (
+            <Chip label={`Precinct: ${selectedPrecinct}`} size="small" />
+          )}
+        </Box>
       </Paper>
     </Box>
   );

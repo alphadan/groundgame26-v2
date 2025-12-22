@@ -45,11 +45,19 @@ export default function App() {
     const unsubscribe = onIdTokenChanged(auth, async (currentUser) => {
       if (currentUser) {
         try {
+          // 1. Get the current result WITHOUT force refresh first
           let tokenResult = await currentUser.getIdTokenResult();
 
-          // Force refresh if role is missing
-          if (!tokenResult.claims.role) {
-            console.log("⏳ Role missing, forcing token refresh...");
+          // 2. ONLY force refresh if the role is missing AND we haven't tried yet
+          // This prevents the infinite looping
+          if (
+            !tokenResult.claims.role &&
+            !sessionStorage.getItem("did_force_refresh")
+          ) {
+            console.log(
+              "⏳ Role missing, attempting one-time force refresh..."
+            );
+            sessionStorage.setItem("did_force_refresh", "true");
             tokenResult = await currentUser.getIdTokenResult(true);
           }
 
@@ -59,10 +67,8 @@ export default function App() {
         }
       } else {
         setClaims(null);
-        setIsSynced(false); // Reset sync state on logout
-        hasLoggedEntry.current = false;
+        sessionStorage.removeItem("did_force_refresh");
       }
-
       setUser(currentUser);
       setIsReady(true);
     });
@@ -77,6 +83,7 @@ export default function App() {
 
     hasLoggedEntry.current = true;
 
+    console.log("[App]claims: ", claims);
     console.log("[App] User authenticated — starting one-time reference sync");
 
     // Uncomment to bypass sync during testing (temporary)
@@ -84,9 +91,9 @@ export default function App() {
     // logSuccess();
     // return;
 
-    syncReferenceData()
+    syncReferenceData(false, user.uid)
       .then(() => {
-        console.log("[App] SYNC SUCCESS – setting isSynced to true");
+        console.log("[App] SYNC SUCCESS - setting isSynced to true");
         setIsSynced(true);
         logSuccess(); // Assuming it takes no args; remove if your hook needs a message
       })
