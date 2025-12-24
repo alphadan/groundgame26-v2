@@ -1,7 +1,7 @@
 // src/services/referenceDataSync.ts
 import { db, ensureDBInitialized, updateAppControlAfterSync } from "../lib/db";
 import { doc, getDoc } from "firebase/firestore";
-import { db as firestoreDb } from "../lib/firebase"; // Adjust path if needed
+import { db as firestoreDb } from "../lib/firebase";
 
 import {
   counties,
@@ -55,8 +55,8 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
       console.error("Failed to load static reference data:", txErr);
     }
 
-    // Fetch current user profile from Firestore
-    let userProfileSynced = false; // ← DECLARED HERE
+    // === Fetch user profile with 5-second timeout ===
+    let userProfileSynced = false;
 
     try {
       console.log("👤 Fetching user profile for UID:", uid);
@@ -67,7 +67,16 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
         );
       } else {
         const userRef = doc(firestoreDb, "users", uid);
-        const userSnap = await getDoc(userRef);
+
+        // Inline timeout wrapper – rejects after 5 seconds
+        const userSnap = await Promise.race([
+          getDoc(userRef),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => {
+              reject(new Error("Firestore read timeout after 5 seconds"));
+            }, 5000)
+          ),
+        ]);
 
         if (userSnap.exists()) {
           const rawData = userSnap.data();
@@ -83,14 +92,21 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
           );
           userProfileSynced = true;
         } else {
-          console.warn("👤 No Firestore document found for current user");
+          console.log("👤 No user document found (normal for new users)");
         }
       }
-    } catch (fetchErr) {
-      console.warn(
-        "⚠️ Failed to fetch user profile from Firestore:",
-        (fetchErr as Error)?.message ?? fetchErr
-      );
+    } catch (fetchErr: any) {
+      if (fetchErr?.message?.includes("timeout")) {
+        console.warn(
+          "⚠️ User profile fetch timed out after 5s – possible Firestore rules or network issue"
+        );
+      } else {
+        console.warn(
+          "⚠️ Failed to fetch user profile:",
+          fetchErr?.message ?? fetchErr
+        );
+      }
+      // Continue without profile – app remains functional
     }
 
     // Final success cleanup

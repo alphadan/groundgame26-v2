@@ -6,7 +6,6 @@ import {
   PhoneMultiFactorGenerator,
   RecaptchaVerifier,
   signOut,
-  User,
 } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import { useNavigate } from "react-router-dom";
@@ -17,7 +16,11 @@ import {
   Typography,
   Alert,
   CircularProgress,
+  Tooltip,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
+import InfoIcon from "@mui/icons-material/Info";
 
 declare global {
   interface Window {
@@ -25,8 +28,32 @@ declare global {
   }
 }
 
+/**
+ * Normalize and validate US phone number
+ * Accepts: 5551234567, (555) 123-4567, 555-123-4567, +15551234567
+ * Returns: +1XXXXXXXXXX or null if invalid
+ */
+const normalizeUSPhone = (input: string): string | null => {
+  if (!input) return null;
+
+  // Remove all non-digits
+  const digits = input.replace(/\D/g, "");
+
+  // Must be 10 or 11 digits
+  if (digits.length === 10) {
+    return `+1${digits}`;
+  }
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+${digits}`;
+  }
+
+  return null;
+};
+
 export default function EnrollMFAScreen() {
-  const [phone, setPhone] = useState("");
+  const [phoneInput, setPhoneInput] = useState(""); // Raw user input
+  const [normalizedPhone, setNormalizedPhone] = useState<string | null>(null);
+  const [inputError, setInputError] = useState(false);
   const [code, setCode] = useState("");
   const [verificationId, setVerificationId] = useState("");
   const [stage, setStage] = useState<"phone" | "code" | "success">("phone");
@@ -39,17 +66,21 @@ export default function EnrollMFAScreen() {
   const verifierRef = useRef<RecaptchaVerifier | null>(null);
   const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // === Safe reCAPTCHA Management ===
+  // === Real-time phone validation ===
+  useEffect(() => {
+    const normalized = normalizeUSPhone(phoneInput);
+    setNormalizedPhone(normalized);
+    setInputError(phoneInput.trim() !== "" && normalized === null);
+  }, [phoneInput]);
+
+  // === Safe reCAPTCHA Management (unchanged from previous hardened version) ===
   const setupRecaptcha = useCallback(async () => {
     if (!containerRef.current) return;
 
-    // Clean up any existing verifier
     if (verifierRef.current) {
       try {
         verifierRef.current.clear();
-      } catch (e) {
-        console.warn("reCAPTCHA cleanup error (ignored):", e);
-      }
+      } catch {}
     }
     if (window.recaptchaVerifier) {
       try {
@@ -62,10 +93,7 @@ export default function EnrollMFAScreen() {
       const verifier = new RecaptchaVerifier(auth, containerRef.current, {
         size: "invisible",
       });
-
-      // Explicitly render to ensure it's ready
       await verifier.render();
-
       verifierRef.current = verifier;
       window.recaptchaVerifier = verifier;
     } catch (err) {
@@ -79,24 +107,19 @@ export default function EnrollMFAScreen() {
       clearTimeout(redirectTimeoutRef.current);
       redirectTimeoutRef.current = null;
     }
-
     try {
       verifierRef.current?.clear();
     } catch {}
     try {
       window.recaptchaVerifier?.clear();
     } catch {}
-
     verifierRef.current = null;
     window.recaptchaVerifier = undefined;
   }, []);
 
   useEffect(() => {
     setupRecaptcha();
-
-    return () => {
-      clearRecaptcha();
-    };
+    return clearRecaptcha;
   }, [setupRecaptcha, clearRecaptcha]);
 
   // === Send SMS Code ===
@@ -104,9 +127,9 @@ export default function EnrollMFAScreen() {
     setError("");
     setMessage("");
 
-    const trimmedPhone = phone.trim();
-    if (!trimmedPhone.match(/^\+\d{10,15}$/)) {
-      setError("Invalid format. Use: +1XXXXXXXXXX");
+    if (!normalizedPhone) {
+      setInputError(true);
+      setError("Please enter a valid US phone number");
       return;
     }
 
@@ -127,7 +150,7 @@ export default function EnrollMFAScreen() {
       const session = await multiFactor(currentUser).getSession();
 
       const phoneInfoOptions = {
-        phoneNumber: trimmedPhone,
+        phoneNumber: normalizedPhone,
         session,
       };
 
@@ -142,24 +165,21 @@ export default function EnrollMFAScreen() {
       setMessage("Code sent! Check your phone.");
     } catch (err: any) {
       console.error("SMS send failed:", err);
-
-      if (err.code === "auth/invalid-phone-number") {
-        setError("Invalid phone number format");
-      } else if (err.code === "auth/missing-phone-number") {
-        setError("Phone number required");
-      } else if (err.code === "auth/requires-recent-login") {
-        setError("Session expired — please log out and log in again.");
-      } else if (err.code === "auth/unverified-email") {
-        setError("Please verify your email first.");
-      } else {
-        setError(err.message || "Failed to send code. Try again.");
-      }
+      const userMsg =
+        err.code === "auth/invalid-phone-number"
+          ? "Invalid phone number"
+          : err.code === "auth/requires-recent-login"
+          ? "Session expired — please log out and log in again."
+          : err.code === "auth/unverified-email"
+          ? "Please verify your email first."
+          : err.message || "Failed to send code";
+      setError(userMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  // === Verify Code & Enroll ===
+  // === Verify Code & Enroll (unchanged) ===
   const verifyCode = async () => {
     if (code.length !== 6) return;
 
@@ -182,28 +202,26 @@ export default function EnrollMFAScreen() {
       setStage("success");
       setMessage("Two-factor authentication enabled!");
 
-      // Safe redirect with cleanup
       redirectTimeoutRef.current = setTimeout(() => {
         navigate("/reports", { replace: true });
       }, 1500);
     } catch (err: any) {
       console.error("MFA enrollment failed:", err);
-      if (err.code === "auth/invalid-verification-code") {
-        setError("Invalid code. Try again.");
-      } else {
-        setError("Enrollment failed: " + (err.message || "Unknown error"));
-      }
+      setError(
+        err.code === "auth/invalid-verification-code"
+          ? "Invalid code. Try again."
+          : "Enrollment failed"
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // === Safe Sign Out Helper ===
   const safeSignOut = async () => {
     try {
       await signOut(auth);
     } catch (e) {
-      console.warn("Sign out failed (ignored):", e);
+      console.warn("Sign out failed:", e);
     } finally {
       navigate("/", { replace: true });
     }
@@ -227,20 +245,39 @@ export default function EnrollMFAScreen() {
         Add your phone for two-factor authentication
       </Typography>
 
-      {/* Hidden reCAPTCHA container */}
       <div ref={containerRef} style={{ display: "none" }} />
 
       {stage === "phone" && (
         <>
           <TextField
             label="Phone Number"
-            placeholder="+1XXXXXXXXXX"
+            placeholder="5551234567 or (555) 123-4567"
             fullWidth
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            value={phoneInput}
+            onChange={(e) => setPhoneInput(e.target.value)}
             margin="normal"
             disabled={loading}
-            helperText="International format required"
+            error={inputError}
+            helperText={
+              inputError
+                ? "Use a valid US number"
+                : "We'll add +1 automatically"
+            }
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <Tooltip
+                    title="Enter your 10-digit US phone number. We'll automatically format it as +1XXXXXXXXXX"
+                    placement="top"
+                    arrow
+                  >
+                    <IconButton size="small">
+                      <InfoIcon fontSize="small" color="action" />
+                    </IconButton>
+                  </Tooltip>
+                </InputAdornment>
+              ),
+            }}
           />
 
           {error && (
@@ -258,7 +295,7 @@ export default function EnrollMFAScreen() {
             variant="contained"
             fullWidth
             onClick={sendCode}
-            disabled={loading || !phone.trim()}
+            disabled={loading || !normalizedPhone}
             sx={{
               mt: 3,
               bgcolor: "#d32f2f",

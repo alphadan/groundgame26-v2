@@ -1,5 +1,103 @@
 import { County, Area, Precinct, Organization } from "../types";
 
+// === Runtime Validation Helpers (Type Guards) ===
+function isValidCounty(entry: any): entry is County {
+  return (
+    typeof entry === "object" &&
+    entry !== null &&
+    typeof entry.id === "string" &&
+    typeof entry.name === "string" &&
+    typeof entry.active === "boolean" &&
+    typeof entry.created_at === "number" &&
+    typeof entry.last_updated === "number"
+  );
+}
+
+function isValidArea(entry: any): entry is Area {
+  return (
+    typeof entry === "object" &&
+    entry !== null &&
+    typeof entry.id === "string" &&
+    typeof entry.org_id === "string" &&
+    typeof entry.area_district === "string" &&
+    typeof entry.name === "string" &&
+    (entry.chair_uid === null || typeof entry.chair_uid === "string") &&
+    (entry.vice_chair_uid === null || typeof entry.vice_chair_uid === "string") &&
+    (entry.chair_email === null || typeof entry.chair_email === "string") &&
+    typeof entry.active === "boolean" &&
+    typeof entry.created_at === "number" &&
+    typeof entry.last_updated === "number"
+  );
+}
+
+function isValidPrecinct(entry: any): entry is Precinct {
+  return (
+    typeof entry === "object" &&
+    entry !== null &&
+    typeof entry.id === "string" &&
+    typeof entry.county_code === "string" &&
+    typeof entry.precinct_code === "string" &&
+    typeof entry.name === "string" &&
+    typeof entry.area_district === "string" &&
+    typeof entry.congressional_district === "string" &&
+    typeof entry.senate_district === "string" &&
+    typeof entry.house_district === "string" &&
+    typeof entry.county_district === "string" &&
+    typeof entry.party_rep_district === "string" &&
+    typeof entry.active === "boolean" &&
+    typeof entry.created_at === "number" &&
+    typeof entry.last_updated === "number"
+  );
+}
+
+function isValidOrganization(entry: any): entry is Organization {
+  return (
+    typeof entry === "object" &&
+    entry !== null &&
+    typeof entry.id === "string" &&
+    typeof entry.code === "string" &&
+    typeof entry.name === "string" &&
+    typeof entry.short_name === "string" &&
+    typeof entry.county_code === "string" &&
+    typeof entry.county_name === "string" &&
+    (entry.chair_uid === null || typeof entry.chair_uid === "string") &&
+    (entry.vice_chair_uid === null || typeof entry.vice_chair_uid === "string") &&
+    (entry.chair_email === null || typeof entry.chair_email === "string") &&
+    (entry.hq_phone === undefined || entry.hq_phone === null || typeof entry.hq_phone === "string") &&
+    (entry.website === undefined || entry.website === null || typeof entry.website === "string") &&
+    (entry.social_facebook === undefined || entry.social_facebook === null || typeof entry.social_facebook === "string") &&
+    (entry.social_x === undefined || entry.social_x === null || typeof entry.social_x === "string") &&
+    (entry.social_instagram === undefined || entry.social_instagram === null || typeof entry.social_instagram === "string") &&
+    typeof entry.active === "boolean" &&
+    typeof entry.created_at === "number" &&
+    typeof entry.last_updated === "number"
+  );
+}
+
+// === Validate and Export (Runtime Safe) ===
+const validateAndExport = <T>(data: any[], validator: (entry: any) => entry is T): T[] => {
+  if (!Array.isArray(data)) {
+    console.error("Invalid data format – expected array");
+    return [];
+  }
+
+  const validated: T[] = [];
+
+  data.forEach((entry, index) => {
+    try {
+      if (validator(entry)) {
+        validated.push(Object.freeze(entry)); // Freeze to prevent mutations
+      } else {
+        console.warn(`Invalid entry at index ${index} – skipped`);
+      }
+    } catch (err) {
+      console.error(`Validation error at index ${index}:`, err);
+    }
+  });
+
+  return Object.freeze(validated); // Freeze the array
+};
+
 export const counties = [
   {
     id: "PA-C-15",

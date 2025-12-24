@@ -3,58 +3,120 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
 
 /**
- * useVoters Hook
- * Executes a raw SQL query against the BigQuery voter database via a secure Cloud Function.
- * Integrates with AuthContext to ensure requests are only made when a valid JWT is available.
+ * Safe SQL Patterns – Only allow predefined safe queries
+ * This prevents arbitrary SQL execution even if token is compromised
  */
-export const useVoters = (sql: string) => {
-  // Access the verified user and loading state from our Gatekeeper context
+const ALLOWED_SQL_PATTERNS = [
+  // Absentee stats placeholder
+  /SELECT\s+COUNTIF\([^)]+\)\s+AS\s+\w+[\s,\w()=']+FROM\s+`groundgame26_voters\.chester_county`/i,
+  // Add more safe patterns as needed
+] as const;
+
+const isSafeSql = (sql: string): boolean => {
+  if (typeof sql !== "string") return false;
+  const trimmed = sql.trim();
+  return ALLOWED_SQL_PATTERNS.some((pattern) => pattern.test(trimmed));
+};
+
+export const useVoters = (sql: string | null | undefined) => {
   const { user, isLoaded } = useAuth();
 
   return useQuery({
-    // Key includes the SQL string to ensure the cache updates when the query changes
-    queryKey: ["voters", sql],
-    
-    queryFn: async () => {
-      // Safety check: double-check for a user object
-      if (!user) throw new Error("Authentication required to fetch voter data.");
+    queryKey: ["voters", sql ?? "empty"],
 
-      // Fetch the latest JWT token from the SDK
-      const token = await user.getIdToken();
-
-      const res = await fetch(
-        "https://us-central1-groundgame26-v2.cloudfunctions.net/queryVoters",
-        {
-          method: "POST",
-          headers: {
-            // Standard professional Bearer token authentication
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ sql }),
-        }
-      );
-
-      // Handle server-side errors
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("Voter Query Error:", errorText);
-        throw new Error(errorText || "An error occurred while querying the voter database.");
+    queryFn: async (): Promise<any> => {
+      // === 1. Parameter validation ===
+      if (!sql || typeof sql !== "string" || sql.trim() === "") {
+        throw new Error("Invalid query: SQL string required");
       }
 
-      return res.json();
+      const trimmedSql = sql.trim();
+
+      // === 2. Security: Enforce allowlist ===
+      if (!isSafeSql(trimmedSql)) {
+        console.error("Blocked unsafe SQL query:", trimmedSql);
+        throw new Error("Invalid query type");
+      }
+
+      // === 3. Auth validation ===
+      if (!user) {
+        throw new Error("Authentication required");
+      }
+
+      let token: string;
+      try {
+        token = await user.getIdToken();
+      } catch (tokenErr) {
+        console.error("Failed to get ID token:", tokenErr);
+        throw new Error("Authentication failed");
+      }
+
+      // === 4. Safe fetch with timeout ===
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+      let res: Response;
+      try {
+        res = await fetch(
+          "https://us-central1-groundgame26-v2.cloudfunctions.net/queryVoters",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ sql: trimmedSql }),
+            signal: controller.signal,
+          }
+        );
+      } catch (fetchErr: any) {
+        if (fetchErr.name === "AbortError") {
+          throw new Error("Query timeout – please try again");
+        }
+        throw new Error("Network error – check your connection");
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      // === 5. Response validation ===
+      if (!res.ok) {
+        let errorMsg = "Query failed";
+        try {
+          const text = await res.text();
+          // Only expose generic message – prevent info leaks
+          console.error("Voter query HTTP error:", res.status, text);
+          errorMsg = "Server error – please try again later";
+        } catch {}
+        throw new Error(errorMsg);
+      }
+
+      // === 6. Safe JSON parsing ===
+      let data;
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        console.error("Invalid JSON response from voter query");
+        throw new Error("Invalid response format");
+      }
+
+      // Optional: validate data shape
+      if (!Array.isArray(data)) {
+        throw new Error("Unexpected data format");
+      }
+
+      return data;
     },
 
-    /**
-     * ARCHITECTURAL GATE:
-     * This query will remain 'pending' and WILL NOT fire until:
-     * 1. AuthContext confirms the role and token are ready (isLoaded).
-     * 2. A valid SQL string is provided.
-     */
-    enabled: isLoaded && !!user && !!sql && sql !== "SELECT 1 WHERE FALSE",
+    // === 7. Safe enabling logic ===
+    enabled:
+      isLoaded &&
+      !!user &&
+      !!sql &&
+      typeof sql === "string" &&
+      isSafeSql(sql.trim()),
 
-    // Caching logic for professional scalability
-    staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
-    retry: 1, 
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+    retryOnMount: false,
   });
 };

@@ -60,13 +60,25 @@ export interface Precinct extends BaseMetadata {
   party_rep_district: string;
 }
 
+// --- UserRole ---
+
+export type UserRole =
+  | "state_admin"
+  | "county_chair"
+  | "area_chair"
+  | "candidate"
+  | "ambassador"
+  | "committeeperson"
+  | "user"
+  | "base";
+
 // --- UserProfile ---
 
 export interface UserProfile {
   uid: string; // Primary Key
   display_name: string | null;
   email: string | null;
-  role: string | null;
+  role: UserRole | null;
   org_id: string | null;
   preferred_name: string | null;
   phone: string | null;
