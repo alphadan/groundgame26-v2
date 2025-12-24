@@ -1,5 +1,5 @@
-// src/components/auth/LoginPage.tsx — FINAL WITH FORGOT PASSWORD + VOLUNTEER FORM
-import { useState, useEffect, useRef } from "react";
+// src/components/auth/LoginPage.tsx
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   signInWithEmailAndPassword,
   RecaptchaVerifier,
@@ -7,24 +7,24 @@ import {
   sendPasswordResetEmail,
   PhoneAuthProvider,
   PhoneMultiFactorGenerator,
-  multiFactor,
   getMultiFactorResolver,
 } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { useActivityLogger } from "../../hooks/useActivityLogger";
+
 import {
   Box,
   Button,
   TextField,
   Typography,
   Alert,
-  Modal,
-  Link,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
+  Link,
 } from "@mui/material";
 import LogoSvg from "../../assets/icons/icon-blue-512.svg";
 
@@ -35,167 +35,212 @@ declare global {
 }
 
 export default function LoginPage() {
-  const recaptchaRef = useRef<HTMLDivElement>(null);
+  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
+  const verifierRef = useRef<RecaptchaVerifier | null>(null);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { logFailure } = useActivityLogger();
 
-  // Forgot Password Modal
+  // Forgot Password
   const [forgotOpen, setForgotOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetSent, setResetSent] = useState(false);
 
-  // Volunteer Modal
+  // Volunteer Form
   const [volunteerOpen, setVolunteerOpen] = useState(false);
   const [volName, setVolName] = useState("");
   const [volEmail, setVolEmail] = useState("");
   const [volComment, setVolComment] = useState("");
   const [showThankYou, setShowThankYou] = useState(false);
 
-  useEffect(() => {
-    // Only create if not exists
-    if (window.recaptchaVerifier || !recaptchaRef.current) return;
+  // MFA Code Input Modal
+  const [mfaOpen, setMfaOpen] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaResolver, setMfaResolver] = useState<any>(null);
 
-    window.recaptchaVerifier = new RecaptchaVerifier(
-      auth,
-      recaptchaRef.current!,
-      { size: "invisible" }
-    );
+  const { logFailure } = useActivityLogger();
 
-    // Don't call render() manually — let Firebase call it when needed
-    // window.recaptchaVerifier.render().catch(() => {});
+  // === Safe reCAPTCHA Verifier Management ===
+  const setupRecaptcha = useCallback(() => {
+    if (verifierRef.current || !recaptchaContainerRef.current) return;
 
-    return () => {
-      window.recaptchaVerifier?.clear();
-      window.recaptchaVerifier = undefined;
-    };
+    try {
+      const verifier = new RecaptchaVerifier(
+        auth,
+        recaptchaContainerRef.current,
+        {
+          size: "invisible",
+        }
+      );
+
+      verifierRef.current = verifier;
+      window.recaptchaVerifier = verifier;
+    } catch (err) {
+      console.error("Failed to initialize reCAPTCHA:", err);
+    }
   }, []);
 
+  const clearRecaptcha = useCallback(() => {
+    try {
+      verifierRef.current?.clear();
+    } catch (err) {
+      // Ignore cleanup errors
+    } finally {
+      verifierRef.current = null;
+      window.recaptchaVerifier = undefined;
+    }
+  }, []);
+
+  useEffect(() => {
+    setupRecaptcha();
+
+    return () => {
+      clearRecaptcha();
+    };
+  }, [setupRecaptcha, clearRecaptcha]);
+
+  // === Login Handler ===
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim() || !password) {
+      setError("Email and password are required");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
     try {
-      // This will succeed only if user has NO MFA enrolled
-      await signInWithEmailAndPassword(auth, email, password);
-      // If we reach here → login successful (no MFA)
-      const user = auth.currentUser;
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password
+      );
+
+      const user = credential.user;
       if (user && !user.emailVerified) {
-        await sendEmailVerification(user); // ← add this
-        alert(
-          "Check your email! Click the verification link we just sent, then log in again."
+        await sendEmailVerification(user);
+        setError(
+          "Check your email for the verification link. You have been signed out."
         );
-        await auth.signOut(); // ← add this
+        setTimeout(() => auth.signOut(), 4000);
         return;
       }
     } catch (err: any) {
       logFailure(err.code || "unknown_error", email.toLowerCase());
+
       if (err.code === "auth/multi-factor-auth-required") {
-        // ← THIS IS THE CASE YOU'RE HITTING
         await handleMFAChallenge(err);
+      } else if (err.code === "auth/invalid-email") {
+        setError("Invalid email address");
       } else if (
         err.code === "auth/wrong-password" ||
         err.code === "auth/user-not-found"
       ) {
         setError("Invalid email or password");
       } else if (err.code === "auth/too-many-requests") {
-        setError(
-          "Too many failed attempts. Try again later or reset your password."
-        );
+        setError("Too many attempts. Try again later or reset your password.");
       } else {
-        setError("Login failed: " + err.message);
+        setError("Login failed. Please try again.");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // New function — handles the SMS MFA step
+  // === MFA Challenge Handler ===
   const handleMFAChallenge = async (error: any) => {
-    const resolver = getMultiFactorResolver(auth, error);
-
-    // We only support SMS second factor right now
-    const phoneInfoOptions = resolver.hints.find(
-      (hint: any) => hint.factorId === PhoneMultiFactorGenerator.FACTOR_ID
-    );
-
-    if (!phoneInfoOptions) {
-      setError("No phone number enrolled for MFA");
-      return;
-    }
-
     try {
-      // VERY IMPORTANT: Clear + recreate verifier to avoid "already rendered" error
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-        window.recaptchaVerifier = undefined;
+      const resolver = getMultiFactorResolver(auth, error);
+
+      const phoneHint = resolver.hints.find(
+        (hint: any) => hint.factorId === PhoneMultiFactorGenerator.FACTOR_ID
+      );
+
+      if (!phoneHint) {
+        setError("No phone number enrolled for MFA");
+        return;
       }
 
-      // Re-create a fresh invisible verifier
-      window.recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        recaptchaRef.current!,
-        { size: "invisible" }
-      );
+      // Reset and recreate verifier to avoid "already rendered" errors
+      clearRecaptcha();
+      setupRecaptcha();
+
+      if (!verifierRef.current) {
+        setError("reCAPTCHA failed to load. Please refresh the page.");
+        return;
+      }
 
       const phoneAuthProvider = new PhoneAuthProvider(auth);
       const verificationId = await phoneAuthProvider.verifyPhoneNumber(
         {
-          multiFactorHint: phoneInfoOptions,
+          multiFactorHint: phoneHint,
           session: resolver.session,
         },
-        window.recaptchaVerifier
+        verifierRef.current
       );
 
-      // Ask user for the SMS code
-      const smsCode = prompt(
-        "Enter the 6-digit code sent to your phone:"
-      )?.trim();
-
-      if (!smsCode) {
-        setError("Code required");
-        return;
-      }
-
-      const cred = PhoneAuthProvider.credential(verificationId, smsCode);
-      const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred);
-
-      // Complete MFA sign-in
-      await resolver.resolveSignIn(multiFactorAssertion);
-
-      // Success! User is now signed in
-      // console.log("MFA login successful");
+      setMfaResolver({ resolver, verificationId });
+      setMfaOpen(true);
+      setMfaCode("");
     } catch (mfaErr: any) {
-      console.error(mfaErr);
-      if (mfaErr.code === "auth/invalid-verification-code") {
-        setError("Invalid SMS code");
-      } else if (mfaErr.code === "auth/missing-verification-code") {
-        setError("Please enter the code");
-      } else {
-        setError("MFA failed: " + mfaErr.message);
-      }
+      console.error("MFA setup failed:", mfaErr);
+      setError("Unable to start MFA challenge. Please try again.");
     }
   };
 
+  const completeMFA = async () => {
+    if (!mfaResolver || !mfaCode.trim()) {
+      setError("Please enter the 6-digit code");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const cred = PhoneAuthProvider.credential(
+        mfaResolver.verificationId,
+        mfaCode.trim()
+      );
+      const assertion = PhoneMultiFactorGenerator.assertion(cred);
+      await mfaResolver.resolver.resolveSignIn(assertion);
+
+      setMfaOpen(false);
+      setMfaCode("");
+      setMfaResolver(null);
+    } catch (err: any) {
+      if (err.code === "auth/invalid-verification-code") {
+        setError("Invalid code. Please try again.");
+      } else {
+        setError(
+          "MFA verification failed: " + (err.message || "Unknown error")
+        );
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // === Password Reset ===
   const handleForgotPassword = async () => {
-    if (!resetEmail) {
+    if (!resetEmail.trim()) {
       setError("Please enter your email");
       return;
     }
+
     try {
-      await sendPasswordResetEmail(auth, resetEmail);
-      setResetSent(true);
+      await sendPasswordResetEmail(auth, resetEmail.trim());
     } catch (err) {
-      setResetSent(true); // Still show success — security best practice
+      // Intentionally silent — security best practice
+    } finally {
+      setResetSent(true);
     }
   };
 
-  // Inside your component, add this function
+  // === Volunteer Submission ===
   const handleVolunteerSubmit = async () => {
-    if (!volName || !volEmail) {
+    if (!volName.trim() || !volEmail.trim()) {
       setError("Name and email are required");
       return;
     }
@@ -204,22 +249,24 @@ export default function LoginPage() {
     setError("");
 
     try {
-      // Execute reCAPTCHA
-      const token = await window.recaptchaVerifier?.verify();
+      if (!verifierRef.current) {
+        throw new Error("reCAPTCHA not initialized");
+      }
 
-      // Call secure Cloud Function (we'll create this next)
+      const token = await verifierRef.current.verify();
+
       const submitVolunteer = httpsCallable(getFunctions(), "submitVolunteer");
       await submitVolunteer({
-        name: volName,
-        email: volEmail,
-        comment: volComment || "",
+        name: volName.trim(),
+        email: volEmail.trim().toLowerCase(),
+        comment: volComment.trim(),
         recaptchaToken: token,
       });
 
-      // Success → show thank you page
       setShowThankYou(true);
     } catch (err: any) {
-      setError(err.message || "Submission failed. Please try again.");
+      console.error("Volunteer submission failed:", err);
+      setError("Submission failed. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -227,7 +274,7 @@ export default function LoginPage() {
 
   return (
     <>
-      {/* THANK YOU PAGE — AFTER SUCCESSFUL VOLUNTEER SUBMISSION */}
+      {/* Thank You Screen */}
       {showThankYou ? (
         <Box
           display="flex"
@@ -246,7 +293,6 @@ export default function LoginPage() {
             boxShadow={6}
             textAlign="center"
           >
-            {/* Logo */}
             <Box
               component="img"
               src={LogoSvg}
@@ -261,7 +307,6 @@ export default function LoginPage() {
               }}
             />
 
-            {/* Thank You Message */}
             <Typography
               variant="h4"
               fontWeight="bold"
@@ -286,7 +331,6 @@ export default function LoginPage() {
               within one business day.
             </Typography>
 
-            {/* Return to Login Button */}
             <Button
               variant="contained"
               size="large"
@@ -312,7 +356,7 @@ export default function LoginPage() {
           </Box>
         </Box>
       ) : (
-        /* MAIN LOGIN PAGE + MODALS */
+        /* Main Login Page */
         <Box
           display="flex"
           justifyContent="center"
@@ -321,7 +365,6 @@ export default function LoginPage() {
           bgcolor="#f5f5f5"
         >
           <Box width={420} p={5} bgcolor="white" borderRadius={3} boxShadow={4}>
-            {/* Logo */}
             <Box
               component="img"
               src={LogoSvg}
@@ -350,12 +393,17 @@ export default function LoginPage() {
               A Republican Get Out The Vote App
             </Typography>
 
-            <div
-              ref={recaptchaRef}
-              style={{ position: "absolute", left: "-9999px" }}
-            />
+            {/* Hidden reCAPTCHA container */}
+            <div ref={recaptchaContainerRef} style={{ display: "none" }} />
 
-            <form onSubmit={handleLogin}>
+            <form
+              onSubmit={handleLogin}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                }
+              }}
+            >
               <TextField
                 label="Email"
                 type="email"
@@ -375,7 +423,6 @@ export default function LoginPage() {
                 required
               />
 
-              {/* Forgot Password Link */}
               <Link
                 component="button"
                 variant="body2"
@@ -416,7 +463,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Want to Volunteer Link */}
             <Typography textAlign="center" mt={3}>
               <Link
                 component="button"
@@ -433,7 +479,7 @@ export default function LoginPage() {
             </Typography>
           </Box>
 
-          {/* FORGOT PASSWORD MODAL */}
+          {/* Forgot Password Dialog */}
           <Dialog
             open={forgotOpen}
             onClose={() => setForgotOpen(false)}
@@ -474,7 +520,7 @@ export default function LoginPage() {
             </DialogActions>
           </Dialog>
 
-          {/* VOLUNTEER FORM MODAL */}
+          {/* Volunteer Form Dialog */}
           <Dialog
             open={volunteerOpen}
             onClose={() => setVolunteerOpen(false)}
@@ -515,10 +561,54 @@ export default function LoginPage() {
               <Button
                 onClick={handleVolunteerSubmit}
                 variant="contained"
-                disabled={loading || !volName || !volEmail}
+                disabled={loading || !volName.trim() || !volEmail.trim()}
                 sx={{ bgcolor: "#B22234", "&:hover": { bgcolor: "#8B1A1A" } }}
               >
                 {loading ? "Submitting..." : "Submit"}
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* MFA Code Input Dialog */}
+          <Dialog open={mfaOpen} onClose={() => setMfaOpen(false)}>
+            <DialogTitle>Enter Verification Code</DialogTitle>
+            <DialogContent>
+              <Typography gutterBottom>
+                A 6-digit code was sent to your phone. Enter it below:
+              </Typography>
+              <TextField
+                autoFocus
+                label="Code"
+                value={mfaCode}
+                onChange={(e) =>
+                  setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                fullWidth
+                inputProps={{ maxLength: 6 }}
+                sx={{ mt: 2 }}
+              />
+              {error && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {error}
+                </Alert>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button
+                onClick={() => {
+                  setMfaOpen(false);
+                  setMfaCode("");
+                  setError("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={completeMFA}
+                variant="contained"
+                disabled={loading}
+              >
+                {loading ? <CircularProgress size={20} /> : "Verify"}
               </Button>
             </DialogActions>
           </Dialog>

@@ -1,4 +1,6 @@
-export const LOCAL_COUNTIES = [
+import { County, Area, Precinct, Organization } from "../types";
+
+export const counties = [
   {
     id: "PA-C-15",
     code: "15",
@@ -17,7 +19,7 @@ export const LOCAL_COUNTIES = [
   },
 ];
 
-export const LOCAL_AREAS = [
+export const areas = [
   {
     id: "PA15-A-01",
     org_id: "PA15-O-01",
@@ -356,7 +358,7 @@ export const LOCAL_AREAS = [
   },
 ];
 
-export const LOCAL_ORG_ROLES = [
+export const org_roles = [
   {
     uid: "OWlZ68Qw3ebG3NWVxeQU1iTNhA22",
     role: "state_admin",
@@ -4562,7 +4564,7 @@ export const LOCAL_ORG_ROLES = [
   },
 ];
 
-export const LOCAL_PRECINCTS = [
+export const precincts = [
   {
     id: "PA15-P-005",
     county_code: "PA-C-15",
@@ -8015,7 +8017,7 @@ export const LOCAL_PRECINCTS = [
   },
 ];
 
-export const LOCAL_ORGANIZATIONS = [
+export const organizations = [
   {
     id: "PA15-O-01",
     org_id: "chester_gop",
@@ -8117,7 +8119,7 @@ export const LOCAL_ORGANIZATIONS = [
   },
 ];
 
-export const LOCAL_STATE_REP_DISTRICTS = [
+export const state_rep_districts = [
   {
     id: "PA-SRD-district_1",
     org_id: "chester_state_party_rep",

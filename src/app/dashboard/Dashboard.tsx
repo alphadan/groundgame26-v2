@@ -1,11 +1,9 @@
 // src/app/dashboard/Dashboard.tsx
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db as indexedDb } from "../../lib/db";
-import { getCountySchema } from "../../schemas";
 import { useVoters } from "../../hooks/useVoters";
-import { User } from "firebase/auth";
 import {
   Box,
   Typography,
@@ -22,153 +20,163 @@ import {
   Grid,
 } from "@mui/material";
 import { BarChart } from "@mui/x-charts/BarChart";
-import { County, Area, CustomClaims } from "../../types";
+import { County, Area } from "../../types";
 
-const VOTER_TURNOUT_STATUS_SQL = (filters: {
-  area?: string;
-  precincts?: string[];
-}) => {
-  const schema = getCountySchema("PA-C-15"); // Force Chester for now
-  const { columns, tableName } = schema;
+// === Safe Number Coercion ===
+const safeNumber = (value: any): number => {
+  const num = Number(value);
+  return isNaN(num) ? 0 : num;
+};
 
-  let whereClause = "WHERE 1=1";
-  if (filters.area)
-    whereClause += ` AND ${columns.areaDistrict} = '${filters.area}'`;
-  if (filters.precincts?.length)
-    whereClause += ` AND ${columns.precinctCode} IN ('${filters.precincts.join(
-      "','"
-    )}')`;
+// === Safe ID Extraction ===
+const extractAreaCode = (fullId?: string): string | undefined => {
+  if (!fullId) return undefined;
+  const match = fullId.match(/A-(\d+)$/);
+  return match ? match[1] : undefined;
+};
 
-  return `
-    SELECT 
-      COUNTIF(${columns.party} = 'R') AS total_r,
-      COUNTIF(${columns.party} = 'D') AS total_d,
-      COUNTIF(${columns.party} NOT IN ('R','D') AND ${columns.party} IS NOT NULL) AS total_nf,
-      COUNTIF(${columns.hasMailBallot} = TRUE AND ${columns.party} = 'R') AS mail_r,
-      COUNTIF(${columns.hasMailBallot} = TRUE AND ${columns.party} = 'D') AS mail_d,
-      COUNTIF(${columns.hasMailBallot} = TRUE AND ${columns.party} NOT IN ('R','D') AND ${columns.party} IS NOT NULL) AS mail_nf,
-      COUNTIF(${columns.mailBallotReturned} = TRUE AND ${columns.party} = 'R') AS returned_r,
-      COUNTIF(${columns.mailBallotReturned} = TRUE AND ${columns.party} = 'D') AS returned_d,
-      COUNTIF(${columns.mailBallotReturned} = TRUE AND ${columns.party} NOT IN ('R','D') AND ${columns.party} IS NOT NULL) AS returned_nf,
-      COUNTIF(${columns.modeledParty} = '1 - Hard Republican') AS hard_r,
-      COUNTIF(${columns.modeledParty} LIKE '2 - Weak%') AS weak_r,
-      COUNTIF(${columns.modeledParty} = '3 - Swing') AS swing,
-      COUNTIF(${columns.modeledParty} LIKE '4 - Weak%') AS weak_d,
-      COUNTIF(${columns.modeledParty} = '5 - Hard Democrat') AS hard_d
-    FROM \`${tableName}\`
-    ${whereClause}
-  `;
+const extractPrecinctCode = (fullId?: string): string | undefined => {
+  if (!fullId) return undefined;
+  const match = fullId.match(/P-(\d+)$/);
+  return match ? String(parseInt(match[1], 10)) : undefined;
 };
 
 export default function Dashboard() {
-  const { user, claims, isLoaded } = useAuth() as {
-    user: User | null;
-    claims: CustomClaims | null;
-    isLoaded: boolean;
-  };
+  const authState = useAuth();
 
-  // 1. DEFAULT TO CHESTER COUNTY
+  const user = authState?.user ?? null;
+  const claims = authState?.claims ?? null;
+  const isLoaded = authState?.isLoaded ?? false;
+
   const [selectedCounty, setSelectedCounty] = useState<string>("pa-c-15");
   const [selectedArea, setSelectedArea] = useState<string>("");
   const [selectedPrecinct, setSelectedPrecinct] = useState<string>("");
 
-  const counties = useLiveQuery(async () => {
-    if (!isLoaded || !claims?.role || claims.role !== "state_admin") return [];
-    const allCounties = await indexedDb.counties
-      .filter((c: County) => c.active === true)
-      .toArray();
-    const allowedCounties = claims.counties || [];
-    const filtered = allCounties.filter((c) => allowedCounties.includes(c.id));
-    return filtered.sort((a, b) => a.name.localeCompare(b.name));
-  }, [claims, isLoaded]);
-
-  const areas = useLiveQuery(async () => {
-    if (!selectedCounty || !claims?.role || claims.role !== "state_admin")
-      return [];
-    const allAreas = await indexedDb.areas
-      .filter((a: Area) => a.active === true)
-      .toArray();
-    const allowedAreas = claims.areas || [];
-    const filtered = allAreas.filter((a) => allowedAreas.includes(a.id));
-    return filtered.sort((a, b) => a.name.localeCompare(b.name));
-  }, [selectedCounty, claims]);
-
-  const precincts = useLiveQuery(async () => {
-    if (!selectedArea || !claims?.role || claims.role !== "state_admin")
-      return [];
-    const allowedPrecincts = claims.precincts || [];
-    if (allowedPrecincts.length > 0) {
-      const filtered = await indexedDb.precincts
-        .filter((p) => p.active === true && allowedPrecincts.includes(p.id))
+  // === Live Queries ===
+  const counties =
+    useLiveQuery(() => {
+      if (!isLoaded || !claims || claims.role !== "state_admin") return [];
+      return indexedDb.counties
+        .where("active")
+        .equals(1)
+        .filter((c: County) => (claims.counties ?? []).includes(c.id))
         .toArray();
-      return filtered.sort((a, b) => a.name.localeCompare(b.name));
-    }
-    const allPrecincts = await indexedDb.precincts
-      .filter((p) => p.active === true && p.area_district === selectedArea)
-      .toArray();
-    return allPrecincts.sort((a, b) => a.name.localeCompare(b.name));
-  }, [selectedArea, claims]);
+    }, [isLoaded, claims]) ?? [];
 
-  const extractAreaCode = (fullId: string | undefined): string | undefined => {
-    if (!fullId) return undefined;
-    const match = fullId.match(/A-(\d+)$/);
-    return match ? match[1] : undefined;
-  };
+  const areas =
+    useLiveQuery(() => {
+      if (!selectedCounty || !claims || claims.role !== "state_admin")
+        return [];
+      return indexedDb.areas
+        .where("active")
+        .equals(1)
+        .filter((a: Area) => (claims.areas ?? []).includes(a.id))
+        .toArray();
+    }, [selectedCounty, claims]) ?? [];
 
+  const precincts =
+    useLiveQuery(() => {
+      if (!selectedArea || !claims || claims.role !== "state_admin") return [];
+
+      const allowedPrecincts = claims.precincts ?? [];
+      if (allowedPrecincts.length > 0) {
+        return indexedDb.precincts
+          .where("id")
+          .anyOf(allowedPrecincts)
+          .and((p) => p.active)
+          .toArray();
+      }
+
+      return indexedDb.precincts
+        .where({ area_district: selectedArea, active: true })
+        .toArray();
+    }, [selectedArea, claims]) ?? [];
+
+  // === Profile ===
   const profile = useLiveQuery(
-    () => indexedDb.users.get(user?.uid || ""),
+    () => (user?.uid ? indexedDb.users.get(user.uid) : undefined),
     [user?.uid]
   );
 
   const preferredName =
-    profile?.preferred_name || user?.displayName || user?.email;
+    profile?.preferred_name || user?.displayName || user?.email || "User";
 
-  const extractPrecinctCode = (
-    fullId: string | undefined
-  ): string | undefined => {
-    if (!fullId) return undefined;
-    const match = fullId.match(/P-(\d+)$/);
-    if (!match) return undefined;
-    return String(parseInt(match[1], 10));
-  };
+  // === Build Filters ===
+  const rawArea = selectedArea ? extractAreaCode(selectedArea) : undefined;
 
-  const rawArea =
-    selectedArea !== "" ? extractAreaCode(selectedArea) : undefined;
-  const rawPrecincts =
-    selectedPrecinct !== ""
-      ? [extractPrecinctCode(selectedPrecinct)].filter(
-          (code): code is string => !!code
-        )
-      : claims?.precincts
-          ?.map(extractPrecinctCode)
-          .filter((code): code is string => !!code) || [];
+  const rawPrecincts = useMemo<string[]>(() => {
+    if (selectedPrecinct) {
+      const code = extractPrecinctCode(selectedPrecinct);
+      return code ? [code] : [];
+    }
+    return (claims?.precincts ?? [])
+      .map(extractPrecinctCode)
+      .filter((code: string | undefined): code is string => !!code);
+  }, [selectedPrecinct, claims?.precincts]);
 
-  const filters = {
-    area: rawArea,
-    precincts: rawPrecincts.length > 0 ? rawPrecincts : undefined,
-  };
-  const sql = VOTER_TURNOUT_STATUS_SQL(filters);
-  const { data: turnoutData, isLoading: turnoutLoading } = useVoters(sql);
-  const turnoutStats = turnoutData?.[0] || {};
+  // === Safe SQL Builder (no injection) ===
+  const sqlQuery = useMemo<string>(() => {
+    let query = `
+      SELECT 
+        COUNTIF(party = 'R') AS total_r,
+        COUNTIF(party = 'D') AS total_d,
+        COUNTIF(party NOT IN ('R','D') AND party IS NOT NULL) AS total_nf,
+        COUNTIF(hasMailBallot = TRUE AND party = 'R') AS mail_r,
+        COUNTIF(hasMailBallot = TRUE AND party = 'D') AS mail_d,
+        COUNTIF(hasMailBallot = TRUE AND party NOT IN ('R','D') AND party IS NOT NULL) AS mail_nf,
+        COUNTIF(mailBallotReturned = TRUE AND party = 'R') AS returned_r,
+        COUNTIF(mailBallotReturned = TRUE AND party = 'D') AS returned_d,
+        COUNTIF(mailBallotReturned = TRUE AND party NOT IN ('R','D') AND party IS NOT NULL) AS returned_nf,
+        COUNTIF(modeledParty = '1 - Hard Republican') AS hard_r,
+        COUNTIF(modeledParty LIKE '2 - Weak%') AS weak_r,
+        COUNTIF(modeledParty = '3 - Swing') AS swing,
+        COUNTIF(modeledParty LIKE '4 - Weak%') AS weak_d,
+        COUNTIF(modeledParty = '5 - Hard Democrat') AS hard_d
+      FROM \`voters_pa_c_15\`
+      WHERE active = TRUE
+    `;
 
-  const isLoadingCounties = isLoaded && counties === undefined;
-  const isLoadingAreas = selectedCounty && areas === undefined;
-  const isLoadingPrecincts = selectedArea && precincts === undefined;
+    if (rawArea) {
+      query += ` AND areaDistrict = '${rawArea}'`;
+    }
 
-  const handleCountyChange = (event: SelectChangeEvent) => {
+    if (rawPrecincts.length > 0) {
+      const escaped = rawPrecincts
+        .map((p) => p.replace(/'/g, "''"))
+        .join("','");
+      query += ` AND precinctCode IN ('${escaped}')`;
+    }
+
+    return query.trim();
+  }, [rawArea, rawPrecincts]);
+
+  // === Voter Data ===
+  const { data: turnoutData = [], isLoading: turnoutLoading } =
+    useVoters(sqlQuery);
+
+  const turnoutStats = turnoutData[0] ?? {};
+
+  // === Loading States ===
+  const isLoadingCounties =
+    isLoaded && counties.length === 0 && claims?.role === "state_admin";
+  const isLoadingAreas = !!selectedCounty && areas.length === 0;
+  const isLoadingPrecincts = !!selectedArea && precincts.length === 0;
+
+  // === Handlers ===
+  const handleCountyChange = useCallback((event: SelectChangeEvent) => {
     setSelectedCounty(event.target.value);
     setSelectedArea("");
     setSelectedPrecinct("");
-  };
+  }, []);
 
-  const handleAreaChange = (event: SelectChangeEvent) => {
+  const handleAreaChange = useCallback((event: SelectChangeEvent) => {
     setSelectedArea(event.target.value);
     setSelectedPrecinct("");
-  };
+  }, []);
 
-  const handlePrecinctChange = (event: SelectChangeEvent) => {
+  const handlePrecinctChange = useCallback((event: SelectChangeEvent) => {
     setSelectedPrecinct(event.target.value);
-  };
+  }, []);
 
   if (!isLoaded) {
     return (
@@ -192,26 +200,21 @@ export default function Dashboard() {
         Last synced: {new Date().toLocaleString()}
       </Typography>
 
-      {/* WELCOME SECTION */}
       <Paper sx={{ p: 4, mb: 4, borderRadius: 2 }}>
         <Typography variant="h6" gutterBottom>
-          Welcome, {preferredName || user?.email}
+          Welcome, {preferredName}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          <strong>Authorized Role:</strong>{" "}
+          <strong>Role:</strong>{" "}
           {(claims?.role || "unknown").replace("_", " ").toUpperCase()}
         </Typography>
       </Paper>
 
-      {/* 2. CHARTS SECTION - REMOVED COLLAPSE */}
       {selectedCounty && (
         <Card sx={{ mb: 4 }}>
           <Box p={2} sx={{ bgcolor: "#D3D3D3", color: "black" }}>
             <Typography variant="h6" fontWeight="bold">
               Voter Turnout Status — Detailed Breakdown
-            </Typography>
-            <Typography variant="body2">
-              Party • Mail Ballots • Modeled Strength
             </Typography>
           </Box>
           <CardContent sx={{ pt: 3 }}>
@@ -222,17 +225,32 @@ export default function Dashboard() {
             ) : (
               <Grid container spacing={3}>
                 <Grid>
-                  <Paper sx={{ p: 3, height: "100%" }}>
+                  <Paper sx={{ p: 3 }}>
                     <Typography variant="subtitle1" fontWeight="bold" mb={2}>
-                      Total Voters by Party
+                      Modeled Party Strength
                     </Typography>
                     <BarChart
                       dataset={[
-                        { strength: "Hard R", count: turnoutStats.hard_r || 0 },
-                        { strength: "Weak R", count: turnoutStats.weak_r || 0 },
-                        { strength: "Swing", count: turnoutStats.swing || 0 },
-                        { strength: "Weak D", count: turnoutStats.weak_d || 0 },
-                        { strength: "Hard D", count: turnoutStats.hard_d || 0 },
+                        {
+                          strength: "Hard R",
+                          count: safeNumber(turnoutStats.hard_r),
+                        },
+                        {
+                          strength: "Weak R",
+                          count: safeNumber(turnoutStats.weak_r),
+                        },
+                        {
+                          strength: "Swing",
+                          count: safeNumber(turnoutStats.swing),
+                        },
+                        {
+                          strength: "Weak D",
+                          count: safeNumber(turnoutStats.weak_d),
+                        },
+                        {
+                          strength: "Hard D",
+                          count: safeNumber(turnoutStats.hard_d),
+                        },
                       ]}
                       xAxis={[
                         {
@@ -258,22 +276,31 @@ export default function Dashboard() {
                         },
                       ]}
                       series={[{ dataKey: "count", label: "Voters" }]}
-                      height={280}
+                      height={300}
                       barLabel="value"
                     />
                   </Paper>
                 </Grid>
 
                 <Grid>
-                  <Paper sx={{ p: 3, height: "100%" }}>
+                  <Paper sx={{ p: 3 }}>
                     <Typography variant="subtitle1" fontWeight="bold" mb={2}>
                       Mail Ballots by Party
                     </Typography>
                     <BarChart
                       dataset={[
-                        { strength: "R", count: turnoutStats.mail_r || 0 },
-                        { strength: "NF", count: turnoutStats.mail_nf || 0 },
-                        { strength: "D", count: turnoutStats.mail_d || 0 },
+                        {
+                          strength: "R",
+                          count: safeNumber(turnoutStats.mail_r),
+                        },
+                        {
+                          strength: "NF",
+                          count: safeNumber(turnoutStats.mail_nf),
+                        },
+                        {
+                          strength: "D",
+                          count: safeNumber(turnoutStats.mail_d),
+                        },
                       ]}
                       xAxis={[
                         {
@@ -286,8 +313,8 @@ export default function Dashboard() {
                           },
                         },
                       ]}
-                      series={[{ dataKey: "count", label: "Voters" }]}
-                      height={280}
+                      series={[{ dataKey: "count", label: "Mail Ballots" }]}
+                      height={300}
                       barLabel="value"
                     />
                   </Paper>
@@ -300,11 +327,26 @@ export default function Dashboard() {
                     </Typography>
                     <BarChart
                       dataset={[
-                        { strength: "1", count: turnoutStats.hard_r || 0 },
-                        { strength: "2", count: turnoutStats.weak_r || 0 },
-                        { strength: "3", count: turnoutStats.swing || 0 },
-                        { strength: "4", count: turnoutStats.weak_d || 0 },
-                        { strength: "5", count: turnoutStats.hard_d || 0 },
+                        {
+                          strength: "1",
+                          count: safeNumber(turnoutStats.hard_r) || 0,
+                        },
+                        {
+                          strength: "2",
+                          count: safeNumber(turnoutStats.weak_r) || 0,
+                        },
+                        {
+                          strength: "3",
+                          count: safeNumber(turnoutStats.swing) || 0,
+                        },
+                        {
+                          strength: "4",
+                          count: safeNumber(turnoutStats.weak_d) || 0,
+                        },
+                        {
+                          strength: "5",
+                          count: safeNumber(turnoutStats.hard_d) || 0,
+                        },
                       ]}
                       xAxis={[
                         {
@@ -335,30 +377,24 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* CONTROLS SECTION */}
+      {/* Admin Controls */}
       {claims?.role === "state_admin" && (
         <Paper sx={{ p: 4, mb: 4, borderRadius: 2 }}>
           <Typography variant="h6" gutterBottom>
-            State Administrator Control
+            Administrator Filters
           </Typography>
+
           {isLoadingCounties ? (
             <CircularProgress size={24} />
           ) : (
             <FormControl fullWidth sx={{ mb: 3 }}>
-              <InputLabel>Active Counties</InputLabel>
+              <InputLabel>County</InputLabel>
               <Select
                 value={selectedCounty}
-                label="Active Counties"
+                label="County"
                 onChange={handleCountyChange}
               >
-                <MenuItem value="">
-                  <em>Select a County</em>
-                </MenuItem>
-                {counties?.map((c: County) => (
-                  <MenuItem key={c.id} value={c.id}>
-                    {c.name}
-                  </MenuItem>
-                ))}
+                <MenuItem value="pa-c-15">Chester County</MenuItem>
               </Select>
             </FormControl>
           )}
@@ -368,16 +404,16 @@ export default function Dashboard() {
               <CircularProgress size={24} sx={{ mb: 3 }} />
             ) : (
               <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel>Active Areas</InputLabel>
+                <InputLabel>Area</InputLabel>
                 <Select
                   value={selectedArea}
-                  label="Active Areas"
+                  label="Area"
                   onChange={handleAreaChange}
                 >
                   <MenuItem value="">
                     <em>All Areas</em>
                   </MenuItem>
-                  {areas?.map((a: Area) => (
+                  {areas.map((a) => (
                     <MenuItem key={a.id} value={a.id}>
                       {a.name}
                     </MenuItem>
@@ -391,16 +427,16 @@ export default function Dashboard() {
               <CircularProgress size={24} />
             ) : (
               <FormControl fullWidth>
-                <InputLabel>Active Precincts</InputLabel>
+                <InputLabel>Precinct</InputLabel>
                 <Select
                   value={selectedPrecinct}
-                  label="Active Precincts"
+                  label="Precinct"
                   onChange={handlePrecinctChange}
                 >
                   <MenuItem value="">
                     <em>All Precincts</em>
                   </MenuItem>
-                  {precincts?.map((p) => (
+                  {precincts.map((p) => (
                     <MenuItem key={p.id} value={p.id}>
                       {p.name} ({p.precinct_code})
                     </MenuItem>
@@ -411,33 +447,16 @@ export default function Dashboard() {
         </Paper>
       )}
 
-      {/* KPI INFO CHIPS */}
       <Paper sx={{ p: 4, borderRadius: 2 }}>
         <Typography variant="h6" gutterBottom>
-          Key Performance Indicators
+          Active Filters
         </Typography>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 1,
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            Applied Filters:
-          </Typography>
-          {selectedCounty && (
-            <Chip
-              label={`County: ${selectedCounty.toUpperCase()}`}
-              size="small"
-            />
-          )}
-          {selectedArea && (
-            <Chip label={`Area: ${selectedArea}`} size="small" />
-          )}
-          {selectedPrecinct && (
-            <Chip label={`Precinct: ${selectedPrecinct}`} size="small" />
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
+          {selectedCounty && <Chip label="County: Chester" />}
+          {selectedArea && <Chip label={`Area: ${selectedArea}`} />}
+          {selectedPrecinct && <Chip label={`Precinct: ${selectedPrecinct}`} />}
+          {!selectedArea && !selectedPrecinct && (
+            <Chip label="All Data" color="default" />
           )}
         </Box>
       </Paper>

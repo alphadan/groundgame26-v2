@@ -1,25 +1,20 @@
 // src/App.tsx
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { User, onIdTokenChanged, multiFactor } from "firebase/auth";
 import { auth } from "./lib/firebase";
 
-// Material UI
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, CircularProgress, Typography, Button } from "@mui/material";
 
-// Context & Layout
 import { AuthProvider } from "./context/AuthContext";
 import { syncReferenceData } from "./services/referenceDataSync";
 import MainLayout from "./app/layout/MainLayout";
 
-// Components & Security
 import LoginPage from "./components/auth/LoginPage";
 import EnrollMFAScreen from "./components/auth/EnrollMFAScreen";
 
-// Hooks
 import { useActivityLogger } from "./hooks/useActivityLogger";
 
-// PAGE IMPORTS
 import Dashboard from "./app/dashboard/Dashboard";
 import ReportsPage from "./app/reports/ReportsPage";
 import AnalysisPage from "./app/analysis/AnalysisPage";
@@ -32,80 +27,88 @@ import ManageTeamPage from "./app/precincts/ManageTeamPage";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [claims, setClaims] = useState<any>(null);
+  const [claims, setClaims] = useState<Record<string, any> | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
   const [syncError, setSyncError] = useState<Error | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
 
   const { logSuccess } = useActivityLogger();
-  const hasLoggedEntry = useRef(false);
+  const hasSyncedRef = useRef(false);
+  const forceRefreshAttempted = useRef(false);
 
-  // Auth listener – runs once on mount
+  // === 1. Auth State Listener (defensive & safe cleanup) ===
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        try {
-          // 1. Get the current result WITHOUT force refresh first
-          let tokenResult = await currentUser.getIdTokenResult();
+      try {
+        if (currentUser) {
+          let tokenResult = await currentUser.getIdTokenResult(false);
 
-          // 2. ONLY force refresh if the role is missing AND we haven't tried yet
-          // This prevents the infinite looping
-          if (
-            !tokenResult.claims.role &&
-            !sessionStorage.getItem("did_force_refresh")
-          ) {
+          // Only force refresh once per session if role missing
+          if (!tokenResult.claims.role && !forceRefreshAttempted.current) {
             console.log(
-              "⏳ Role missing, attempting one-time force refresh..."
+              "⏳ Role missing — forcing ID token refresh (one-time)"
             );
-            sessionStorage.setItem("did_force_refresh", "true");
-            tokenResult = await currentUser.getIdTokenResult(true);
+            forceRefreshAttempted.current = true;
+            try {
+              tokenResult = await currentUser.getIdTokenResult(true);
+            } catch (refreshErr) {
+              console.warn("Force refresh failed:", refreshErr);
+              // Continue with original claims — role may be missing temporarily
+            }
           }
 
-          setClaims(tokenResult.claims);
-        } catch (err) {
-          console.error("Claims sync failed:", err);
+          setClaims(tokenResult.claims || {});
+        } else {
+          setClaims(null);
+          forceRefreshAttempted.current = false;
         }
-      } else {
-        setClaims(null);
-        sessionStorage.removeItem("did_force_refresh");
+
+        setUser(currentUser);
+      } catch (err) {
+        console.error("Error processing auth state:", err);
+        setUser(currentUser); // Still set user to allow login flow
+      } finally {
+        setIsReady(true);
       }
-      setUser(currentUser);
-      setIsReady(true);
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Reference data sync – runs only once after auth is ready
+  // === 2. One-time Reference Data Sync (idempotent & resilient) ===
+  const performSync = useCallback(async () => {
+    if (!user || hasSyncedRef.current) return;
+
+    hasSyncedRef.current = true;
+    console.log("[App] Starting one-time reference sync for UID:", user.uid);
+
+    try {
+      await syncReferenceData(user.uid);
+      console.log("[App] SYNC SUCCESS");
+      setIsSynced(true);
+      logSuccess?.(); // Optional chain — safe if undefined
+    } catch (err: any) {
+      console.error("[App] Sync failed:", err);
+
+      // Detect offline vs. other errors
+      if (err?.message?.includes("offline") || !navigator.onLine) {
+        setIsOffline(true);
+      }
+
+      setSyncError(err instanceof Error ? err : new Error(String(err)));
+      setIsSynced(true); // Allow app to continue with cached data
+    }
+  }, [user, logSuccess]);
+
   useEffect(() => {
-    if (!user || !claims?.role || !isReady) return;
-    if (hasLoggedEntry.current) return;
+    if (isReady && user && claims?.role && !hasSyncedRef.current) {
+      performSync();
+    }
+  }, [isReady, user, claims?.role, performSync]);
 
-    hasLoggedEntry.current = true;
-
-    console.log("[App]claims: ", claims);
-    console.log("[App] User authenticated — starting one-time reference sync");
-
-    // Uncomment to bypass sync during testing (temporary)
-    // setIsSynced(true);
-    // logSuccess();
-    // return;
-
-    syncReferenceData(false, user.uid)
-      .then(() => {
-        console.log("[App] SYNC SUCCESS - setting isSynced to true");
-        setIsSynced(true);
-        logSuccess(); // Assuming it takes no args; remove if your hook needs a message
-      })
-      .catch((err) => {
-        console.error("[App] Sync failed:", err);
-        setSyncError(err);
-        setIsSynced(true); // Proceed anyway (graceful degradation)
-      });
-  }, [user, isReady, claims?.role, logSuccess]);
-
-  // Loading screen while auth or sync is in progress
-  if (!isReady || (user && !isSynced)) {
+  // === 3. Loading States ===
+  if (!isReady) {
     return (
       <Box
         display="flex"
@@ -116,16 +119,33 @@ export default function App() {
         gap={2}
       >
         <CircularProgress size={60} sx={{ color: "#B22234" }} />
-        <Typography variant="h6" fontWeight="medium">
-          {user
-            ? "Syncing reference data... (this should take a few seconds)"
-            : "Initializing GroundGame26..."}
-        </Typography>
+        <Typography variant="h6">Initializing GroundGame26...</Typography>
       </Box>
     );
   }
 
-  // Error screen if sync fails (optional)
+  if (user && !isSynced) {
+    return (
+      <Box
+        display="flex"
+        flexDirection="column"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="100vh"
+        gap={2}
+      >
+        <CircularProgress size={60} sx={{ color: "#B22234" }} />
+        <Typography variant="h6">Syncing reference data...</Typography>
+        {isOffline && (
+          <Typography color="warning.main">
+            You appear to be offline — using cached data
+          </Typography>
+        )}
+      </Box>
+    );
+  }
+
+  // === 4. Sync Error with Retry ===
   if (syncError) {
     return (
       <Box
@@ -135,32 +155,57 @@ export default function App() {
         alignItems="center"
         minHeight="100vh"
         gap={3}
+        px={2}
       >
-        <Typography variant="h5" color="error">
+        <Typography variant="h5" color="error" textAlign="center">
           Failed to load reference data
         </Typography>
-        <Typography variant="body1">{syncError.message}</Typography>
-        <Typography variant="body2">
-          Please refresh the page or contact support.
+        <Typography variant="body1" textAlign="center">
+          {isOffline ? "No internet connection" : syncError.message}
         </Typography>
+        <Typography variant="body2" color="text.secondary" textAlign="center">
+          The app may still work with cached data.
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => {
+            hasSyncedRef.current = false;
+            setSyncError(null);
+            setIsSynced(false);
+            performSync();
+          }}
+        >
+          Retry Sync
+        </Button>
       </Box>
     );
   }
 
-  // No user → Login page
+  // === 5. Unauthenticated ===
   if (!user) {
     return <LoginPage />;
   }
 
-  // User logged in but no MFA → Enroll MFA screen
-  const mfaFactors = multiFactor(user).enrolledFactors ?? [];
-  if (mfaFactors.length === 0) {
+  // === 6. MFA Enforcement (safe multiFactor call) ===
+  let enrolledFactors: any[] = [];
+  try {
+    if (multiFactor && typeof multiFactor === "function") {
+      const mfaUser = multiFactor(user);
+      enrolledFactors = mfaUser?.enrolledFactors ?? [];
+    }
+  } catch (mfaErr) {
+    console.warn("MFA check failed (non-critical):", mfaErr);
+    // Continue — assume MFA not required if SDK fails
+  }
+
+  if (enrolledFactors.length === 0) {
     return <EnrollMFAScreen />;
   }
 
-  // Success → Authenticated routes
+  // === 7. Authenticated App ===
   return (
-    <AuthProvider user={user} claims={claims}>
+    <AuthProvider user={user} claims={claims ?? {}}>
       <MainLayout>
         <Routes>
           <Route path="/dashboard" element={<Dashboard />} />

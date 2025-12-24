@@ -87,18 +87,13 @@ export interface OrgRole {
 
 // --- App Metadata & Sync ---
 
-export interface AppSyncMetadata {
-  key: string;
-  current_version: string;
-  last_updated: number;
-}
-
-export interface AppVersionMetadata {
-  id: string; // Maps to doc ID 'app_control'
-  current_version: string;
-  min_required_version: string;
-  stage: "alpha" | "beta" | "prod";
-  last_updated: number;
+export interface AppControl {
+  id: "app_control"; // Fixed primary key
+  current_app_version: string; // e.g., "0.1.0-alpha.3"
+  current_db_version: number; // e.g., 5
+  last_updated: number; // Timestamp of last successful sync
+  last_sync_attempt?: number; // Optional: for retry logic
+  sync_status?: "idle" | "syncing" | "error"; // Optional: useful for UI
 }
 
 // --- Auth & Claims ---
