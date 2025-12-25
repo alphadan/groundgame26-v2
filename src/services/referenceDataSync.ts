@@ -63,36 +63,52 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
 
       if (!firestoreDb) {
         console.warn(
-          "Firestore instance not available – skipping user profile fetch"
+          "Firestore instance not available - skipping user profile fetch"
         );
       } else {
-        const userRef = doc(firestoreDb, "users", uid);
-
-        // Inline timeout wrapper – rejects after 5 seconds
-        const userSnap = await Promise.race([
-          getDoc(userRef),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => {
-              reject(new Error("Firestore read timeout after 5 seconds"));
-            }, 5000)
-          ),
-        ]);
-
-        if (userSnap.exists()) {
-          const rawData = userSnap.data();
-
-          const profile: UserProfile = {
-            uid,
-            ...(rawData as Omit<UserProfile, "uid">),
+        const isDev = process.env.NODE_ENV === "development";
+        if (isDev) {
+          const mockProfile: UserProfile = {
+            uid: currentUid,
+            display_name: "Daniel Keane",
+            email: "info@alphabetsigns.com",
+            role: "state_admin",
+            org_id: "PA15-O-1",
+            photo_url: null,
+            preferred_name: "Dan",
+            phone: "+16108066875",
           };
-
-          await db.users.put(profile);
-          console.log(
-            "👤 Current user profile successfully synced from Firestore"
-          );
-          userProfileSynced = true;
+          await db.users.put(mockProfile);
+          console.log("👤 [Sync] DEV MODE: Mock user profile created.");
         } else {
-          console.log("👤 No user document found (normal for new users)");
+          const userRef = doc(firestoreDb, "users", uid);
+
+          // Inline timeout wrapper – rejects after 5 seconds
+          const userSnap = await Promise.race([
+            getDoc(userRef),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => {
+                reject(new Error("Firestore read timeout after 5 seconds"));
+              }, 5000)
+            ),
+          ]);
+
+          if (userSnap.exists()) {
+            const rawData = userSnap.data();
+
+            const profile: UserProfile = {
+              uid,
+              ...(rawData as Omit<UserProfile, "uid">),
+            };
+
+            await db.users.put(profile);
+            console.log(
+              "👤 Current user profile successfully synced from Firestore"
+            );
+            userProfileSynced = true;
+          } else {
+            console.log("👤 No user document found (normal for new users)");
+          }
         }
       }
     } catch (fetchErr: any) {

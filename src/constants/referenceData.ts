@@ -22,7 +22,8 @@ function isValidArea(entry: any): entry is Area {
     typeof entry.area_district === "string" &&
     typeof entry.name === "string" &&
     (entry.chair_uid === null || typeof entry.chair_uid === "string") &&
-    (entry.vice_chair_uid === null || typeof entry.vice_chair_uid === "string") &&
+    (entry.vice_chair_uid === null ||
+      typeof entry.vice_chair_uid === "string") &&
     (entry.chair_email === null || typeof entry.chair_email === "string") &&
     typeof entry.active === "boolean" &&
     typeof entry.created_at === "number" &&
@@ -61,13 +62,24 @@ function isValidOrganization(entry: any): entry is Organization {
     typeof entry.county_code === "string" &&
     typeof entry.county_name === "string" &&
     (entry.chair_uid === null || typeof entry.chair_uid === "string") &&
-    (entry.vice_chair_uid === null || typeof entry.vice_chair_uid === "string") &&
+    (entry.vice_chair_uid === null ||
+      typeof entry.vice_chair_uid === "string") &&
     (entry.chair_email === null || typeof entry.chair_email === "string") &&
-    (entry.hq_phone === undefined || entry.hq_phone === null || typeof entry.hq_phone === "string") &&
-    (entry.website === undefined || entry.website === null || typeof entry.website === "string") &&
-    (entry.social_facebook === undefined || entry.social_facebook === null || typeof entry.social_facebook === "string") &&
-    (entry.social_x === undefined || entry.social_x === null || typeof entry.social_x === "string") &&
-    (entry.social_instagram === undefined || entry.social_instagram === null || typeof entry.social_instagram === "string") &&
+    (entry.hq_phone === undefined ||
+      entry.hq_phone === null ||
+      typeof entry.hq_phone === "string") &&
+    (entry.website === undefined ||
+      entry.website === null ||
+      typeof entry.website === "string") &&
+    (entry.social_facebook === undefined ||
+      entry.social_facebook === null ||
+      typeof entry.social_facebook === "string") &&
+    (entry.social_x === undefined ||
+      entry.social_x === null ||
+      typeof entry.social_x === "string") &&
+    (entry.social_instagram === undefined ||
+      entry.social_instagram === null ||
+      typeof entry.social_instagram === "string") &&
     typeof entry.active === "boolean" &&
     typeof entry.created_at === "number" &&
     typeof entry.last_updated === "number"
@@ -75,7 +87,10 @@ function isValidOrganization(entry: any): entry is Organization {
 }
 
 // === Validate and Export (Runtime Safe) ===
-const validateAndExport = <T>(data: any[], validator: (entry: any) => entry is T): T[] => {
+const validateAndExport = <T>(
+  data: any[],
+  validator: (entry: any) => entry is T
+): T[] => {
   if (!Array.isArray(data)) {
     console.error("Invalid data format – expected array");
     return [];
@@ -95,7 +110,7 @@ const validateAndExport = <T>(data: any[], validator: (entry: any) => entry is T
     }
   });
 
-  return Object.freeze(validated); // Freeze the array
+  return validated as T[];
 };
 
 export const counties = [

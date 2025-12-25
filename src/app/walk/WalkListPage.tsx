@@ -198,7 +198,7 @@ export default function WalkListPage() {
 
       <Paper sx={{ p: 3, mb: 4, borderRadius: 2 }}>
         <Grid container spacing={2} alignItems="end">
-          <Grid item xs={12} sm={4}>
+          <Grid>
             <TextField
               label="Zip Code"
               fullWidth
@@ -211,7 +211,7 @@ export default function WalkListPage() {
               size="small"
             />
           </Grid>
-          <Grid item xs={12} sm={4}>
+          <Grid>
             <TextField
               label="Street Name"
               fullWidth
@@ -222,7 +222,7 @@ export default function WalkListPage() {
               size="small"
             />
           </Grid>
-          <Grid item xs={12} sm={4}>
+          <Grid>
             <Button
               variant="contained"
               fullWidth

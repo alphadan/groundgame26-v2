@@ -23,6 +23,7 @@ import VoterListPage from "./app/voters/VoterListPage";
 import WalkListPage from "./app/walk/WalkListPage";
 import NameSearchPage from "./app/voters/NameSearchPage";
 import SettingsPage from "./app/settings/SettingsPage";
+import FirebasePage from "./app/admin/FirebaseManagementPage";
 import ManageTeamPage from "./app/precincts/ManageTeamPage";
 
 export default function App() {
@@ -205,7 +206,7 @@ export default function App() {
 
   // === 7. Authenticated App ===
   return (
-    <AuthProvider user={user} claims={claims ?? {}}>
+    <AuthProvider>
       <MainLayout>
         <Routes>
           <Route path="/dashboard" element={<Dashboard />} />
@@ -217,6 +218,7 @@ export default function App() {
           <Route path="/name-search" element={<NameSearchPage />} />
           <Route path="/manage-team" element={<ManageTeamPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/admin" element={<FirebasePage />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

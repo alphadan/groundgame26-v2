@@ -25,9 +25,9 @@ class GroundGame26DB extends Dexie {
     super(DB_NAME);
 
     this.version(DB_VERSION).stores({
-      counties: "id, name",
+      counties: "id, name, active",
       areas: "id, [org_id+area_district], active",
-      precincts: "id, [county_code+precinct_code], area_district",
+      precincts: "id, [county_code+precinct_code], area_district, active",
       organizations: "id, code, county_code",
       users: "uid, email, org_id, role",
       app_control: "id",

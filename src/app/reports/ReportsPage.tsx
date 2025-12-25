@@ -1,3 +1,4 @@
+// src/app/reports/ReportsPage.tsx
 import React from "react";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -10,10 +11,9 @@ import {
 } from "@mui/material";
 
 export default function ReportsPage() {
-  // 1. Pull 'isLoaded' from Context for a consistent global loading state
   const { user, claims, isLoaded } = useAuth();
 
-  // 2. Consistent Gatekeeper UI
+  // === Safe Loading Guard ===
   if (!isLoaded) {
     return (
       <Box
@@ -21,14 +21,22 @@ export default function ReportsPage() {
         justifyContent="center"
         alignItems="center"
         minHeight="70vh"
+        role="status"
+        aria-live="polite"
       >
-        <CircularProgress sx={{ color: "#B22234" }} />
+        <CircularProgress
+          sx={{ color: "#B22234" }}
+          aria-label="Loading reports"
+        />
       </Box>
     );
   }
 
-  // Safe derivation of role
-  const role = claims?.role || "user";
+  // === Defensive Role Handling ===
+  const role = typeof claims?.role === "string" ? claims.role : "user";
+
+  // === Safe User Display ===
+  const displayName = user?.displayName || user?.email || "User";
 
   return (
     <Box p={4}>
@@ -38,7 +46,7 @@ export default function ReportsPage() {
 
       <Paper sx={{ p: 4, mb: 4, borderRadius: 2, boxShadow: 2 }}>
         <Typography variant="h6" gutterBottom>
-          Hello, {user?.displayName || user?.email}
+          Hello, {displayName}
         </Typography>
         <Typography variant="body1">
           <strong>Access Level:</strong> {role.replace("_", " ").toUpperCase()}
@@ -46,14 +54,22 @@ export default function ReportsPage() {
       </Paper>
 
       <Alert severity="success" variant="outlined" sx={{ mb: 4 }}>
-        <strong>Security Verified:</strong> Your session is active and your
-        role-based permissions are synchronized.
+        <strong>Security Verified:</strong> Your session is active and
+        permissions are synchronized.
       </Alert>
 
       <Grid container spacing={3}>
         <Grid>
-          <Paper sx={{ p: 4, textAlign: "center", height: "100%" }}>
-            <Typography variant="h6" color="text.secondary">
+          <Paper
+            sx={{ p: 4, textAlign: "center", height: "100%" }}
+            aria-labelledby="turnout-trends-heading"
+          >
+            <Typography
+              id="turnout-trends-heading"
+              variant="h6"
+              color="text.secondary"
+              gutterBottom
+            >
               Voter Turnout Trends
             </Typography>
             <Box py={5} color="text.disabled">
@@ -63,9 +79,18 @@ export default function ReportsPage() {
             </Box>
           </Paper>
         </Grid>
+
         <Grid>
-          <Paper sx={{ p: 4, textAlign: "center", height: "100%" }}>
-            <Typography variant="h6" color="text.secondary">
+          <Paper
+            sx={{ p: 4, textAlign: "center", height: "100%" }}
+            aria-labelledby="mail-pipeline-heading"
+          >
+            <Typography
+              id="mail-pipeline-heading"
+              variant="h6"
+              color="text.secondary"
+              gutterBottom
+            >
               Mail Ballot Pipeline
             </Typography>
             <Box py={5} color="text.disabled">

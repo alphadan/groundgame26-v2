@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+// src/app/settings/SettingsPage.tsx
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Box,
   Container,
@@ -17,38 +18,82 @@ import {
   updateProfile,
   updateEmail,
   sendPasswordResetEmail,
+  User,
 } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-// Unified Imports
 import { auth, db, storage } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 
 export default function SettingsPage() {
-  // 1. Source identity from our reactive Gatekeeper
   const { user, isLoaded } = useAuth();
 
   const [formData, setFormData] = useState({
-    displayName: user?.displayName || "",
-    email: user?.email || "",
-    phone: "", // Will be populated from users_meta
+    displayName: "",
+    email: "",
     photoFile: null as File | null,
   });
 
   const [loading, setLoading] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [resetSent, setResetSent] = useState(false);
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      setFormData({ ...formData, photoFile: e.target.files[0] });
+  // Track current photo preview URL for cleanup
+  const photoUrlRef = useRef<string | null>(null);
+
+  // === Sync form with current user (defensive) ===
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        displayName: user.displayName || "",
+        email: user.email || "",
+        photoFile: null,
+      });
     }
+  }, [user]);
+
+  // === Cleanup object URL on unmount or change ===
+  useEffect(() => {
+    return () => {
+      if (photoUrlRef.current) {
+        URL.revokeObjectURL(photoUrlRef.current);
+      }
+    };
+  }, []);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Revoke previous preview
+    if (photoUrlRef.current) {
+      URL.revokeObjectURL(photoUrlRef.current);
+    }
+
+    // Validate file type/size
+    if (!file.type.startsWith("image/")) {
+      setError("Please select a valid image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      // 5MB limit
+      setError("Image must be under 5MB");
+      return;
+    }
+
+    setFormData((prev) => ({ ...prev, photoFile: file }));
+    photoUrlRef.current = URL.createObjectURL(file);
   };
 
-  const handleSave = async () => {
-    if (!user) return;
+  const handleSave = useCallback(async () => {
+    if (!user) {
+      setError("Not authenticated");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setSuccess(false);
@@ -56,64 +101,89 @@ export default function SettingsPage() {
     try {
       let photoURL = user.photoURL;
 
-      // 2. Handle Profile Photo Upload
+      // === Photo Upload (isolated) ===
       if (formData.photoFile) {
+        setPhotoUploading(true);
         const storageRef = ref(storage, `profile-photos/${user.uid}`);
         await uploadBytes(storageRef, formData.photoFile);
         photoURL = await getDownloadURL(storageRef);
+        setPhotoUploading(false);
       }
 
-      // 3. Update Firebase Auth Profile (Global State)
+      // === Update Auth Profile ===
       await updateProfile(user, {
-        displayName: formData.displayName,
-        photoURL: photoURL || undefined,
+        displayName: formData.displayName.trim() || null,
+        photoURL: photoURL || null,
       });
 
-      // 4. Update Email (Requires recent login - may throw error)
-      if (formData.email !== user.email && formData.email) {
-        await updateEmail(user, formData.email);
+      // === Update Email (with validation) ===
+      const newEmail = formData.email.trim();
+      if (newEmail && newEmail !== user.email) {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+          throw new Error("Invalid email format");
+        }
+        await updateEmail(user, newEmail);
       }
 
-      // 5. Update Central Metadata (Sync with ManageTeam/Dashboard)
+      // === Update Firestore Meta ===
       await updateDoc(doc(db, "users", user.uid), {
-        display_name: formData.displayName,
-        email: formData.email,
-        photo_url: photoURL || "",
+        display_name: formData.displayName.trim() || null,
+        email: newEmail || null,
+        photo_url: photoURL || null,
         updated_at: new Date().toISOString(),
       });
 
       setSuccess(true);
     } catch (err: any) {
-      console.error("Settings Update Error:", err);
-      // Handle the "Requires Recent Login" error specifically
+      console.error("Profile update failed:", err);
       if (err.code === "auth/requires-recent-login") {
         setError(
-          "For security, please log out and back in before changing your email."
+          "For security, please log out and log in again before changing email."
         );
+      } else if (err.code === "auth/invalid-email") {
+        setError("Invalid email address");
       } else {
-        setError(err.message || "Failed to save changes.");
+        setError(err.message || "Failed to save changes");
       }
     } finally {
       setLoading(false);
+      setPhotoUploading(false);
     }
-  };
+  }, [user, formData]);
 
-  const handlePasswordReset = async () => {
-    if (!user?.email) return;
+  const handlePasswordReset = useCallback(async () => {
+    if (!user?.email) {
+      setError("No email associated with account");
+      return;
+    }
+
     try {
       await sendPasswordResetEmail(auth, user.email);
       setResetSent(true);
+      setError("");
     } catch (err: any) {
-      setError("Failed to send reset email.");
+      console.error("Password reset failed:", err);
+      setError("Failed to send reset email");
     }
-  };
+  }, [user]);
 
-  if (!isLoaded)
+  // === Loading Guard ===
+  if (!isLoaded) {
     return (
-      <Box p={10} textAlign="center">
-        <CircularProgress />
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="70vh"
+      >
+        <CircularProgress sx={{ color: "#B22234" }} />
       </Box>
     );
+  }
+
+  const currentPhotoUrl = formData.photoFile
+    ? photoUrlRef.current
+    : user?.photoURL || "";
 
   return (
     <Container maxWidth="sm">
@@ -122,17 +192,12 @@ export default function SettingsPage() {
           Profile Settings
         </Typography>
         <Typography variant="body2" color="text.secondary" mb={4}>
-          Manage your identity and contact information across the GroundGame26
-          network.
+          Manage your identity and contact information.
         </Typography>
 
         <Box sx={{ textAlign: "center", mb: 4 }}>
           <Avatar
-            src={
-              formData.photoFile
-                ? URL.createObjectURL(formData.photoFile)
-                : user?.photoURL || ""
-            }
+            src={currentPhotoUrl || undefined}
             sx={{
               width: 120,
               height: 120,
@@ -145,8 +210,9 @@ export default function SettingsPage() {
             component="label"
             startIcon={<PhotoCamera />}
             sx={{ mt: 1, color: "#B22234" }}
+            disabled={photoUploading}
           >
-            Change Photo
+            {photoUploading ? "Uploading..." : "Change Photo"}
             <input
               type="file"
               hidden
@@ -160,21 +226,23 @@ export default function SettingsPage() {
           <TextField
             fullWidth
             label="Full Name"
-            variant="outlined"
             value={formData.displayName}
             onChange={(e) =>
-              setFormData({ ...formData, displayName: e.target.value })
+              setFormData((prev) => ({ ...prev, displayName: e.target.value }))
             }
+            disabled={loading}
           />
+
           <TextField
             fullWidth
             label="Email Address"
             type="email"
             value={formData.email}
             onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
+              setFormData((prev) => ({ ...prev, email: e.target.value }))
             }
-            helperText="Changing your email requires a secure session."
+            helperText="Changing email requires recent login"
+            disabled={loading}
           />
 
           {success && (
@@ -207,13 +275,14 @@ export default function SettingsPage() {
               "&:hover": { bgcolor: "#8B1A1A" },
             }}
           >
-            {loading ? "Updating..." : "Save Profile"}
+            {loading ? "Saving..." : "Save Profile"}
           </Button>
 
-          <Box sx={{ textAlign: "center", pt: 2 }}>
+          <Box textAlign="center" pt={2}>
             <Button
               startIcon={<LockReset />}
               onClick={handlePasswordReset}
+              disabled={loading || !user?.email}
               sx={{ color: "#666", textTransform: "none" }}
             >
               Send Password Reset Link

@@ -1,15 +1,8 @@
 // src/app/admin/ManageTeamPage.tsx
-import { useState, useEffect } from "react";
-import { db } from "../../lib/firebase";
-import { useAuth } from "../../context/AuthContext"; // Integrated Gatekeeper
-import {
-  doc,
-  collection,
-  query,
-  where,
-  getDocs,
-  updateDoc,
-} from "firebase/firestore";
+import React, { useEffect, useMemo } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db as indexedDb } from "../../lib/db";
+import { useAuth } from "../../context/AuthContext";
 import {
   Box,
   Typography,
@@ -20,262 +13,287 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TextField,
-  Button,
-  Alert,
   Chip,
   IconButton,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   TablePagination,
   CircularProgress,
+  Alert,
+  Snackbar,
 } from "@mui/material";
-import { Edit, Save, Cancel } from "@mui/icons-material";
+import { Phone, Message, MailOutline } from "@mui/icons-material";
 
-// Placeholder: In production, fetch these from a 'precincts' collection
-const PRECINCTS_FALLBACK = [
-  { name: "Atglen", id: "005", area: "15" },
-  { name: "East Fallowfield-E", id: "225", area: "15" },
-  // ... rest of your list
-];
+interface Committeeman {
+  id: string;
+  display_name?: string;
+  email?: string;
+  phone_mobile?: string;
+  phone_home?: string;
+  precincts?: string[];
+}
 
 export default function ManageTeamPage() {
-  const { user, claims, isLoaded } = useAuth(); // Source of Truth
-  const [committeemen, setCommitteemen] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<any>({});
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const { user, claims, isLoaded } = useAuth();
 
-  // Derive permissions from the Gatekeeper
+  const [committeemen, setCommitteemen] = React.useState<Committeeman[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [page, setPage] = React.useState(0);
+  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+
+  // Feedback
+  const [snackbarOpen, setSnackbarOpen] = React.useState(false);
+  const [snackbarMessage, setSnackbarMessage] = React.useState("");
+
+  // === Permissions ===
   const userRole = claims?.role;
-  const userArea = claims?.area_district || claims?.org_id;
-  const canManage =
-    userRole === "chairman" ||
-    userRole === "admin" ||
-    userRole === "state_admin";
+  const canView = userRole === "state_admin"; // Only state admins can view
 
+  // === Load precincts dynamically for display labels ===
+  const precincts =
+    useLiveQuery(() =>
+      indexedDb.precincts.where("active").equals(1).toArray()
+    ) ?? [];
+
+  const precinctLabelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    precincts.forEach((p) => {
+      map.set(p.id, `${p.precinct_code} - ${p.name}`);
+    });
+    return map;
+  }, [precincts]);
+
+  // === Load team members ===
   useEffect(() => {
-    // 🛑 CRITICAL GATE: Only fetch if the identity is verified and the user has permission
-    if (!isLoaded || !canManage) {
-      if (isLoaded && !canManage) setLoading(false);
+    if (!isLoaded || !canView) {
+      setLoading(false);
       return;
     }
 
     const loadTeam = async () => {
-      console.log("🚀 Firestore: Fetching team for area:", userArea);
+      setLoading(true);
       try {
-        const q = query(
-          collection(db, "users"),
-          where("area_district", "==", userArea),
-          where("role", "==", "committeeman")
-        );
-        const snapshot = await getDocs(q);
-        const list = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setCommitteemen(list);
+        // Replace with your actual Firestore query
+        const mockTeam: Committeeman[] = [
+          // Example data – replace with real query
+          {
+            id: "user1",
+            display_name: "John Doe",
+            email: "john@example.com",
+            phone_mobile: "5551234567",
+            phone_home: "5559876543",
+            precincts: ["PA15-P-225", "PA15-P-230"],
+          },
+          // ... more members
+        ];
+
+        setCommitteemen(mockTeam);
       } catch (err: any) {
-        console.error("❌ Team Load Error:", err);
-        setError("Failed to load team: " + err.message);
+        console.error("Failed to load team:", err);
+        setSnackbarMessage("Failed to load team members");
+        setSnackbarOpen(true);
       } finally {
         setLoading(false);
       }
     };
 
     loadTeam();
-  }, [isLoaded, canManage, userArea]);
+  }, [isLoaded, canView]);
 
-  const saveEdit = async (uid: string) => {
-    setMessage("");
-    setError("");
-    try {
-      await updateDoc(doc(db, "users", uid), {
-        display_name: editForm.display_name,
-        email: editForm.email,
-        precincts: editForm.precincts,
-        updated_at: new Date().toISOString(), // Audit trail
-      });
-
-      setCommitteemen((prev) =>
-        prev.map((m) => (m.id === uid ? { ...m, ...editForm } : m))
-      );
-      setMessage("Member updated successfully!");
-      setEditingId(null);
-    } catch (err: any) {
-      setError("Save failed: " + err.message);
+  // === Safe contact actions ===
+  const safeCall = React.useCallback((phone?: string) => {
+    if (!phone || typeof phone !== "string") return;
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.length >= 10) {
+      const normalized =
+        cleaned.length === 11 && cleaned.startsWith("1")
+          ? cleaned
+          : "1" + cleaned;
+      window.location.href = `tel:${normalized}`;
     }
-  };
+  }, []);
 
-  // Rendering Gatekeeper logic
-  if (!isLoaded)
+  const safeText = React.useCallback((phone?: string) => {
+    if (!phone || typeof phone !== "string") return;
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.length >= 10) {
+      const normalized =
+        cleaned.length === 11 && cleaned.startsWith("1")
+          ? cleaned
+          : "1" + cleaned;
+      window.location.href = `sms:${normalized}`;
+    }
+  }, []);
+
+  const safeEmail = React.useCallback((email?: string) => {
+    if (!email || typeof email !== "string") return;
+    window.location.href = `mailto:${email}`;
+  }, []);
+
+  // === Pagination ===
+  const paginatedCommitteemen = useMemo(
+    () =>
+      committeemen.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [committeemen, page, rowsPerPage]
+  );
+
+  // === Loading / Access Guard ===
+  if (!isLoaded) {
     return (
-      <Box p={4} textAlign="center">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="70vh"
+      >
+        <CircularProgress sx={{ color: "#B22234" }} />
+      </Box>
+    );
+  }
+
+  if (!canView) {
+    return (
+      <Box p={4}>
+        <Alert severity="error">
+          Access Denied: State administrator permissions required.
+        </Alert>
+      </Box>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="50vh"
+      >
         <CircularProgress />
       </Box>
     );
-  if (!canManage)
-    return (
-      <Alert severity="error">
-        Access Denied: Administrative permissions required.
-      </Alert>
-    );
+  }
 
   return (
     <Box maxWidth={1200} mx="auto" p={4}>
       <Typography variant="h4" gutterBottom color="#B22234" fontWeight="bold">
-        Team Management — Area {userArea}
+        Team Directory
       </Typography>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      {message && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {message}
-        </Alert>
-      )}
+      <Typography variant="body1" color="text.secondary" mb={4}>
+        Contact your precinct committeepersons directly.
+      </Typography>
 
       <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: 3 }}>
         <Table>
-          <TableHead sx={{ bgcolor: "#f5f5f5" }}>
+          <TableHead sx={{ bgcolor: "#0A3161" }}>
             <TableRow>
-              <TableCell>
-                <strong>Name</strong>
+              <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                Name
               </TableCell>
-              <TableCell>
-                <strong>Email</strong>
+              <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                Email
               </TableCell>
-              <TableCell>
-                <strong>Assigned Precincts</strong>
+              <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                Phone
               </TableCell>
-              <TableCell align="right">
-                <strong>Actions</strong>
+              <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                Precincts
+              </TableCell>
+              <TableCell
+                align="right"
+                sx={{ color: "white", fontWeight: "bold" }}
+              >
+                Contact
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {committeemen
-              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((member) => (
-                <TableRow key={member.id} hover>
-                  <TableCell>
-                    {editingId === member.id ? (
-                      <TextField
+            {paginatedCommitteemen.map((member) => (
+              <TableRow key={member.id} hover>
+                <TableCell>
+                  <Typography variant="body2" fontWeight="medium">
+                    {member.display_name || "Unknown"}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  {member.email ? (
+                    <Typography variant="body2">{member.email}</Typography>
+                  ) : (
+                    "-"
+                  )}
+                </TableCell>
+                <TableCell>
+                  {member.phone_mobile || member.phone_home || "-"}
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                    {(member.precincts || []).map((p: string) => (
+                      <Chip
+                        key={p}
+                        label={precinctLabelMap.get(p) || p}
                         size="small"
-                        value={editForm.display_name}
-                        onChange={(e) =>
-                          setEditForm({
-                            ...editForm,
-                            display_name: e.target.value,
-                          })
-                        }
                       />
-                    ) : (
-                      member.display_name || "Unknown"
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {editingId === member.id ? (
-                      <TextField
-                        size="small"
-                        value={editForm.email}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, email: e.target.value })
-                        }
-                      />
-                    ) : (
-                      member.email
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {editingId === member.id ? (
-                      <FormControl fullWidth size="small">
-                        <Select
-                          multiple
-                          value={editForm.precincts || []}
-                          onChange={(e) =>
-                            setEditForm({
-                              ...editForm,
-                              precincts: e.target.value,
-                            })
-                          }
-                          renderValue={(selected) => (
-                            <Box
-                              sx={{
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: 0.5,
-                              }}
-                            >
-                              {(selected as string[]).map((value) => (
-                                <Chip key={value} label={value} size="small" />
-                              ))}
-                            </Box>
-                          )}
-                        >
-                          {PRECINCTS_FALLBACK.map((p) => (
-                            <MenuItem key={p.id} value={p.id}>
-                              {p.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    ) : (
-                      member.precincts?.map((p: string) => (
-                        <Chip key={p} label={p} size="small" sx={{ mr: 0.5 }} />
-                      )) || "None"
-                    )}
-                  </TableCell>
-                  <TableCell align="right">
-                    {editingId === member.id ? (
-                      <>
-                        <IconButton
-                          color="primary"
-                          onClick={() => saveEdit(member.id)}
-                        >
-                          <Save />
-                        </IconButton>
-                        <IconButton onClick={() => setEditingId(null)}>
-                          <Cancel />
-                        </IconButton>
-                      </>
-                    ) : (
+                    ))}
+                    {(!member.precincts || member.precincts.length === 0) &&
+                      "-"}
+                  </Box>
+                </TableCell>
+                <TableCell align="right">
+                  {member.email && (
+                    <IconButton
+                      color="primary"
+                      onClick={() => safeEmail(member.email)}
+                    >
+                      <MailOutline fontSize="small" />
+                    </IconButton>
+                  )}
+                  {(member.phone_mobile || member.phone_home) && (
+                    <>
                       <IconButton
-                        color="primary"
-                        onClick={() => {
-                          setEditingId(member.id);
-                          setEditForm(member);
-                        }}
+                        color="success"
+                        onClick={() =>
+                          safeCall(member.phone_mobile || member.phone_home)
+                        }
                       >
-                        <Edit />
+                        <Phone fontSize="small" />
                       </IconButton>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                      {member.phone_mobile && (
+                        <IconButton
+                          color="info"
+                          onClick={() => safeText(member.phone_mobile)}
+                        >
+                          <Message fontSize="small" />
+                        </IconButton>
+                      )}
+                    </>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
+
         <TablePagination
-          rowsPerPageOptions={[10, 25]}
+          rowsPerPageOptions={[10, 25, 50]}
           component="div"
           count={committeemen.length}
           rowsPerPage={rowsPerPage}
           page={page}
-          onPageChange={(_, p) => setPage(p)}
-          onRowsPerPageChange={(e) =>
-            setRowsPerPage(parseInt(e.target.value, 10))
-          }
+          onPageChange={(_, newPage) => setPage(newPage)}
+          onRowsPerPageChange={(e) => {
+            setRowsPerPage(parseInt(e.target.value, 10));
+            setPage(0);
+          }}
         />
       </TableContainer>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity="info">
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

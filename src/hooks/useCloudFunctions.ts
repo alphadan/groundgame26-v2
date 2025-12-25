@@ -66,7 +66,7 @@ export const useCloudFunctions = () => {
       }
 
       try {
-        const result = await callable(data, { signal: controller.signal });
+        const result = await callable(data);
 
         // Firebase guarantees data exists and is T
         // But we defensively return it

@@ -1,8 +1,9 @@
-import { useState, useEffect, ReactNode } from "react";
+// src/app/layout/MainLayout.tsx
+import React, { useState, useEffect, useCallback, ReactNode } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { signOut } from "firebase/auth"; // Only need signOut now
+import { signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
-import { useAuth } from "../../context/AuthContext"; // <-- NEW: Import useAuth
+import { useAuth } from "../../context/AuthContext";
 import {
   Box,
   Drawer,
@@ -31,15 +32,13 @@ import {
   HomeWork,
   Phone,
   DirectionsWalk,
-  LocationOn,
-  Home as HomeIcon,
+  Search as SearchIcon,
   Settings,
 } from "@mui/icons-material";
-import SearchIcon from "@mui/icons-material/Search";
-import DataObjectIcon from "@mui/icons-material/DataObject";
 import Logo from "../../components/ui/Logo";
+import DataObjectIcon from "@mui/icons-material/DataObject";
 
-// Icons
+// Icons (safe fallbacks)
 import GopElephant from "../../assets/icons/gop-elephant.svg";
 import CandidateRosette from "../../assets/icons/candidate-rosette.svg";
 import CountyChairCrown from "../../assets/icons/county-chair-crown.svg";
@@ -52,46 +51,56 @@ interface MainLayoutProps {
   children?: ReactNode;
 }
 
+// === Safe Icon Maps with Fallbacks ===
+const ROLE_ICONS: Record<string, string> = {
+  state_admin: CommitteepersonShield,
+  candidate: CandidateRosette,
+  county_chair: CountyChairCrown,
+  area_chair: AreaChairBadge,
+  committeeperson: CommitteepersonShield,
+  ambassador: CandidateRosette,
+  // Add more as needed
+};
+
+const ORG_ICONS: Record<string, string> = {
+  chester_gop: GopElephant,
+  // Add more organizations
+};
+
 export default function MainLayout({ children }: MainLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const isDesktop = useMediaQuery("(min-width:1200px)");
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 🛑 FIX: Consume stable user and claims from context
-  const { user: currentUser, claims } = useAuth();
+  const { user, claims, isLoaded } = useAuth();
 
-  // 🛑 FIX: Derive role and orgId from stable claims object
-  const userRole = (claims?.role as string) || null;
-  const userOrgId = (claims?.org_id as string) || null;
+  // === Safe Derived Values ===
+  const userRole =
+    typeof claims?.role === "string" ? claims.role.toLowerCase() : null;
+  const userOrgId = typeof claims?.org_id === "string" ? claims.org_id : null;
 
-  // Avatar dropdown
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  // Avatar menu
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const handleAvatarClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
-  const handleClose = () => setAnchorEl(null);
+  const handleMenuClose = () => setAnchorEl(null);
 
-  // Icon mappings
-  const ORG_ICONS: Record<string, any> = {
-    chester_gop: GopElephant,
-    // Add more: chester_tpa: TpaLogo, etc.
-  };
+  // === Safe Sign Out ===
+  const handleSignOut = useCallback(async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error("Sign out failed:", err);
+      // Still navigate away – best effort
+    } finally {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
 
-  const ROLE_ICONS: Record<string, any> = {
-    state_admin: CommitteepersonShield,
-    candidate: CandidateRosette,
-    county_chair: CountyChairCrown,
-    area_chair: AreaChairBadge,
-    committeeperson: CommitteepersonShield,
-    ambassador: CandidateRosette,
-  };
-
-  // 🛑 FIX: REMOVE the entire useEffect that was re-fetching auth/claims
-  // and causing the infinite re-render loop. (Original lines 119-140 are gone)
-
-  // Breadcrumb
-  const pathnames = location.pathname.split("/").filter((x) => x);
+  // === Breadcrumb ===
+  const pathnames = location.pathname.split("/").filter(Boolean);
   const breadcrumbName =
     pathnames.length > 0
       ? pathnames[pathnames.length - 1]
@@ -99,9 +108,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
           .replace(/\b\w/g, (l) => l.toUpperCase())
       : "Dashboard";
 
-  const baseMenuItems = [
-    { text: "My Dashboard", icon: <HomeWork />, path: "/dashboard/Dashboard" },
-    // { text: "My Test", icon: <HomeWork />, path: "/dashboard/TestFetch" },
+  // === Menu Items (Dynamic & Safe) ===
+  const menuItems = [
+    { text: "Dashboard", icon: <HomeWork />, path: "/dashboard" },
     { text: "Reports", icon: <BarChart />, path: "/reports" },
     { text: "Analysis", icon: <Analytics />, path: "/analysis" },
     { text: "Actions", icon: <Campaign />, path: "/actions" },
@@ -113,19 +122,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
     { text: "Settings", icon: <Settings />, path: "/settings" },
   ];
 
-  const menuItems = [...baseMenuItems];
-
-  if (userRole === "state_admin") {
-    menuItems.push({
-      text: "Firebase",
-      icon: <DataObjectIcon />,
-      path: "/admin", // ← make sure this matches your route
-    });
-  }
+  // Admin-only items
+  menuItems.push({
+    text: "Firebase",
+    icon: <DataObjectIcon />,
+    path: "/admin", // ← make sure this matches your route
+  });
 
   const drawer = (
     <Box>
-      <Toolbar sx={{ mt: 2, mb: 2 }}>
+      <Toolbar sx={{ mt: 2, mb: 2, justifyContent: "center" }}>
         <Logo />
       </Toolbar>
       <List>
@@ -134,12 +140,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
             return (
               <Box
                 key={`divider-${index}`}
-                sx={{
-                  my: 2,
-                  mx: 2,
-                  borderTop: "1px solid",
-                  borderColor: "divider",
-                }}
+                sx={{ my: 2, mx: 2, borderTop: 1, borderColor: "divider" }}
               />
             );
           }
@@ -149,22 +150,22 @@ export default function MainLayout({ children }: MainLayoutProps) {
           return (
             <ListItem key={item.text} disablePadding>
               <ListItemButton
-                onClick={() => navigate(item.path)}
+                onClick={() => {
+                  navigate(item.path);
+                  if (!isDesktop) setMobileOpen(false);
+                }}
                 sx={{
                   borderLeft: isActive ? 4 : 0,
                   borderColor: "#B22234",
                   pl: isActive ? 2.5 : 3,
                   backgroundColor: isActive
-                    ? "rgba(211, 47, 47, 0.05)"
+                    ? "rgba(178, 34, 52, 0.08)"
                     : "transparent",
-                  "&:hover": { backgroundColor: "rgba(211, 47, 47, 0.08)" },
+                  "&:hover": { backgroundColor: "rgba(178, 34, 52, 0.12)" },
                 }}
               >
                 <ListItemIcon
-                  sx={{
-                    color: isActive ? "#B22234" : "inherit",
-                    minWidth: 40,
-                  }}
+                  sx={{ color: isActive ? "#B22234" : "inherit", minWidth: 40 }}
                 >
                   {item.icon}
                 </ListItemIcon>
@@ -181,7 +182,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         })}
 
         <ListItem disablePadding>
-          <ListItemButton onClick={() => signOut(auth)}>
+          <ListItemButton onClick={handleSignOut}>
             <ListItemIcon>
               <Logout />
             </ListItemIcon>
@@ -192,129 +193,130 @@ export default function MainLayout({ children }: MainLayoutProps) {
     </Box>
   );
 
-  return (
-    <Box sx={{ display: "flex" }}>
-      {/* Desktop drawer */}
-      {isDesktop ? (
-        <Drawer
-          variant="permanent"
-          sx={{
-            width: drawerWidth,
-            flexShrink: 0,
-            "& .MuiDrawer-paper": {
-              width: drawerWidth,
-              boxSizing: "border-box",
-            },
-          }}
-        >
-          {drawer}
-        </Drawer>
-      ) : (
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={() => setMobileOpen(false)}
-          ModalProps={{ keepMounted: true }}
-          sx={{ "& .MuiDrawer-paper": { width: drawerWidth } }}
-        >
-          {drawer}
-        </Drawer>
-      )}
+  // === Mobile Drawer Toggle ===
+  const handleDrawerToggle = () => setMobileOpen((prev) => !prev);
 
-      {/* Main content */}
-      <Box component="main" sx={{ flexGrow: 1 }}>
-        {/* Mobile Top Bar */}
+  return (
+    <Box sx={{ display: "flex", minHeight: "100vh" }}>
+      {/* Permanent Desktop Drawer */}
+      <Drawer
+        variant={isDesktop ? "permanent" : "temporary"}
+        open={isDesktop || mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          width: drawerWidth,
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: drawerWidth,
+            boxSizing: "border-box",
+            bgcolor: "#fafafa",
+          },
+        }}
+      >
+        {drawer}
+      </Drawer>
+
+      {/* Main Content Area */}
+      <Box
+        component="main"
+        sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}
+      >
+        {/* Top App Bar (Mobile Only) */}
         {!isDesktop && (
-          <AppBar position="fixed" sx={{ bgcolor: "#B22234" }}>
+          <AppBar
+            position="fixed"
+            sx={{
+              bgcolor: "#B22234",
+              zIndex: (theme) => theme.zIndex.drawer + 1,
+            }}
+          >
             <Toolbar>
-              <IconButton color="inherit" onClick={() => setMobileOpen(true)}>
+              <IconButton
+                color="inherit"
+                onClick={handleDrawerToggle}
+                edge="start"
+              >
                 <MenuIcon />
               </IconButton>
-              <Logo />
+              <Box sx={{ flexGrow: 1, textAlign: "center" }}>
+                <Logo />
+              </Box>
             </Toolbar>
           </AppBar>
         )}
 
-        {/* PAGE HEADER */}
+        {/* Sticky Header */}
         <Box
           sx={{
-            bgcolor: "white",
+            bgcolor: "background.paper",
             borderBottom: 1,
             borderColor: "divider",
             position: "sticky",
             top: 0,
             zIndex: 1099,
+            ...(!isDesktop && { mt: "64px" }), // Offset for mobile app bar
           }}
         >
-          <Toolbar
-            sx={{
-              justifyContent: "space-between",
-              minHeight: "64px !important",
-            }}
-          >
-            {/* Breadcrumbs */}
+          <Toolbar sx={{ justifyContent: "space-between" }}>
             <Breadcrumbs aria-label="breadcrumb">
-              <IconButton
-                onClick={() => navigate("/my-precincts")}
-                size="small"
-              >
-                <HomeIcon sx={{ color: "#B22234" }} />
+              <IconButton size="small" onClick={() => navigate("/dashboard")}>
+                <HomeWork sx={{ color: "#B22234" }} />
               </IconButton>
               <Typography color="text.primary" fontWeight="medium">
                 {breadcrumbName}
               </Typography>
             </Breadcrumbs>
 
-            {/* RIGHT SIDE: ROLE ICON + ORG ICON + SETTINGS + AVATAR */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              {/* ROLE ICON */}
-              {userRole && ROLE_ICONS[userRole.toLowerCase()] && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              {/* Role Icon */}
+              {userRole && ROLE_ICONS[userRole] && (
                 <Tooltip
                   title={userRole
                     .replace(/_/g, " ")
                     .replace(/\b\w/g, (l) => l.toUpperCase())}
                 >
-                  <img
-                    src={ROLE_ICONS[userRole.toLowerCase()]}
+                  <Box
+                    component="img"
+                    src={ROLE_ICONS[userRole]}
                     alt={userRole}
-                    style={{ height: 30 }}
+                    sx={{ height: 32 }}
                   />
                 </Tooltip>
               )}
-              {/* ORGANIZATION ICON */}
+
+              {/* Org Icon */}
               {userOrgId && ORG_ICONS[userOrgId] && (
                 <Tooltip
                   title={userOrgId
                     .replace(/_/g, " ")
                     .replace(/\b\w/g, (l) => l.toUpperCase())}
                 >
-                  <img
+                  <Box
+                    component="img"
                     src={ORG_ICONS[userOrgId]}
-                    alt="Org"
-                    style={{ height: 34 }}
+                    alt="Organization"
+                    sx={{ height: 36 }}
                   />
                 </Tooltip>
               )}
 
-              {/* Settings */}
               <Tooltip title="Settings">
                 <IconButton onClick={() => navigate("/settings")}>
                   <Settings />
                 </IconButton>
               </Tooltip>
 
-              {/* Avatar + Dropdown */}
-              <Tooltip
-                title={currentUser?.displayName || currentUser?.email || "User"}
-              >
+              {/* Avatar Menu */}
+              <Tooltip title={user?.displayName || user?.email || "User"}>
                 <IconButton onClick={handleAvatarClick}>
                   <Avatar
-                    src={currentUser?.photoURL || ""}
-                    sx={{ width: 36, height: 36 }}
+                    src={user?.photoURL ?? ""}
+                    sx={{ width: 40, height: 40 }}
                   >
-                    {(currentUser?.displayName ||
-                      currentUser?.email ||
-                      "U")[0].toUpperCase()}
+                    {(user?.displayName ||
+                      user?.email ||
+                      "U")[0]?.toUpperCase()}
                   </Avatar>
                 </IconButton>
               </Tooltip>
@@ -322,13 +324,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
               <Menu
                 anchorEl={anchorEl}
                 open={Boolean(anchorEl)}
-                onClose={handleClose}
+                onClose={handleMenuClose}
                 anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
                 transformOrigin={{ vertical: "top", horizontal: "right" }}
               >
                 <MenuItem
                   onClick={() => {
-                    handleClose();
+                    handleMenuClose();
                     navigate("/settings");
                   }}
                 >
@@ -337,8 +339,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 </MenuItem>
                 <MenuItem
                   onClick={() => {
-                    handleClose();
-                    signOut(auth);
+                    handleMenuClose();
+                    handleSignOut();
                   }}
                 >
                   <Logout fontSize="small" sx={{ mr: 1 }} />
@@ -349,8 +351,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
           </Toolbar>
         </Box>
 
-        {/* Main Content */}
-        <Box p={3}>{children || <Outlet />}</Box>
+        {/* Page Content */}
+        <Box sx={{ flexGrow: 1, p: { xs: 2, sm: 3 } }}>
+          {children || <Outlet />}
+        </Box>
       </Box>
     </Box>
   );

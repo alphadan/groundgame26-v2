@@ -9,8 +9,8 @@ import React, {
 } from "react";
 import { User, onIdTokenChanged } from "firebase/auth";
 import { auth } from "../lib/firebase";
+import { Box, Typography, Button, CircularProgress } from "@mui/material";
 
-// === Strict Types ===
 export type ValidRole =
   | "state_admin"
   | "county_chair"
@@ -36,12 +36,11 @@ interface AuthContextType {
   claims: CustomClaims | null;
   role: ValidRole;
   isAdmin: boolean;
-  isLoaded: boolean; // Auth fully resolved (success or error)
-  isLoading: boolean; // Auth in progress
+  isLoaded: boolean;
+  isLoading: boolean;
   error: Error | null;
 }
 
-// === Safe Default Context (prevents crashes) ===
 const defaultContext: AuthContextType = {
   user: null,
   claims: null,
@@ -54,22 +53,14 @@ const defaultContext: AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>(defaultContext);
 
-/**
- * Safe hook – never throws, returns defaults if misused
- */
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   return context ?? defaultContext;
 };
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-/**
- * AuthProvider – Self-contained, listens to Firebase auth state
- */
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<User | null>(null);
   const [claims, setClaims] = useState<CustomClaims | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,30 +75,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setError(null);
 
           if (currentUser) {
-            try {
-              const tokenResult = await currentUser.getIdTokenResult();
-              const safeClaims: CustomClaims = tokenResult.claims ?? {};
-
-              // Defensive claim validation
-              if (safeClaims.role && !isValidRole(safeClaims.role)) {
-                console.warn("Invalid role claim received:", safeClaims.role);
-                safeClaims.role = "base";
-              }
-
-              setClaims(safeClaims);
-            } catch (tokenErr) {
-              console.error("Failed to fetch ID token claims:", tokenErr);
-              setClaims({});
-            }
+            const tokenResult = await currentUser.getIdTokenResult();
+            setClaims(tokenResult.claims as CustomClaims);
           } else {
             setClaims(null);
           }
-
           setUser(currentUser);
         } catch (err) {
-          setError(
-            err instanceof Error ? err : new Error("Authentication state error")
-          );
+          setError(err instanceof Error ? err : new Error("Auth error"));
           setUser(null);
           setClaims(null);
         } finally {
@@ -115,39 +90,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       },
       (authErr) => {
-        setError(
-          authErr instanceof Error ? authErr : new Error(String(authErr))
-        );
-        setUser(null);
-        setClaims(null);
+        setError(authErr instanceof Error ? authErr : new Error("Auth error"));
         setIsLoading(false);
       }
     );
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
-  // === Type guard for ValidRole ===
-  const isValidRole = (role: any): role is ValidRole => {
-    return [
-      "state_admin",
-      "county_chair",
-      "area_chair",
-      "candidate",
-      "ambassador",
-      "committeeperson",
-      "user",
-      "base",
-    ].includes(role);
-  };
-
   const contextValue = useMemo<AuthContextType>(() => {
-    const safeClaims = claims ?? {};
-    const safeRole = isValidRole(safeClaims.role) ? safeClaims.role : "base";
-
+    const safeRole = (claims?.role as ValidRole) ?? "base";
     return {
       user,
-      claims: safeClaims,
+      claims: claims ?? null,
       role: safeRole,
       isAdmin: safeRole === "state_admin",
       isLoaded: !isLoading && !error,
@@ -156,7 +111,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, [user, claims, isLoading, error]);
 
-  // === Critical Error Fallback (Layout-safe) ===
   if (error) {
     return (
       <Box
@@ -172,7 +126,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           Authentication Error
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          {error.message || "Unknown authentication failure"}
+          {error.message || "Unknown error"}
         </Typography>
         <Button
           variant="contained"
@@ -185,7 +139,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     );
   }
 
-  // === Loading State ===
   if (isLoading) {
     return (
       <Box

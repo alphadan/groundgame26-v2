@@ -65,7 +65,81 @@ export const queryVoters = onRequest(
 );
 
 // ================================================================
-// 2. AUTO-CREATE users/{uid} — UPDATED FOR USER INTERFACE
+// 2. GET VOTERS BY PRECINCT — UPDATED FOR USER INTERFACE
+// ================================================================
+
+exports.getVotersByPrecinct = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new httpsError("unauthenticated", "Authentication required");
+  }
+
+  const { precinctCode } = data;
+
+  if (!precinctCode || typeof precinctCode !== "string") {
+    throw new httpsError("invalid-argument", "Valid precinctCode required");
+  }
+
+  const sql = `
+    SELECT voter_id, full_name, age, gender, party, modeled_party,
+           phone_home, phone_mobile, address, turnout_score_general,
+           mail_ballot_returned, likely_mover, precinct
+    FROM \`groundgame26_voters.chester_county\`
+    WHERE precinct = @precinctCode
+      AND active = TRUE
+    ORDER BY turnout_score_general DESC
+    LIMIT 1000
+  `;
+
+  const options = {
+    query: sql,
+    params: { precinctCode },
+  };
+
+  const [rows] = await bigquery.query(options);
+  return { voters: rows };
+});
+
+// ================================================================
+// 3. SEARCH VOTERS BY NAME — UPDATED FOR USER INTERFACE
+// ================================================================
+
+exports.searchVotersByName = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new httpsError("unauthenticated", "Authentication required");
+  }
+
+  const { name } = data;
+
+  if (!name || typeof name !== "string" || name.trim().length < 3) {
+    throw new httpsError(
+      "invalid-argument",
+      "Valid name required (min 3 chars)"
+    );
+  }
+
+  const safeName = name.trim().toLowerCase();
+
+  const sql = `
+    SELECT voter_id, full_name, age, gender, party, modeled_party,
+           phone_home, phone_mobile, address, turnout_score_general,
+           mail_ballot_returned, likely_mover, precinct
+    FROM \`groundgame26-v2.groundgame26_voters.chester_county\`
+    WHERE LOWER(full_name) LIKE @searchTerm
+    ORDER BY turnout_score_general DESC
+    LIMIT 1000
+  `;
+
+  const options = {
+    query: sql,
+    params: { searchTerm: `%${safeName}%` },
+  };
+
+  const [rows] = await bigquery.query(options);
+  return { voters: rows };
+});
+
+// ================================================================
+// 4. AUTO-CREATE users/{uid} — UPDATED FOR USER INTERFACE
 // ================================================================
 export const createUserProfile = functions.auth
   .user()
@@ -107,7 +181,7 @@ export const createUserProfile = functions.auth
   });
 
 // ================================================================
-// 3. USER ACTIVITY LOG — UPDATED FOR MFA HANDLING
+// 5. USER ACTIVITY LOG — UPDATED FOR MFA HANDLING
 // ================================================================
 export const logLoginActivity = onCall({ cors: true }, async (request) => {
   const data = request.data || {};
@@ -167,7 +241,7 @@ export const logLoginActivity = onCall({ cors: true }, async (request) => {
 });
 
 // ================================================================
-// 4. PERMISSIONS ENGINE — CENTRALIZED & CLEAN
+// 6. PERMISSIONS ENGINE — CENTRALIZED & CLEAN
 // ================================================================
 const getPermissionsForRole = (role) => {
   const base = {
@@ -235,7 +309,7 @@ const getPermissionsForRole = (role) => {
 };
 
 // ================================================================
-// 5. SYNC org_roles → Custom Claims + Permissions
+// 7. SYNC org_roles → Custom Claims + Permissions
 // ================================================================
 export const syncOrgRolesToClaims = functions.firestore
   .document("org_roles/{docId}")
@@ -319,8 +393,9 @@ export const syncOrgRolesToClaims = functions.firestore
   });
 
 // ================================================================
-// 6. SECURE VOLUNTEER SUBMISSION
+// 8. SECURE VOLUNTEER SUBMISSION
 // ================================================================
+
 export const submitVolunteer = onRequest(
   { cors: true, region: "us-central1" },
   async (req, res) => {
@@ -344,3 +419,34 @@ export const submitVolunteer = onRequest(
     }
   }
 );
+
+// ================================================================
+// 9. ANALYSIS & SUGGESTED MESSAGINGS — NEW FEATURES
+// ================================================================
+
+exports.analyzeVoters = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new httpsError("unauthenticated", "Auth required");
+
+  const filters = data.filters || {};
+
+  let sql = `SELECT ... FROM \`groundgame26_voters.chester_county\` WHERE active = TRUE`;
+  const params: any = {};
+
+  if (filters.precinct) {
+    sql += ` AND precinct = @precinct`;
+    params.precinct = filters.precinct;
+  }
+  // Add other filters with @param
+
+  const [rows] = await bigquery.query({ query: sql, params });
+  return { voters: rows };
+});
+
+// getSuggestedMessages
+exports.getSuggestedMessages = functions.https.onCall(async (data, context) => {
+  if (!context.auth) throw new httpsError("unauthenticated", "Auth required");
+
+  const filters = data.filters || {};
+  // Query Firestore message_templates with filters
+  // Return matching templates
+});
