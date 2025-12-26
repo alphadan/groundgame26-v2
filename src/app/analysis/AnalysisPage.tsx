@@ -238,7 +238,7 @@ export default function AnalysisPage() {
         </Typography>
         <Grid container spacing={3}>
           {Object.entries(filterOptions).map(([key, options]) => (
-            <Grid key={key}>
+            <Grid size={{ xs: 12, md: 4 }} key={key}>
               <FormControl fullWidth size="small">
                 <InputLabel>{key.replace(/_/g, " ").toUpperCase()}</InputLabel>
                 <Select

@@ -183,62 +183,6 @@ export const createUserProfile = functions.auth
 // ================================================================
 // 5. USER ACTIVITY LOG — UPDATED FOR MFA HANDLING
 // ================================================================
-export const logLoginActivity = onCall({ cors: true }, async (request) => {
-  const data = request.data || {};
-  const errorCode = data.errorCode || null;
-
-  // 🚀 FIX: If MFA is required, this is a "half-success".
-  // We do NOT want to log a failure or increment login counts yet.
-  if (errorCode === "auth/multi-factor-auth-required") {
-    logger.info(
-      `[Auth] MFA Challenge required for ${data.email}. Skipping failure log.`
-    );
-    return { success: true, mfa_pending: true };
-  }
-
-  const success = Boolean(data.success);
-  const uid = request.auth?.uid || data.uid || "anonymous";
-  const email =
-    request.auth?.token?.email?.toLowerCase() ||
-    data.email?.toLowerCase() ||
-    "unknown";
-  const ip = request.rawRequest?.ip || "unknown";
-  const userAgent = request.rawRequest?.headers["user-agent"] || "unknown";
-
-  try {
-    // 1. Log the activity
-    await db.collection("login_activity").add({
-      uid,
-      email,
-      success,
-      error_code: errorCode,
-      ip,
-      user_agent: userAgent,
-      client_timestamp: data.timestamp || null,
-      server_timestamp: FieldValue.serverTimestamp(),
-      type: success ? "login_success" : "login_failed",
-    });
-
-    // 2. Update Metadata ONLY on full success
-    if (success && request.auth) {
-      const userRef = db.doc(`users/${request.auth.uid}`);
-      await userRef.set(
-        {
-          last_ip: ip,
-          login_count: FieldValue.increment(1),
-          last_login: FieldValue.serverTimestamp(),
-          updated_at: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-    }
-
-    return { success: true };
-  } catch (err) {
-    console.error("CRITICAL: logLoginActivity failed:", err);
-    return { success: false, error: "Internal logging failure" };
-  }
-});
 
 // ================================================================
 // 6. PERMISSIONS ENGINE — CENTRALIZED & CLEAN
@@ -442,11 +386,67 @@ exports.analyzeVoters = functions.https.onCall(async (data, context) => {
   return { voters: rows };
 });
 
-// getSuggestedMessages
+// ================================================================
+// GET SUGGESTED MESSAGES BASED ON ANALYSIS
+// ================================================================
+
 exports.getSuggestedMessages = functions.https.onCall(async (data, context) => {
   if (!context.auth) throw new httpsError("unauthenticated", "Auth required");
 
   const filters = data.filters || {};
   // Query Firestore message_templates with filters
   // Return matching templates
+});
+
+// ================================================================
+// GET DASHBOARD STATS — UPDATED FOR DYNAMIC COUNTIES
+// ================================================================
+
+exports.getDashboardStats = onCall(async (data, context) => {
+  if (!context.auth) throw new HttpsError("unauthenticated", "Auth required");
+
+  const { countyCode, areaCode, precinctCodes } = data;
+
+  // Validate countyCode
+  const allowedCounties = ["15", "23", "46" /* add all */];
+  if (!countyCode || !allowedCounties.includes(countyCode)) {
+    throw new HttpsError("invalid-argument", "Invalid county");
+  }
+
+  const table = `groundgame26_voters.voters_pa_c_${countyCode}`;
+
+  let sql = `
+    SELECT 
+      COUNTIF(party = 'R') AS total_r,
+      COUNTIF(party = 'D') AS total_d,
+      COUNTIF(party NOT IN ('R','D') AND party IS NOT NULL) AS total_nf,
+      COUNTIF(hasMailBallot = TRUE AND party = 'R') AS mail_r,
+      COUNTIF(hasMailBallot = TRUE AND party = 'D') AS mail_d,
+      COUNTIF(hasMailBallot = TRUE AND party NOT IN ('R','D') AND party IS NOT NULL) AS mail_nf,
+      COUNTIF(mailBallotReturned = TRUE AND party = 'R') AS returned_r,
+      COUNTIF(mailBallotReturned = TRUE AND party = 'D') AS returned_d,
+      COUNTIF(mailBallotReturned = TRUE AND party NOT IN ('R','D') AND party IS NOT NULL) AS returned_nf,
+      COUNTIF(modeledParty = '1 - Hard Republican') AS hard_r,
+      COUNTIF(modeledParty LIKE '2 - Weak%') AS weak_r,
+      COUNTIF(modeledParty = '3 - Swing') AS swing,
+      COUNTIF(modeledParty LIKE '4 - Weak%') AS weak_d,
+      COUNTIF(modeledParty = '5 - Hard Democrat') AS hard_d
+    FROM \`${table}\`
+    WHERE active = TRUE
+  `;
+
+  const params: any = {};
+
+  if (areaCode) {
+    sql += " AND areaDistrict = @areaCode";
+    params.areaCode = areaCode;
+  }
+
+  if (Array.isArray(precinctCodes) && precinctCodes.length > 0) {
+    sql += " AND precinctCode IN UNNEST(@precinctCodes)";
+    params.precinctCodes = precinctCodes;
+  }
+
+  const [rows] = await bigquery.query({ query: sql, params });
+  return { stats: rows[0] || {} };
 });

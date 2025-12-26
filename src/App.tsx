@@ -60,6 +60,7 @@ export default function App() {
           }
 
           setClaims(tokenResult.claims || {});
+          console.warn("Claims:", claims);
         } else {
           setClaims(null);
           forceRefreshAttempted.current = false;

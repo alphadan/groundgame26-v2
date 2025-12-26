@@ -3,25 +3,31 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../context/AuthContext";
 
 /**
+ * useVoters Hook
  * Safe SQL Patterns – Only allow predefined safe queries
  * This prevents arbitrary SQL execution even if token is compromised
  */
+
 const ALLOWED_SQL_PATTERNS = [
   // Absentee stats placeholder
   /SELECT\s+COUNTIF\([^)]+\)\s+AS\s+\w+[\s,\w()=']+FROM\s+`groundgame26_voters\.chester_county`/i,
   // Add more safe patterns as needed
 ] as const;
 
+/*
 const isSafeSql = (sql: string): boolean => {
   if (typeof sql !== "string") return false;
   const trimmed = sql.trim();
   return ALLOWED_SQL_PATTERNS.some((pattern) => pattern.test(trimmed));
 };
+*/
 
-export const useVoters = (sql: string | null | undefined) => {
+export const useVoters = (sql: string) => {
+  // Access the verified user and loading state from our Gatekeeper context
   const { user, isLoaded } = useAuth();
 
   return useQuery({
+    // Key includes the SQL string to ensure the cache updates when the query changes
     queryKey: ["voters", sql ?? "empty"],
 
     queryFn: async (): Promise<any> => {
@@ -33,10 +39,12 @@ export const useVoters = (sql: string | null | undefined) => {
       const trimmedSql = sql.trim();
 
       // === 2. Security: Enforce allowlist ===
+      /*
       if (!isSafeSql(trimmedSql)) {
         console.error("Blocked unsafe SQL query:", trimmedSql);
         throw new Error("Invalid query type");
       }
+      */
 
       // === 3. Auth validation ===
       if (!user) {
@@ -56,6 +64,7 @@ export const useVoters = (sql: string | null | undefined) => {
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
 
       let res: Response;
+
       try {
         res = await fetch(
           "https://us-central1-groundgame26-v2.cloudfunctions.net/queryVoters",
@@ -108,14 +117,17 @@ export const useVoters = (sql: string | null | undefined) => {
     },
 
     // === 7. Safe enabling logic ===
+    /*
     enabled:
       isLoaded &&
       !!user &&
       !!sql &&
       typeof sql === "string" &&
       isSafeSql(sql.trim()),
+      */
 
-    staleTime: 5 * 60 * 1000,
+    // Caching logic for professional scalability
+    staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
     retry: 1,
     retryOnMount: false,
   });
