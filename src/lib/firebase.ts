@@ -65,7 +65,6 @@ export const db: Firestore = initializeFirestore(app, {
 // === 4. App Check Initialization (Reliable & Secure) ===
 const RECAPTCHA_SITE_KEY = firebaseConfig.recaptchaSiteKey || "";
 
-/*
 if (typeof window !== "undefined") {
   const isLocal =
     window.location.hostname === "localhost" ||
@@ -126,4 +125,3 @@ if (typeof window !== "undefined") {
     console.info("✅ [Firebase] App Check initialized");
   }
 }
-  */

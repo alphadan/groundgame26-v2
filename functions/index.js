@@ -1,23 +1,18 @@
-// functions/index.js — FINAL, PRODUCTION-READY (Dec 2025)
 import * as functions from "firebase-functions/v1";
-
-// For 2nd gen HTTPS (or other v2 triggers)
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions/v2";
-
-// BigQuery
 import { BigQuery } from "@google-cloud/bigquery";
-
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+
 initializeApp();
 
 const db = getFirestore();
 const bigquery = new BigQuery();
 
 // ================================================================
-// 1. BIGQUERY PROXY — GEN 2 (UPDATED FOR V2 PROJECT)
+// 1. BIGQUERY PROXY (Gen 2)
 // ================================================================
 export const queryVoters = onRequest(
   { cors: true, region: "us-central1" },
@@ -65,388 +60,221 @@ export const queryVoters = onRequest(
 );
 
 // ================================================================
-// 2. GET VOTERS BY PRECINCT — UPDATED FOR USER INTERFACE
+// 2. GET VOTERS BY PRECINCT (Converted to export const)
 // ================================================================
-
-exports.getVotersByPrecinct = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new httpsError("unauthenticated", "Authentication required");
-  }
-
-  const { precinctCode } = data;
-
-  if (!precinctCode || typeof precinctCode !== "string") {
-    throw new httpsError("invalid-argument", "Valid precinctCode required");
-  }
-
-  const sql = `
-    SELECT voter_id, full_name, age, gender, party, modeled_party,
-           phone_home, phone_mobile, address, turnout_score_general,
-           mail_ballot_returned, likely_mover, precinct
-    FROM \`groundgame26_voters.chester_county\`
-    WHERE precinct = @precinctCode
-      AND active = TRUE
-    ORDER BY turnout_score_general DESC
-    LIMIT 1000
-  `;
-
-  const options = {
-    query: sql,
-    params: { precinctCode },
-  };
-
-  const [rows] = await bigquery.query(options);
-  return { voters: rows };
-});
-
-// ================================================================
-// 3. SEARCH VOTERS BY NAME — UPDATED FOR USER INTERFACE
-// ================================================================
-
-exports.searchVotersByName = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new httpsError("unauthenticated", "Authentication required");
-  }
-
-  const { name } = data;
-
-  if (!name || typeof name !== "string" || name.trim().length < 3) {
-    throw new httpsError(
-      "invalid-argument",
-      "Valid name required (min 3 chars)"
-    );
-  }
-
-  const safeName = name.trim().toLowerCase();
-
-  const sql = `
-    SELECT voter_id, full_name, age, gender, party, modeled_party,
-           phone_home, phone_mobile, address, turnout_score_general,
-           mail_ballot_returned, likely_mover, precinct
-    FROM \`groundgame26-v2.groundgame26_voters.chester_county\`
-    WHERE LOWER(full_name) LIKE @searchTerm
-    ORDER BY turnout_score_general DESC
-    LIMIT 1000
-  `;
-
-  const options = {
-    query: sql,
-    params: { searchTerm: `%${safeName}%` },
-  };
-
-  const [rows] = await bigquery.query(options);
-  return { voters: rows };
-});
-
-// ================================================================
-// 4. AUTO-CREATE users/{uid} — UPDATED FOR USER INTERFACE
-// ================================================================
-export const createUserProfile = functions.auth
-  .user()
-  .onCreate(async (user) => {
-    const uid = user.uid;
-    const email = user.email?.toLowerCase() || "";
-    const displayName = user.displayName || email.split("@")[0];
-
-    try {
-      // Aligned with UserProfile interface
-      await db.doc(`users/${uid}`).set({
-        uid,
-        display_name: displayName,
-        preferred_name: displayName.split(" ")[0], // Default to first name
-        email,
-        phone: user.phoneNumber || null,
-        photo_url: user.photoURL || null,
-        role: "base", // Default starting role
-        org_id: "pending", // Placeholder until syncOrgRolesToClaims runs
-        notifications_enabled: true,
-        login_count: 1,
-        last_ip: "auth-trigger",
-        created_at: FieldValue.serverTimestamp(),
-        updated_at: FieldValue.serverTimestamp(),
-        last_login: FieldValue.serverTimestamp(),
-      });
-
-      await db.collection("login_attempts").add({
-        uid,
-        email,
-        success: true,
-        type: "initial_registration",
-        ip: "auth-trigger",
-        timestamp: FieldValue.serverTimestamp(),
-      });
-    } catch (err) {
-      console.error("createUserProfile failed:", err);
+export const getVotersByPrecinct = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "Auth required");
     }
-  });
-
-// ================================================================
-// 5. USER ACTIVITY LOG — UPDATED FOR MFA HANDLING
-// ================================================================
-
-// ================================================================
-// 6. PERMISSIONS ENGINE — CENTRALIZED & CLEAN
-// ================================================================
-const getPermissionsForRole = (role) => {
-  const base = {
-    can_export_csv: false,
-    can_manage_team: false,
-    can_view_phone: false,
-    can_view_full_address: false,
-    can_cut_turf: false,
-  };
-
-  switch (role?.toLowerCase()) {
-    case "county_chair":
-    case "state_admin":
-    case "state_chair":
-    case "state_rep":
-      return {
-        ...base,
-        can_export_csv: true,
-        can_manage_team: true,
-        can_view_phone: true,
-        can_view_full_address: true,
-        can_cut_turf: true,
-      };
-
-    case "area_chair":
-    case "area chairman":
-      return {
-        ...base,
-        can_export_csv: true,
-        can_manage_team: true,
-        can_view_phone: true,
-        can_view_full_address: true,
-        can_cut_turf: true,
-      };
-
-    case "candidate":
-      return {
-        ...base,
-        can_export_csv: true,
-        can_view_phone: true,
-        can_view_full_address: false,
-      };
-
-    case "ambassador":
-      return {
-        ...base,
-        can_export_csv: true,
-        can_view_phone: true,
-        can_view_full_address: false,
-      };
-
-    case "committeeperson":
-    case "committeeman":
-    case "committeewoman":
-      return {
-        ...base,
-        can_export_csv: true,
-        can_view_phone: true,
-        can_view_full_address: false,
-      };
-
-    default:
-      return base;
-  }
-};
-
-// ================================================================
-// 7. SYNC org_roles → Custom Claims + Permissions
-// ================================================================
-export const syncOrgRolesToClaims = functions.firestore
-  .document("org_roles/{docId}")
-  .onWrite(async (change, context) => {
-    const before = change.before.exists ? change.before.data() : null;
-    const after = change.after.exists ? change.after.data() : null;
-
-    if (!after || after.is_vacant || !after.uid) {
-      if (before?.uid)
-        await getAuth().setCustomUserClaims(before.uid, { role: "admin" });
-      return;
-    }
-
-    const uid = after.uid;
-
-    logger.info("[syncOrgRolesToClaims]uid :", uid);
-
-    const snap = await db
-      .collection("org_roles")
-      .where("uid", "==", uid)
-      .where("is_vacant", "==", false)
-      .get();
-
-    if (snap.empty) {
-      await getAuth().setCustomUserClaims(uid, { role: "admin" });
-      logger.info("[syncOrgRolesToClaims]setCustomUserClaims:uid :", uid);
-      return;
-    }
-
-    const precincts = [];
-    const counties = new Set();
-    const areas = new Set();
-    const orgIds = new Set();
-    const roles = new Set();
-
-    snap.forEach((doc) => {
-      const d = doc.data();
-      roles.add(d.role);
-      if (d.org_id) orgIds.add(d.org_id);
-      if (d.county_code) counties.add(d.county_code);
-      if (d.area_district) areas.add(d.area_district);
-      if (d.precinct_code) precincts.push(d.precinct_code);
+    const { precinctCode } = data;
+    const sql = `SELECT * FROM \`groundgame26-v2.groundgame26_voters.chester_county\` WHERE precinct = @precinctCode AND active = TRUE LIMIT 1000`;
+    const [rows] = await bigquery.query({
+      query: sql,
+      params: { precinctCode },
     });
-
-    logger.info("[syncOrgRolesToClaims]roles :", roles);
-
-    const primaryRole = [...roles][0] || "base";
-    logger.info("[syncOrgRolesToClaims]primaryRole :", primaryRole);
-    const permissions = getPermissionsForRole(primaryRole);
-
-    const claims = {
-      role: primaryRole,
-      roles: [...roles],
-      counties: [...counties],
-      areas: [...areas],
-      precincts,
-      org_id: [...orgIds][0] || null,
-      permissions,
-      scope: [
-        ...[...counties].map((c) => `county:${c}`),
-        ...[...areas].map((a) => `area:${a}`),
-        ...precincts.map((p) => `precinct:${p}`),
-        ...[...orgIds].map((o) => `org:${o}`),
-      ],
-    };
-
-    logger.info("[syncOrgRolesToClaims]claims :", claims);
-
-    await getAuth().setCustomUserClaims(uid, claims);
-
-    await db.doc(`users/${uid}`).set(
-      {
-        primary_county: claims.counties[0] || null,
-        primary_precinct: precincts[0] || null,
-        role: primaryRole,
-        permissions,
-        updated_at: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-  });
+    return { voters: rows };
+  }
+);
 
 // ================================================================
-// 8. SECURE VOLUNTEER SUBMISSION
+// SEARCH VOTERS BY NAME — FINAL v2 VERSION (Dec 2025)
 // ================================================================
 
-export const submitVolunteer = onRequest(
-  { cors: true, region: "us-central1" },
-  async (req, res) => {
+export const searchVotersByNameV2 = onCall(
+  {
+    cors: [/localhost:\d+$/, /127\.0\.0\.1:\d+$/, "https://groundgame26.com"],
+    region: "us-central1",
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const { name } = request.data || {};
+
+    if (!name || typeof name !== "string" || name.trim().length < 3) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Name must be at least 3 characters"
+      );
+    }
+
+    const searchTerm = name.trim().toLowerCase();
+
+    const table = `groundgame26-v2.groundgame26_voters.chester_county`;
+
+    const sql = `
+      SELECT 
+        voter_id,
+        full_name,
+        age,
+        party,
+        precinct,
+        address,
+        phone_mobile,
+        modeled_party
+      FROM \`${table}\`
+      WHERE LOWER(full_name) LIKE @searchTerm
+      ORDER BY full_name
+      LIMIT 100
+    `;
+
     try {
-      const { name, email, comment, recaptchaToken } = req.body;
-
-      if (!recaptchaToken) throw new Error("reCAPTCHA required");
-
-      await db.collection("volunteer_requests").add({
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        comment: comment?.trim() || "",
-        submitted_at: FieldValue.serverTimestamp(),
-        status: "new",
+      const [rows] = await bigquery.query({
+        query: sql,
+        params: { searchTerm: `%${searchTerm}%` },
+        location: "US",
       });
 
-      res.json({ success: true });
-    } catch (err) {
-      console.error("Volunteer submit failed:", err);
-      res.status(400).json({ error: err.message });
+      console.log(`Name search for "${name}" returned ${rows.length} results`);
+      return { voters: rows };
+    } catch (error) {
+      console.error("Name search BigQuery error:", error);
+      throw new HttpsError("internal", "Search failed — please try again");
     }
   }
 );
 
 // ================================================================
-// 9. ANALYSIS & SUGGESTED MESSAGINGS — NEW FEATURES
+// GET DASHBOARD STATS — FINAL, WORKING FOR CHESTER COUNTY TABLE
+// Uses correct field names: area_district and precinct
 // ================================================================
 
-exports.analyzeVoters = functions.https.onCall(async (data, context) => {
-  if (!context.auth) throw new httpsError("unauthenticated", "Auth required");
+export const getDashboardStats = onCall(
+  {
+    cors: [/localhost:\d+$/, /127\.0\.0\.1:\d+$/, "https://groundgame26.com"],
+    region: "us-central1",
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
 
-  const filters = data.filters || {};
+    const { areaCode, precinctCodes } = request.data || {};
 
-  let sql = `SELECT ... FROM \`groundgame26_voters.chester_county\` WHERE active = TRUE`;
-  const params: any = {};
+    // Validate inputs (optional but safe)
+    if (areaCode && typeof areaCode !== "string") {
+      throw new HttpsError("invalid-argument", "areaCode must be a string");
+    }
+    if (
+      precinctCodes &&
+      (!Array.isArray(precinctCodes) ||
+        precinctCodes.some((p) => typeof p !== "string"))
+    ) {
+      throw new HttpsError(
+        "invalid-argument",
+        "precinctCodes must be an array of strings"
+      );
+    }
 
-  if (filters.precinct) {
-    sql += ` AND precinct = @precinct`;
-    params.precinct = filters.precinct;
+    const table = `groundgame26-v2.groundgame26_voters.chester_county`;
+
+    let sql = `
+      SELECT 
+        COUNTIF(party = 'R') AS total_r,
+        COUNTIF(party = 'D') AS total_d,
+        COUNTIF(party NOT IN ('R','D') AND party IS NOT NULL) AS total_nf,
+        COUNTIF(has_mail_ballot = TRUE AND party = 'R') AS mail_r,
+        COUNTIF(has_mail_ballot = TRUE AND party = 'D') AS mail_d,
+        COUNTIF(has_mail_ballot = TRUE AND party NOT IN ('R','D') AND party IS NOT NULL) AS mail_nf,
+        COUNTIF(mail_ballot_returned = TRUE AND party = 'R') AS returned_r,
+        COUNTIF(mail_ballot_returned = TRUE AND party = 'D') AS returned_d,
+        COUNTIF(mail_ballot_returned = TRUE AND party NOT IN ('R','D') AND party IS NOT NULL) AS returned_nf,
+        COUNTIF(modeled_party = '1 - Hard Republican') AS hard_r,
+        COUNTIF(modeled_party LIKE '2 - Weak%') AS weak_r,
+        COUNTIF(modeled_party = '3 - Swing') AS swing,
+        COUNTIF(modeled_party LIKE '4 - Weak%') AS weak_d,
+        COUNTIF(modeled_party = '5 - Hard Democrat') AS hard_d
+      FROM \`${table}\`
+      WHERE 1=1
+    `;
+
+    const params = {};
+
+    // Use correct column name: area_district
+    if (areaCode) {
+      sql += ` AND area_district = @areaCode`;
+      params.areaCode = areaCode;
+    }
+
+    // Use correct column name: precinct
+    if (precinctCodes?.length > 0) {
+      sql += ` AND precinct IN UNNEST(@precinctCodes)`;
+      params.precinctCodes = precinctCodes;
+    }
+
+    try {
+      const [rows] = await bigquery.query({
+        query: sql,
+        params,
+        location: "US",
+      });
+
+      console.log("Dashboard stats query successful:", rows[0]);
+      return { stats: rows[0] || {} };
+    } catch (error) {
+      console.error("BigQuery query failed:", error);
+      throw new HttpsError("internal", "Failed to load dashboard stats");
+    }
   }
-  // Add other filters with @param
-
-  const [rows] = await bigquery.query({ query: sql, params });
-  return { voters: rows };
-});
+);
 
 // ================================================================
-// GET SUGGESTED MESSAGES BASED ON ANALYSIS
+// GET VOTERS BY PRECINCT — v2 (NEW NAME)
 // ================================================================
 
-exports.getSuggestedMessages = functions.https.onCall(async (data, context) => {
-  if (!context.auth) throw new httpsError("unauthenticated", "Auth required");
+export const getVotersByPrecinctV2 = onCall(
+  {
+    cors: [/localhost:\d+$/, /127\.0\.0\.1:\d+$/, "https://groundgame26.com"],
+    region: "us-central1",
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
 
-  const filters = data.filters || {};
-  // Query Firestore message_templates with filters
-  // Return matching templates
-});
+    let { precinctCode } = request.data || {};
 
-// ================================================================
-// GET DASHBOARD STATS — UPDATED FOR DYNAMIC COUNTIES
-// ================================================================
+    if (!precinctCode || typeof precinctCode !== "string") {
+      throw new HttpsError("invalid-argument", "Valid precinctCode required");
+    }
 
-exports.getDashboardStats = onCall(async (data, context) => {
-  if (!context.auth) throw new HttpsError("unauthenticated", "Auth required");
+    // Normalize: remove leading zeros
+    const normalizedPrecinct = precinctCode.replace(/^0+/, "") || "0";
 
-  const { countyCode, areaCode, precinctCodes } = data;
+    const table = `groundgame26-v2.groundgame26_voters.chester_county`;
 
-  // Validate countyCode
-  const allowedCounties = ["15", "23", "46" /* add all */];
-  if (!countyCode || !allowedCounties.includes(countyCode)) {
-    throw new HttpsError("invalid-argument", "Invalid county");
+    const sql = `
+      SELECT 
+        voter_id, full_name, age, gender, party, modeled_party,
+        phone_home, phone_mobile, address, turnout_score_general,
+        mail_ballot_returned, likely_mover, precinct, area_district
+      FROM \`${table}\`
+      WHERE precinct = @normalizedPrecinct
+      ORDER BY turnout_score_general DESC
+      LIMIT 1000
+    `;
+
+    try {
+      const [rows] = await bigquery.query({
+        query: sql,
+        params: { normalizedPrecinct: normalizedPrecinct }, // ← Explicit key = value
+        location: "US",
+      });
+
+      console.log(
+        `Loaded ${rows.length} voters for precinct "${precinctCode}" (normalized: "${normalizedPrecinct}")`
+      );
+      return { voters: rows };
+    } catch (error) {
+      console.error("Precinct query failed:", error);
+      throw new HttpsError("internal", "Failed to load voter list");
+    }
   }
-
-  const table = `groundgame26_voters.voters_pa_c_${countyCode}`;
-
-  let sql = `
-    SELECT 
-      COUNTIF(party = 'R') AS total_r,
-      COUNTIF(party = 'D') AS total_d,
-      COUNTIF(party NOT IN ('R','D') AND party IS NOT NULL) AS total_nf,
-      COUNTIF(hasMailBallot = TRUE AND party = 'R') AS mail_r,
-      COUNTIF(hasMailBallot = TRUE AND party = 'D') AS mail_d,
-      COUNTIF(hasMailBallot = TRUE AND party NOT IN ('R','D') AND party IS NOT NULL) AS mail_nf,
-      COUNTIF(mailBallotReturned = TRUE AND party = 'R') AS returned_r,
-      COUNTIF(mailBallotReturned = TRUE AND party = 'D') AS returned_d,
-      COUNTIF(mailBallotReturned = TRUE AND party NOT IN ('R','D') AND party IS NOT NULL) AS returned_nf,
-      COUNTIF(modeledParty = '1 - Hard Republican') AS hard_r,
-      COUNTIF(modeledParty LIKE '2 - Weak%') AS weak_r,
-      COUNTIF(modeledParty = '3 - Swing') AS swing,
-      COUNTIF(modeledParty LIKE '4 - Weak%') AS weak_d,
-      COUNTIF(modeledParty = '5 - Hard Democrat') AS hard_d
-    FROM \`${table}\`
-    WHERE active = TRUE
-  `;
-
-  const params: any = {};
-
-  if (areaCode) {
-    sql += " AND areaDistrict = @areaCode";
-    params.areaCode = areaCode;
-  }
-
-  if (Array.isArray(precinctCodes) && precinctCodes.length > 0) {
-    sql += " AND precinctCode IN UNNEST(@precinctCodes)";
-    params.precinctCodes = precinctCodes;
-  }
-
-  const [rows] = await bigquery.query({ query: sql, params });
-  return { stats: rows[0] || {} };
-});
+);

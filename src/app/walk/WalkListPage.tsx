@@ -1,5 +1,9 @@
 // src/app/walk/WalkListPage.tsx
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useCallback } from "react";
+import { useAuth } from "../../context/AuthContext";
+import { useCloudFunctions } from "../../hooks/useCloudFunctions";
+import { useQuery } from "@tanstack/react-query";
+import { FilterSelector } from "../../components/FilterSelector";
 import {
   Box,
   Typography,
@@ -10,13 +14,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Button,
   Chip,
   Alert,
   TablePagination,
   CircularProgress,
-  TextField,
-  Grid,
   IconButton,
   Dialog,
   DialogTitle,
@@ -25,6 +26,8 @@ import {
   Collapse,
   Badge,
   Snackbar,
+  Button,
+  TextField,
 } from "@mui/material";
 import {
   Phone,
@@ -35,15 +38,50 @@ import {
 } from "@mui/icons-material";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import { useVoters } from "../../hooks/useVoters";
-import { useAuth } from "../../context/AuthContext";
+
+interface FilterValues {
+  county: string;
+  area: string;
+  precinct: string;
+  name?: string;
+  street?: string;
+  modeledParty?: string;
+  turnout?: string;
+  ageGroup?: string;
+  mailBallot?: string;
+  zipCode?: string; // ← New for WalkList
+}
+
+const useWalkList = (filters: FilterValues | null) => {
+  const { callFunction } = useCloudFunctions();
+
+  return useQuery({
+    queryKey: ["walkList", filters],
+    queryFn: async (): Promise<any[]> => {
+      if (!filters) return [];
+
+      // For now, WalkList uses zipCode + street
+      // Future: extend Cloud Function to support area/precinct too
+      const result = await callFunction<{ voters: any[] }>(
+        "getWalkList", // ← You'll create this function next
+        {
+          zipCode: filters.zipCode,
+          street: filters.street,
+        }
+      );
+
+      return result.voters ?? [];
+    },
+    enabled: !!filters && !!(filters.zipCode || filters.street),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+};
 
 export default function WalkListPage() {
   const { user, isLoaded } = useAuth();
 
-  const [zipCode, setZipCode] = useState("");
-  const [streetFilter, setStreetFilter] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [filters, setFilters] = useState<FilterValues | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [expandedHouse, setExpandedHouse] = useState<string>("");
@@ -58,47 +96,33 @@ export default function WalkListPage() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // === Safe Input Validation ===
-  const isValidZip = (zip: string): boolean => /^\d{5}$/.test(zip);
-  const isValidStreet = (street: string): boolean => street.trim().length >= 2;
+  // === Voter data ===
+  const { data: voters = [], isLoading, error } = useWalkList(filters);
 
-  // === Safe SQL Builder (NO INJECTION) ===
-  const sqlQuery = useMemo<string>(() => {
-    if (!submitted) return "";
+  // === Submit handler ===
+  const handleSubmit = useCallback((submittedFilters: FilterValues) => {
+    const hasZip =
+      submittedFilters.zipCode && /^\d{5}$/.test(submittedFilters.zipCode);
+    const hasStreet =
+      submittedFilters.street && submittedFilters.street.trim().length >= 2;
 
-    const conditions: string[] = [];
-
-    if (isValidZip(zipCode)) {
-      conditions.push(`zip_code = ${parseInt(zipCode, 10)}`);
-    }
-
-    if (isValidStreet(streetFilter)) {
-      // Use parameterized-style safe regex (no user interpolation)
-      const safeStreet = streetFilter.trim().toLowerCase();
-      conditions.push(
-        `REGEXP_CONTAINS(LOWER(address), r'(?i)\\b${safeStreet}\\b')`
+    if (!hasZip && !hasStreet) {
+      setSnackbarMessage(
+        "Enter a valid 5-digit zip code or street name (2+ chars)"
       );
+      setSnackbarOpen(true);
+      return;
     }
 
-    const whereClause =
-      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    setFilters(submittedFilters);
+    setPage(0);
+  }, []);
 
-    return `
-      SELECT voter_id, full_name, age, party, phone_mobile, phone_home, address, city, zip_code, turnout_score_general, precinct
-      FROM \`groundgame26_voters.chester_county\`
-      ${whereClause}
-      ORDER BY address, turnout_score_general DESC
-      LIMIT 1000
-    `.trim();
-  }, [submitted, zipCode, streetFilter]);
-
-  const { data = [], isLoading, error } = useVoters(sqlQuery);
-
-  // === Safe Household Grouping ===
-  const households = useMemo(() => {
+  // === Household grouping ===
+  const households = React.useMemo(() => {
     const groups: Record<string, any[]> = {};
 
-    data.forEach((voter: any) => {
+    voters.forEach((voter: any) => {
       if (!voter || typeof voter !== "object") return;
       const addr = voter.address?.trim() || "Unknown Address";
       if (!groups[addr]) groups[addr] = [];
@@ -118,20 +142,22 @@ export default function WalkListPage() {
           ),
       }))
       .sort((a, b) => a.address.localeCompare(b.address));
-  }, [data]);
+  }, [voters]);
 
-  // === Safe Phone Call ===
+  // === Safe phone call ===
   const safeCall = useCallback((phone: string | null | undefined) => {
     if (!phone || typeof phone !== "string") return;
     const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.length === 10 || cleaned.length === 11) {
-      window.location.href = `tel:${
-        cleaned.startsWith("1") ? cleaned : "1" + cleaned
-      }`;
+    if (cleaned.length >= 10) {
+      const normalized =
+        cleaned.length === 11 && cleaned.startsWith("1")
+          ? cleaned
+          : "1" + cleaned;
+      window.location.href = `tel:${normalized}`;
     }
   }, []);
 
-  // === Safe Note Save ===
+  // === Save note ===
   const handleAddNote = useCallback(async () => {
     if (!user || !selectedVoter || !noteText.trim()) return;
 
@@ -152,7 +178,7 @@ export default function WalkListPage() {
       setSnackbarOpen(true);
       setNoteText("");
       setOpenNote(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to save note:", err);
       setSnackbarMessage("Failed to save note – please try again");
       setSnackbarOpen(true);
@@ -160,19 +186,6 @@ export default function WalkListPage() {
       setNoteSaving(false);
     }
   }, [user, selectedVoter, noteText]);
-
-  // === Generate List with Validation ===
-  const handleGenerate = useCallback(() => {
-    if (!isValidZip(zipCode) && !isValidStreet(streetFilter)) {
-      setSnackbarMessage(
-        "Enter a valid 5-digit zip code or street name (2+ chars)"
-      );
-      setSnackbarOpen(true);
-      return;
-    }
-    setSubmitted(true);
-    setPage(0);
-  }, [zipCode, streetFilter]);
 
   if (!isLoaded) {
     return (
@@ -196,59 +209,28 @@ export default function WalkListPage() {
         Grouped by address for efficient door-knocking.
       </Typography>
 
-      <Paper sx={{ p: 3, mb: 4, borderRadius: 2 }}>
-        <Grid container spacing={2} alignItems="end">
-          <Grid>
-            <TextField
-              label="Zip Code"
-              fullWidth
-              value={zipCode}
-              onChange={(e) =>
-                setZipCode(e.target.value.replace(/\D/g, "").slice(0, 5))
-              }
-              placeholder="19380"
-              helperText="5 digits"
-              size="small"
-            />
-          </Grid>
-          <Grid>
-            <TextField
-              label="Street Name"
-              fullWidth
-              value={streetFilter}
-              onChange={(e) => setStreetFilter(e.target.value)}
-              placeholder="Main St"
-              helperText="Partial match"
-              size="small"
-            />
-          </Grid>
-          <Grid>
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={handleGenerate}
-              disabled={isLoading}
-              sx={{ bgcolor: "#B22234", height: 40 }}
-            >
-              {isLoading ? "Loading..." : "Generate List"}
-            </Button>
-          </Grid>
-        </Grid>
-      </Paper>
+      {/* === FilterSelector with Zip Code + Street === */}
+      <FilterSelector
+        onSubmit={handleSubmit}
+        isLoading={isLoading}
+        unrestrictedFilters={["zipCode", "street"]} // ← Only these for WalkList
+      />
 
+      {/* === Error / Empty States === */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load data: {(error as Error).message}
+          Failed to load walk list. Please try again.
         </Alert>
       )}
 
-      {submitted && households.length === 0 && !isLoading && (
+      {filters && !isLoading && households.length === 0 && (
         <Alert severity="info" sx={{ mb: 3 }}>
-          No voters found for the selected filters.
+          No voters found matching your filters.
         </Alert>
       )}
 
-      {submitted && households.length > 0 && (
+      {/* === Walk List Table === */}
+      {filters && households.length > 0 && (
         <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
           <Table>
             <TableHead sx={{ bgcolor: "#0A3161" }}>
@@ -403,7 +385,7 @@ export default function WalkListPage() {
         </TableContainer>
       )}
 
-      {/* Note Dialog */}
+      {/* === Note Dialog === */}
       <Dialog
         open={openNote}
         onClose={() => setOpenNote(false)}
@@ -442,12 +424,11 @@ export default function WalkListPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar Feedback */}
+      {/* === Snackbar === */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={4000}
         onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert onClose={() => setSnackbarOpen(false)} severity="info">
           {snackbarMessage}

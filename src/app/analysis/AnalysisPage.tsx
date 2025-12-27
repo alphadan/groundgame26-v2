@@ -1,25 +1,14 @@
 // src/app/analysis/AnalysisPage.tsx
 import React, { useState, useCallback, useMemo } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db as indexedDb } from "../../lib/db";
 import { useAuth } from "../../context/AuthContext";
-import { useQuery } from "@tanstack/react-query"; // ← FIXED: Missing import
-import { saveAs } from "file-saver"; // ← FIXED: Proper import (no UMD error)
+import { useCloudFunctions } from "../../hooks/useCloudFunctions";
+import { useQuery } from "@tanstack/react-query";
+import { saveAs } from "file-saver";
+import { FilterSelector } from "../../components/FilterSelector";
 import {
   Box,
   Typography,
   Paper,
-  Grid,
-  Card,
-  CardContent,
-  CardActions,
-  Collapse,
-  Chip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Button,
   Alert,
   Table,
   TableBody,
@@ -29,189 +18,89 @@ import {
   TableRow,
   CircularProgress,
   TablePagination,
-  IconButton,
-  LinearProgress, // ← FIXED: Missing import
+  Button,
   Snackbar,
+  Grid,
+  LinearProgress,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { styled } from "@mui/material/styles";
+import { BarChart } from "@mui/x-charts/BarChart";
 
-// === Styled ExpandMore (with proper typing) ===
-const ExpandMore = styled(
-  (props: {
-    expand: boolean;
-    onClick?: React.MouseEventHandler<HTMLElement>;
-    children?: React.ReactNode;
-  }) => {
-    const { expand, onClick, children, ...other } = props;
-    return (
-      <IconButton onClick={onClick} {...other}>
-        {children}
-      </IconButton>
-    );
-  }
-)(({ theme, expand }) => ({
-  transform: !expand ? "rotate(0deg)" : "rotate(180deg)",
-  marginLeft: "auto",
-  transition: theme.transitions.create("transform", {
-    duration: theme.transitions.duration.shortest,
-  }),
-}));
+interface FilterValues {
+  county: string;
+  area: string;
+  precinct: string;
+  name?: string;
+  street?: string;
+  modeledParty?: string;
+  turnout?: string;
+  ageGroup?: string;
+  mailBallot?: string;
+}
 
-// === Filter Options Hook (Dynamic Precincts) ===
-const useFilterOptions = () => {
-  const precincts =
-    useLiveQuery(() =>
-      indexedDb.precincts.where("active").equals(1).toArray()
-    ) ?? [];
+// Dummy data until real Cloud Function is ready
+const dummyAnalysisData = [
+  { group: "Hard R", count: 85000 },
+  { group: "Weak R", count: 62000 },
+  { group: "Swing", count: 78000 },
+  { group: "Weak D", count: 71000 },
+  { group: "Hard D", count: 102000 },
+];
 
-  return useMemo(
-    () => ({
-      modeled_party: [
-        { value: "", label: "All Modeled Party" },
-        { value: "1 - Hard Republican", label: "1 - Hard Republican" },
-        { value: "2 - Weak Republican", label: "2 - Weak Republican" },
-        { value: "3 - Swing", label: "3 - Swing" },
-        { value: "4 - Weak Democrat", label: "4 - Weak Democrat" },
-        { value: "5 - Hard Democrat", label: "5 - Hard Democrat" },
-      ],
-      age_group: [
-        { value: "", label: "All Ages" },
-        { value: "18-25", label: "18-25 Young Adult" },
-        { value: "26-40", label: "26-40 Young Families" },
-        { value: "41-70", label: "41-70 Established" },
-        { value: "71+", label: "70+ Seniors" },
-      ],
-      has_mail_ballot: [
-        { value: "", label: "All Mail Ballot Status" },
-        { value: "true", label: "Has Mail Ballot" },
-        { value: "false", label: "No Mail Ballot" },
-      ],
-      turnout_score_general: [
-        { value: "", label: "All Turnout Scores" },
-        { value: "0", label: "0 - Non-Voter" },
-        { value: "1", label: "1 - Inactive" },
-        { value: "2", label: "2 - Intermittent" },
-        { value: "3", label: "3 - Frequent" },
-        { value: "4", label: "4 - Active" },
-      ],
-      voted_2024_general: [
-        { value: "", label: "All 2024 Voters" },
-        { value: "true", label: "Voted 2024" },
-        { value: "false", label: "Did NOT Vote 2024" },
-      ],
-      precinct: [
-        { value: "", label: "All Precincts" },
-        ...precincts.map((p) => ({
-          value: p.precinct_code,
-          label: `${p.precinct_code} - ${p.name}`,
-        })),
-      ],
-    }),
-    [precincts]
-  );
+const useAnalysis = (filters: FilterValues | null) => {
+  const { callFunction } = useCloudFunctions();
+
+  return useQuery({
+    queryKey: ["analysis", filters],
+    queryFn: async () => {
+      if (!filters) return [];
+
+      // TODO: Replace with real Cloud Function when ready
+      // const result = await callFunction("analyzeVoters", { filters });
+      // return result.data;
+
+      // For now, return dummy aggregated data
+      return dummyAnalysisData;
+    },
+    enabled: !!filters,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
 };
 
 export default function AnalysisPage() {
   const { isLoaded } = useAuth();
 
-  const filterOptions = useFilterOptions();
-
-  const [filters, setFilters] = useState({
-    precinct: "",
-    modeled_party: "",
-    age_group: "",
-    has_mail_ballot: "",
-    turnout_score_general: "",
-    voted_2024_general: "",
-  });
-
-  const [submitted, setSubmitted] = useState(false);
+  const [filters, setFilters] = useState<FilterValues | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
-  const [expandedMessages, setExpandedMessages] = useState(false);
-
-  // Messages
-  const [suggestedMessages, setSuggestedMessages] = useState<any[]>([]);
-  const [loadingMessages, setLoadingMessages] = useState(false);
 
   // Feedback
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // === Parameterized Query via Cloud Function (safe) ===
-  const {
-    data: voters = [],
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["analysis", filters, submitted],
-    queryFn: async (): Promise<any[]> => {
-      if (!submitted) return [];
+  // === Analysis data (aggregated) ===
+  const { data: analysisData = [], isLoading, error } = useAnalysis(filters);
 
-      // Replace with your actual Cloud Function
-      // Example: await callFunction("analyzeVoters", { filters });
-      return []; // Placeholder
-    },
-    enabled: submitted,
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-
-  const loadSuggestedMessages = useCallback(async () => {
-    setLoadingMessages(true);
-    try {
-      // Replace with your actual Cloud Function call
-      setSuggestedMessages([]);
-    } catch (err: any) {
-      setSnackbarMessage("Failed to load messages");
-      setSnackbarOpen(true);
-    } finally {
-      setLoadingMessages(false);
-    }
-  }, []);
-
-  const exportList = useCallback(() => {
-    if (voters.length === 0) return;
-
-    const headers = [
-      "Name",
-      "Age",
-      "Party",
-      "Precinct",
-      "Phone",
-      "Address",
-      "Mail Ballot",
-      "Turnout Score",
-      "Voted 2024",
-    ];
-
-    const rows = voters.map((v: any) => [
-      v.full_name || "",
-      v.age ?? "",
-      v.party || "",
-      v.precinct || "",
-      v.phone_mobile || v.phone_home || "",
-      v.address || "",
-      v.has_mail_ballot ? "Yes" : "No",
-      v.turnout_score_general ?? "",
-      v.voted_2024_general ? "Yes" : "No",
-    ]);
-
-    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    saveAs(blob, `Voter_Analysis_${new Date().toISOString().slice(0, 10)}.csv`);
-  }, [voters]);
-
-  const handleSubmit = useCallback(() => {
-    setSubmitted(true);
+  // === Submit handler ===
+  const handleSubmit = useCallback((submittedFilters: FilterValues) => {
+    setFilters(submittedFilters);
     setPage(0);
   }, []);
 
-  const paginatedData = useMemo(
-    () => voters.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [voters, page, rowsPerPage]
-  );
+  // === CSV Export ===
+  const exportList = useCallback(() => {
+    if (analysisData.length === 0) return;
+
+    const headers = ["Group", "Voter Count"];
+    const rows = analysisData.map((item: any) => [item.group, item.count]);
+
+    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    saveAs(
+      blob,
+      `Target_Analysis_${new Date().toISOString().slice(0, 10)}.csv`
+    );
+  }, [analysisData]);
 
   if (!isLoaded) {
     return (
@@ -231,197 +120,134 @@ export default function AnalysisPage() {
       <Typography variant="h4" gutterBottom color="#B22234" fontWeight="bold">
         Analysis — Voter Targeting Engine
       </Typography>
+      <Typography variant="body1" color="text.secondary" mb={4}>
+        Create filtered reports to identify high-priority voter segments for
+        outreach.
+      </Typography>
 
-      <Paper sx={{ p: 4, mb: 4, borderRadius: 2 }}>
-        <Typography variant="h6" gutterBottom color="#1E1E1E">
-          Filter Your Target Universe
-        </Typography>
-        <Grid container spacing={3}>
-          {Object.entries(filterOptions).map(([key, options]) => (
-            <Grid size={{ xs: 12, md: 4 }} key={key}>
-              <FormControl fullWidth size="small">
-                <InputLabel>{key.replace(/_/g, " ").toUpperCase()}</InputLabel>
-                <Select
-                  value={filters[key as keyof typeof filters]}
-                  onChange={(e) =>
-                    setFilters((prev) => ({ ...prev, [key]: e.target.value }))
-                  }
-                  label={key.replace(/_/g, " ")}
-                >
-                  {options.map((opt: any) => (
-                    <MenuItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-          ))}
-        </Grid>
-        <Box mt={4}>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={handleSubmit}
-            sx={{ bgcolor: "#B22234" }}
-          >
-            Run Analysis
-          </Button>
-        </Box>
-      </Paper>
+      {/* === Filter Selector === */}
+      <FilterSelector
+        onSubmit={handleSubmit}
+        isLoading={isLoading}
+        unrestrictedFilters={[
+          "modeledParty",
+          "ageGroup",
+          "mailBallot",
+          "turnout",
+        ]}
+      />
 
-      {/* Messages Card */}
-      <Card sx={{ mb: 4 }}>
-        <CardActions sx={{ bgcolor: "#e9ecef" }}>
-          <Typography variant="subtitle1" fontWeight="bold">
-            Curated Messaging Templates
-          </Typography>
-          <ExpandMore
-            expand={expandedMessages}
-            onClick={() => {
-              setExpandedMessages(!expandedMessages);
-              if (!expandedMessages) loadSuggestedMessages();
-            }}
-          >
-            <ExpandMoreIcon />
-          </ExpandMore>
-        </CardActions>
-        <Collapse in={expandedMessages} timeout="auto" unmountOnExit>
-          <CardContent>
-            {loadingMessages ? (
-              <Box textAlign="center" py={4}>
-                <CircularProgress />
-              </Box>
-            ) : suggestedMessages.length === 0 ? (
-              <Alert severity="info">No templates match current filters.</Alert>
-            ) : (
-              <Grid container spacing={2}>
-                {suggestedMessages.map((msg: any) => (
-                  <Grid key={msg.id}>
-                    <Paper
-                      sx={{
-                        p: 2,
-                        borderLeft: "4px solid #B22234",
-                        cursor: "pointer",
-                        "&:hover": { bgcolor: "#f9f9f9" },
-                      }}
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(msg.body || "");
-                          setSnackbarMessage("Message copied!");
-                          setSnackbarOpen(true);
-                        } catch {
-                          setSnackbarMessage("Copy failed");
-                          setSnackbarOpen(true);
-                        }
-                      }}
-                    >
-                      <Typography variant="subtitle2" fontWeight="bold">
-                        {msg.title}
-                      </Typography>
-                      <Typography variant="body2" sx={{ mt: 1 }}>
-                        {msg.body?.substring(0, 120)}...
-                      </Typography>
-                    </Paper>
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </CardContent>
-        </Collapse>
-      </Card>
-
-      {/* Results */}
+      {/* === Error / Empty States === */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           Analysis failed. Please try again.
         </Alert>
       )}
 
-      {submitted && !isLoading && voters.length === 0 && (
+      {filters && !isLoading && analysisData.length === 0 && (
         <Alert severity="info" sx={{ mb: 3 }}>
-          No voters match your filters.
+          No data available for current filters.
         </Alert>
       )}
 
-      {submitted && voters.length > 0 && (
-        <Paper sx={{ borderRadius: 2 }}>
+      {/* === Bar Chart Report === */}
+      {filters && analysisData.length > 0 && (
+        <Paper sx={{ borderRadius: 2, mb: 4 }}>
           <Box
             p={3}
-            display="flex"
-            justifyContent="space-between"
-            bgcolor="#f8f9fa"
+            sx={{ bgcolor: "#f8f9fa", borderBottom: 1, borderColor: "divider" }}
           >
-            <Typography variant="h6">
-              {voters.length.toLocaleString()} Targeted Voters
+            <Typography variant="h6" fontWeight="bold">
+              Targeted Voter Breakdown (
+              {analysisData
+                .reduce((sum: number, item: any) => sum + item.count, 0)
+                .toLocaleString()}{" "}
+              voters)
             </Typography>
-            <Button
-              variant="contained"
-              onClick={exportList}
-              sx={{ bgcolor: "#B22234" }}
-            >
-              Export CSV
-            </Button>
+            <Box sx={{ mt: 2, textAlign: "right" }}>
+              <Button
+                variant="contained"
+                onClick={exportList}
+                sx={{ bgcolor: "#B22234" }}
+              >
+                Export CSV
+              </Button>
+            </Box>
           </Box>
 
           {isLoading && <LinearProgress />}
 
-          <TableContainer>
-            <Table size="small">
-              <TableHead sx={{ bgcolor: "#0A3161" }}>
-                <TableRow>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                    Name
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                    Age
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                    Party
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                    Precinct
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                    Mail Ballot
-                  </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                    Turnout
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedData.map((voter: any) => (
-                  <TableRow key={voter.voter_id}>
-                    <TableCell>{voter.full_name || "Unknown"}</TableCell>
-                    <TableCell>{voter.age ?? "?"}</TableCell>
-                    <TableCell>{voter.party || "N/A"}</TableCell>
-                    <TableCell>{voter.precinct || "-"}</TableCell>
-                    <TableCell>
-                      {voter.has_mail_ballot ? "Yes" : "No"}
-                    </TableCell>
-                    <TableCell>{voter.turnout_score_general ?? "?"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          <TablePagination
-            rowsPerPageOptions={[10, 25, 50]}
-            component="div"
-            count={voters.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={(_, p) => setPage(p)}
-            onRowsPerPageChange={(e) => {
-              setRowsPerPage(parseInt(e.target.value, 10));
-              setPage(0);
-            }}
-          />
+          <Box p={4}>
+            <BarChart
+              dataset={analysisData}
+              xAxis={[{ scaleType: "band", dataKey: "group" }]}
+              series={[{ dataKey: "count", label: "Voters" }]}
+              height={400}
+              barLabel="value"
+              colors={["#B22234", "#FF6347", "#9370DB", "#6495ED", "#1E90FF"]}
+            />
+          </Box>
         </Paper>
       )}
 
+      {/* === Popular Reports (Quick Buttons) === */}
+      <Paper sx={{ p: 4, borderRadius: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          Popular Targeting Reports
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12 }}>
+            <Button
+              variant="outlined"
+              onClick={() =>
+                handleSubmit({
+                  county: "",
+                  area: "",
+                  precinct: "",
+                  modeledParty: "1 - Hard Republican,2 - Weak Republican",
+                  mailBallot: "false",
+                })
+              }
+            >
+              Republicans Without Mail Ballots
+            </Button>
+          </Grid>
+          <Grid size={{ xs: 12 }}>
+            <Button
+              variant="outlined"
+              onClick={() =>
+                handleSubmit({
+                  county: "",
+                  area: "",
+                  precinct: "",
+                  modeledParty: "3 - Swing",
+                  turnout: "high",
+                })
+              }
+            >
+              High-Turnout Swing Voters
+            </Button>
+          </Grid>
+          <Grid size={{ xs: 12 }}>
+            <Button
+              variant="outlined"
+              onClick={() =>
+                handleSubmit({
+                  county: "",
+                  area: "",
+                  precinct: "",
+                  ageGroup: "18-29",
+                  turnout: "low",
+                })
+              }
+            >
+              Young Low-Turnout Voters
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {/* === Snackbar === */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={4000}

@@ -1,8 +1,9 @@
 // src/app/voters/NameSearchPage.tsx
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useCloudFunctions } from "../../hooks/useCloudFunctions";
 import { useQuery } from "@tanstack/react-query";
+import { FilterSelector } from "../../components/FilterSelector";
 import {
   Box,
   Typography,
@@ -13,42 +14,47 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Button,
   Chip,
   Alert,
   TablePagination,
   CircularProgress,
-  TextField,
-  Grid,
   IconButton,
   Snackbar,
 } from "@mui/material";
 import { Phone, Message } from "@mui/icons-material";
 
-// === Safe Name Search Hook (Parameterized) ===
-const useNameSearch = (searchTerm: string | null) => {
+interface FilterValues {
+  county: string;
+  area: string;
+  precinct: string;
+  name?: string;
+  street?: string;
+  modeledParty?: string;
+  turnout?: string;
+  ageGroup?: string;
+  mailBallot?: string;
+}
+
+const useNameSearch = (filters: FilterValues | null) => {
   const { callFunction } = useCloudFunctions();
 
   return useQuery({
-    queryKey: ["nameSearch", searchTerm],
+    queryKey: ["nameSearch", filters],
     queryFn: async (): Promise<any[]> => {
-      if (!searchTerm || searchTerm.length < 3) return [];
+      if (!filters || !filters.name) return [];
 
-      try {
-        const result = await callFunction<{ voters: any[] }>(
-          "searchVotersByName",
-          {
-            name: searchTerm,
-          }
-        );
+      const result = await callFunction<{ voters: any[] }>(
+        "searchVotersByNameV2",
+        {
+          name: filters.name,
+          // Future: add street if supported in function
+          // street: filters.street,
+        }
+      );
 
-        return result.voters ?? [];
-      } catch (err) {
-        console.error("Name search failed:", err);
-        return [];
-      }
+      return result.voters ?? [];
     },
-    enabled: !!searchTerm && searchTerm.length >= 3,
+    enabled: !!filters && !!filters.name,
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
@@ -57,8 +63,7 @@ const useNameSearch = (searchTerm: string | null) => {
 export default function NameSearchPage() {
   const { isLoaded } = useAuth();
 
-  const [nameInput, setNameInput] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [filters, setFilters] = useState<FilterValues | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
@@ -66,13 +71,22 @@ export default function NameSearchPage() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // === Parameterized search ===
-  const trimmedInput = nameInput.trim();
-  const {
-    data: voters = [],
-    isLoading,
-    error,
-  } = useNameSearch(submitted ? trimmedInput : null);
+  // === Search data ===
+  const { data: voters = [], isLoading, error } = useNameSearch(filters);
+
+  // === Submit handler ===
+  const handleSubmit = useCallback((submittedFilters: FilterValues) => {
+    if (!submittedFilters.name || submittedFilters.name.trim().length < 3) {
+      setSnackbarMessage(
+        "Please enter at least 3 characters in the name field"
+      );
+      setSnackbarOpen(true);
+      return;
+    }
+
+    setFilters(submittedFilters);
+    setPage(0);
+  }, []);
 
   // === Safe contact actions ===
   const safeCall = useCallback((phone?: string) => {
@@ -99,23 +113,7 @@ export default function NameSearchPage() {
     }
   }, []);
 
-  const handleSearch = useCallback(
-    (e?: React.FormEvent) => {
-      e?.preventDefault();
-
-      if (trimmedInput.length < 3) {
-        setSnackbarMessage("Please enter at least 3 characters");
-        setSnackbarOpen(true);
-        return;
-      }
-
-      setSubmitted(true);
-      setPage(0);
-    },
-    [trimmedInput]
-  );
-
-  const paginatedData = useMemo(
+  const paginatedData = React.useMemo(
     () => voters.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
     [voters, page, rowsPerPage]
   );
@@ -139,63 +137,28 @@ export default function NameSearchPage() {
         Name Search — Find Any Voter
       </Typography>
 
-      <Paper
-        component="form"
-        onSubmit={handleSearch}
-        sx={{ p: 4, mb: 4, borderRadius: 2 }}
-      >
-        <Typography variant="h6" gutterBottom color="#0A3161">
-          Global Directory Search
-        </Typography>
-        <Grid container spacing={3} alignItems="flex-end">
-          <Grid>
-            <TextField
-              label="Voter Name"
-              fullWidth
-              value={nameInput}
-              onChange={(e) => {
-                setNameInput(e.target.value);
-                setSubmitted(false); // Reset on typing
-              }}
-              placeholder="e.g. John Smith"
-              helperText={`Enter at least 3 characters (${nameInput.length}/3)`}
-              autoComplete="off"
-              inputProps={{ maxLength: 100 }}
-            />
-          </Grid>
-          <Grid>
-            <Button
-              type="submit"
-              variant="contained"
-              fullWidth
-              size="large"
-              disabled={trimmedInput.length < 3 || isLoading}
-              sx={{ bgcolor: "#B22234", py: 1.8 }}
-            >
-              {isLoading ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : (
-                "Search"
-              )}
-            </Button>
-          </Grid>
-        </Grid>
-      </Paper>
+      {/* === FilterSelector with Name + Street only === */}
+      <FilterSelector
+        onSubmit={handleSubmit}
+        isLoading={isLoading}
+        unrestrictedFilters={["name", "street"]} // Only these for name search
+      />
 
+      {/* === Error / Empty States === */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           Search failed. Please try again.
         </Alert>
       )}
 
-      {submitted && !isLoading && voters.length === 0 && (
+      {filters && !isLoading && voters.length === 0 && (
         <Alert severity="info" sx={{ mb: 3 }}>
-          No voters found for "{trimmedInput}". Try a partial name or different
-          spelling.
+          No voters found matching your search.
         </Alert>
       )}
 
-      {submitted && voters.length > 0 && (
+      {/* === Results Table === */}
+      {filters && voters.length > 0 && (
         <Paper sx={{ borderRadius: 2, overflow: "hidden" }}>
           <TableContainer>
             <Table size="small">
@@ -283,7 +246,7 @@ export default function NameSearchPage() {
         </Paper>
       )}
 
-      {/* Snackbar */}
+      {/* === Snackbar === */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={4000}

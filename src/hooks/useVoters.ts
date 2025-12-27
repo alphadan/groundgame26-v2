@@ -14,13 +14,13 @@ const ALLOWED_SQL_PATTERNS = [
   // Add more safe patterns as needed
 ] as const;
 
-/*
+
 const isSafeSql = (sql: string): boolean => {
   if (typeof sql !== "string") return false;
   const trimmed = sql.trim();
   return ALLOWED_SQL_PATTERNS.some((pattern) => pattern.test(trimmed));
 };
-*/
+
 
 export const useVoters = (sql: string) => {
   // Access the verified user and loading state from our Gatekeeper context
@@ -39,12 +39,12 @@ export const useVoters = (sql: string) => {
       const trimmedSql = sql.trim();
 
       // === 2. Security: Enforce allowlist ===
-      /*
+      
       if (!isSafeSql(trimmedSql)) {
         console.error("Blocked unsafe SQL query:", trimmedSql);
         throw new Error("Invalid query type");
       }
-      */
+      
 
       // === 3. Auth validation ===
       if (!user) {
@@ -80,9 +80,9 @@ export const useVoters = (sql: string) => {
         );
       } catch (fetchErr: any) {
         if (fetchErr.name === "AbortError") {
-          throw new Error("Query timeout – please try again");
+          throw new Error("Query timeout - please try again");
         }
-        throw new Error("Network error – check your connection");
+        throw new Error("Network error - check your connection");
       } finally {
         clearTimeout(timeoutId);
       }
@@ -94,7 +94,7 @@ export const useVoters = (sql: string) => {
           const text = await res.text();
           // Only expose generic message – prevent info leaks
           console.error("Voter query HTTP error:", res.status, text);
-          errorMsg = "Server error – please try again later";
+          errorMsg = "Server error - please try again later";
         } catch {}
         throw new Error(errorMsg);
       }
@@ -117,14 +117,14 @@ export const useVoters = (sql: string) => {
     },
 
     // === 7. Safe enabling logic ===
-    /*
+    
     enabled:
       isLoaded &&
       !!user &&
       !!sql &&
       typeof sql === "string" &&
       isSafeSql(sql.trim()),
-      */
+      
 
     // Caching logic for professional scalability
     staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
