@@ -1,5 +1,5 @@
 // src/app/voters/NameSearchPage.tsx
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useCloudFunctions } from "../../hooks/useCloudFunctions";
 import { useQuery } from "@tanstack/react-query";
@@ -35,26 +35,31 @@ interface FilterValues {
   mailBallot?: string;
 }
 
-const useNameSearch = (filters: FilterValues | null) => {
+// Shared hook using the dynamic query function
+const useDynamicVoters = (filters: FilterValues | null) => {
   const { callFunction } = useCloudFunctions();
 
   return useQuery({
-    queryKey: ["nameSearch", filters],
+    queryKey: ["dynamicVoters", filters],
     queryFn: async (): Promise<any[]> => {
-      if (!filters || !filters.name) return [];
+      if (!filters) return [];
 
-      const result = await callFunction<{ voters: any[] }>(
-        "searchVotersByNameV2",
-        {
-          name: filters.name,
-          // Future: add street if supported in function
-          // street: filters.street,
-        }
-      );
+      // Only require name for NameSearch
+      if (!filters.name || filters.name.trim().length < 3) return [];
 
-      return result.voters ?? [];
+      try {
+        const result = await callFunction<{ voters: any[] }>(
+          "queryVotersDynamic",
+          filters
+        );
+
+        return result.voters ?? [];
+      } catch (err) {
+        console.error("Dynamic voter query failed:", err);
+        return [];
+      }
     },
-    enabled: !!filters && !!filters.name,
+    enabled: !!filters && !!filters.name && filters.name.trim().length >= 3,
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
@@ -71,10 +76,10 @@ export default function NameSearchPage() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // === Search data ===
-  const { data: voters = [], isLoading, error } = useNameSearch(filters);
+  // === Voter data from dynamic query ===
+  const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
 
-  // === Submit handler ===
+  // === Submit handler with name validation ===
   const handleSubmit = useCallback((submittedFilters: FilterValues) => {
     if (!submittedFilters.name || submittedFilters.name.trim().length < 3) {
       setSnackbarMessage(
@@ -113,7 +118,7 @@ export default function NameSearchPage() {
     }
   }, []);
 
-  const paginatedData = React.useMemo(
+  const paginatedData = useMemo(
     () => voters.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
     [voters, page, rowsPerPage]
   );
@@ -137,14 +142,14 @@ export default function NameSearchPage() {
         Name Search — Find Any Voter
       </Typography>
 
-      {/* === FilterSelector with Name + Street only === */}
+      {/* === FilterSelector — Name + Street only === */}
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isLoading}
-        unrestrictedFilters={["name", "street"]} // Only these for name search
+        unrestrictedFilters={["name", "street"]}
       />
 
-      {/* === Error / Empty States === */}
+      {/* === Results === */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           Search failed. Please try again.
@@ -157,7 +162,6 @@ export default function NameSearchPage() {
         </Alert>
       )}
 
-      {/* === Results Table === */}
       {filters && voters.length > 0 && (
         <Paper sx={{ borderRadius: 2, overflow: "hidden" }}>
           <TableContainer>

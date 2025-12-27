@@ -278,3 +278,129 @@ export const getVotersByPrecinctV2 = onCall(
     }
   }
 );
+
+// ================================================================
+// GET DYNAMIC QUERIES— v2 (NEW NAME)
+// ================================================================
+
+export const queryVotersDynamic = onCall(
+  {
+    cors: [/localhost:\d+$/, /127\.0\.0\.1:\d+$/, "https://groundgame26.com"],
+    region: "us-central1",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const filters = request.data || {};
+    console.log("Received filters:", filters); // Debug log
+
+    const table = `groundgame26-v2.groundgame26_voters.chester_county`;
+
+    let sql = `
+      SELECT 
+        voter_id, full_name, age, party, precinct, area_district,
+        address, phone_mobile, phone_home, has_mail_ballot,
+        modeled_party, turnout_score_general, zip_code
+      FROM \`${table}\`
+      WHERE 1=1
+    `;
+
+    const params = {};
+
+    // === Area ===
+    if (filters.area && filters.area.trim() !== "") {
+      sql += ` AND area_district = @area`;
+      params.area = filters.area.trim();
+    }
+
+    // === Precinct ===
+    if (filters.precinct && filters.precinct.trim() !== "") {
+      const normalized = filters.precinct.trim().replace(/^0+/, "") || "0";
+      sql += ` AND precinct = @precinct`;
+      params.precinct = normalized;
+    }
+
+    // === Name ===
+    if (filters.name && filters.name.trim() !== "") {
+      sql += ` AND LOWER(full_name) LIKE @name`;
+      params.name = `%${filters.name.trim().toLowerCase()}%`;
+    }
+
+    // === Street ===
+    if (filters.street && filters.street.trim() !== "") {
+      sql += ` AND LOWER(address) LIKE @street`;
+      params.street = `%${filters.street.trim().toLowerCase()}%`;
+    }
+
+    // === Modeled Party ===
+    if (filters.modeledParty && filters.modeledParty.trim() !== "") {
+      sql += ` AND modeled_party = @modeledParty`;
+      params.modeledParty = filters.modeledParty.trim();
+    }
+
+    // === Turnout Score ===
+    if (filters.turnout && filters.turnout.trim() !== "") {
+      const score = parseInt(filters.turnout.trim());
+      if (!isNaN(score)) {
+        sql += ` AND turnout_score_general = @turnout`;
+        params.turnout = score;
+      }
+    }
+
+    // === Age Group ===
+    if (filters.ageGroup && filters.ageGroup.trim() !== "") {
+      const [min, maxStr] = filters.ageGroup.split("-");
+      const minAge = parseInt(min);
+      const maxAge = maxStr === "+" ? null : parseInt(maxStr);
+
+      sql += ` AND age >= @ageMin`;
+      params.ageMin = minAge;
+
+      if (maxAge !== null) {
+        sql += ` AND age <= @ageMax`;
+        params.ageMax = maxAge;
+      }
+    }
+
+    // === Mail Ballot ===
+    if (filters.mailBallot && filters.mailBallot.trim() !== "") {
+      if (filters.mailBallot === "true") {
+        sql += ` AND has_mail_ballot = TRUE`;
+      } else if (filters.mailBallot === "false") {
+        sql += ` AND has_mail_ballot = FALSE`;
+      }
+    }
+
+    // === Zip Code ===
+    if (filters.zipCode && filters.zipCode.trim() !== "") {
+      const zip = filters.zipCode.trim();
+      if (/^\d{5}$/.test(zip)) {
+        sql += ` AND zip_code = @zipCode`;
+        params.zipCode = parseInt(zip);
+      }
+    }
+
+    sql += ` ORDER BY full_name LIMIT 2000`;
+
+    console.log("Final SQL:", sql);
+    console.log("Params:", params);
+
+    try {
+      const [rows] = await bigquery.query({
+        query: sql,
+        params,
+        location: "US",
+      });
+
+      console.log(`Dynamic query returned ${rows.length} voters`);
+      return { voters: rows };
+    } catch (error) {
+      console.error("Dynamic query failed:", error);
+      throw new HttpsError("internal", "Query failed — check server logs");
+    }
+  }
+);

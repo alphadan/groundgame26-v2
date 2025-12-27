@@ -136,3 +136,15 @@ export interface CustomClaims {
   scope: string[];
   permissions: UserPermissions;
 }
+
+export interface FilterValues {
+  county: string;
+  area: string;
+  precinct: string;
+  name?: string;
+  street?: string;
+  modeledParty?: string;
+  turnout?: string;
+  ageGroup?: string;
+  mailBallot?: string;
+}

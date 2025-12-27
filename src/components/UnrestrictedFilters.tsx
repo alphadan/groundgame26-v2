@@ -114,9 +114,11 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
                 <InputLabel>Turnout Score</InputLabel>
                 <Select {...field} label="Turnout Score">
                   <MenuItem value="">All</MenuItem>
-                  <MenuItem value="high">High</MenuItem>
-                  <MenuItem value="medium">Medium</MenuItem>
-                  <MenuItem value="low">Low</MenuItem>
+                  <MenuItem value="4">4 - Very High (Most Active)</MenuItem>
+                  <MenuItem value="3">3 - Frequent</MenuItem>
+                  <MenuItem value="2">2 - Moderate</MenuItem>
+                  <MenuItem value="1">1 - Low</MenuItem>
+                  <MenuItem value="0">0 - Inactive</MenuItem>
                 </Select>
               </FormControl>
             )}
@@ -155,9 +157,8 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
                 <InputLabel>Mail Ballot Status</InputLabel>
                 <Select {...field} label="Mail Ballot Status">
                   <MenuItem value="">All</MenuItem>
-                  <MenuItem value="requested">Requested</MenuItem>
-                  <MenuItem value="returned">Returned</MenuItem>
-                  <MenuItem value="not_requested">Not Requested</MenuItem>
+                  <MenuItem value="true">Requested Mail Ballot</MenuItem>
+                  <MenuItem value="false">No Mail Ballot Requested</MenuItem>
                 </Select>
               </FormControl>
             )}

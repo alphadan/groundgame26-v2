@@ -113,7 +113,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
     { text: "Dashboard", icon: <HomeWork />, path: "/dashboard" },
     { text: "Reports", icon: <BarChart />, path: "/reports" },
     { text: "Analysis", icon: <Analytics />, path: "/analysis" },
-    { text: "Actions", icon: <Campaign />, path: "/actions" },
+    { text: "Planning", icon: <Campaign />, path: "/planning" },
     { divider: true },
     { text: "Voter List", icon: <Phone />, path: "/voters" },
     { text: "Walk Lists", icon: <DirectionsWalk />, path: "/walk-lists" },

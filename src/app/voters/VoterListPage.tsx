@@ -1,8 +1,7 @@
 // src/app/voters/VoterListPage.tsx
 import React, { useState, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useCloudFunctions } from "../../hooks/useCloudFunctions";
-import { useQuery } from "@tanstack/react-query";
+import { useDynamicVoters } from "../../hooks/useDynamicVoters"; // ← Shared hook
 import { FilterSelector } from "../../components/FilterSelector";
 import {
   Box,
@@ -30,40 +29,7 @@ import {
 import { Phone, Message, AddComment } from "@mui/icons-material";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-
-interface FilterValues {
-  county: string;
-  area: string;
-  precinct: string;
-  name?: string;
-  street?: string;
-  modeledParty?: string;
-  turnout?: string;
-  ageGroup?: string;
-  mailBallot?: string;
-}
-
-const useVoterList = (filters: FilterValues | null) => {
-  const { callFunction } = useCloudFunctions();
-
-  return useQuery({
-    queryKey: ["voterList", filters],
-    queryFn: async (): Promise<any[]> => {
-      if (!filters || !filters.precinct) return [];
-
-      // For now, only precinct is used — you can extend later with other filters
-      const result = await callFunction<{ voters: any[] }>(
-        "getVotersByPrecinctV2",
-        { precinctCode: filters.precinct }
-      );
-
-      return result.voters ?? [];
-    },
-    enabled: !!filters && !!filters.precinct,
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-};
+import { FilterValues } from "../../types"; // ← Shared type
 
 export default function VoterListPage() {
   const { user, isLoaded: authLoaded } = useAuth();
@@ -85,11 +51,18 @@ export default function VoterListPage() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // === Voter data ===
-  const { data: voters = [], isLoading, error } = useVoterList(filters);
+  // === Voter data from dynamic query ===
+  const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
 
   // === Submit handler ===
   const handleSubmit = useCallback((submittedFilters: FilterValues) => {
+    // Optional: require precinct for VoterList
+    if (!submittedFilters.precinct) {
+      setSnackbarMessage("Please select a precinct");
+      setSnackbarOpen(true);
+      return;
+    }
+
     setFilters(submittedFilters);
     setIsSubmitting(true);
     setPage(0);
@@ -171,7 +144,7 @@ export default function VoterListPage() {
         Voter Contact List
       </Typography>
 
-      {/* === Full Filter Selector with All Unrestricted Filters === */}
+      {/* === FilterSelector with advanced filters === */}
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isSubmitting && isLoading}
@@ -344,4 +317,3 @@ export default function VoterListPage() {
     </Box>
   );
 }
-// src/components/AreaPrecinctSelector.tsx
