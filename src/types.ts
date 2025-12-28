@@ -162,3 +162,8 @@ export interface MessageTemplate {
   active: boolean;
 }
 
+export interface VoterNotesProps {
+  voterId: string | null;
+  fullName: string;
+  address: string;
+}

@@ -1,9 +1,12 @@
 // src/app/walk/WalkListPage.tsx
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useCloudFunctions } from "../../hooks/useCloudFunctions";
-import { useQuery } from "@tanstack/react-query";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../../lib/firebase";
 import { FilterSelector } from "../../components/FilterSelector";
+import { VoterNotes } from "../../components/VoterNotes";
+import { VoterNotesProps } from "../../types";
+import { useQuery } from "@tanstack/react-query";
 import {
   Box,
   Typography,
@@ -19,25 +22,11 @@ import {
   TablePagination,
   CircularProgress,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Collapse,
   Badge,
   Snackbar,
-  Button,
-  TextField,
 } from "@mui/material";
-import {
-  Phone,
-  Home,
-  ExpandMore,
-  ExpandLess,
-  AddComment,
-} from "@mui/icons-material";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../../lib/firebase";
+import { Phone, Home, ExpandMore, ExpandLess } from "@mui/icons-material";
 
 interface FilterValues {
   county: string;
@@ -49,77 +38,69 @@ interface FilterValues {
   turnout?: string;
   ageGroup?: string;
   mailBallot?: string;
-  zipCode?: string; // ← New for WalkList
+  zipCode?: string;
 }
-
-const useWalkList = (filters: FilterValues | null) => {
-  const { callFunction } = useCloudFunctions();
-
-  return useQuery({
-    queryKey: ["walkList", filters],
-    queryFn: async (): Promise<any[]> => {
-      if (!filters) return [];
-
-      // For now, WalkList uses zipCode + street
-      // Future: extend Cloud Function to support area/precinct too
-      const result = await callFunction<{ voters: any[] }>(
-        "getWalkList", // ← You'll create this function next
-        {
-          zipCode: filters.zipCode,
-          street: filters.street,
-        }
-      );
-
-      return result.voters ?? [];
-    },
-    enabled: !!filters && !!(filters.zipCode || filters.street),
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-};
 
 export default function WalkListPage() {
   const { user, isLoaded } = useAuth();
 
   const [filters, setFilters] = useState<FilterValues | null>(null);
+  const [selectedCountyCode, setSelectedCountyCode] = useState<string>("");
+  const [selectedAreaDistrict, setSelectedAreaDistrict] = useState<string>("");
+
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [expandedHouse, setExpandedHouse] = useState<string>("");
 
-  // Note dialog
-  const [openNote, setOpenNote] = useState(false);
-  const [selectedVoter, setSelectedVoter] = useState<any>(null);
-  const [noteText, setNoteText] = useState("");
-  const [noteSaving, setNoteSaving] = useState(false);
+  // Notes state: { [address]: { [voter_id]: note[] } }
+  const [householdNotes, setHouseholdNotes] = useState<
+    Record<string, Record<string, any[]>>
+  >({});
+  const [loadingNotesFor, setLoadingNotesFor] = useState<string | null>(null);
 
   // Feedback
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // === Voter data ===
-  const { data: voters = [], isLoading, error } = useWalkList(filters);
+  // === Query voters from BigQuery via Cloud Function ===
+  const queryVoters = httpsCallable(functions, "queryVotersDynamic");
 
-  // === Submit handler ===
-  const handleSubmit = useCallback((submittedFilters: FilterValues) => {
-    const hasZip =
-      submittedFilters.zipCode && /^\d{5}$/.test(submittedFilters.zipCode);
-    const hasStreet =
-      submittedFilters.street && submittedFilters.street.trim().length >= 2;
+  const {
+    data: voters = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: [
+      "walkListVoters",
+      filters,
+      selectedCountyCode,
+      selectedAreaDistrict,
+    ],
+    queryFn: async () => {
+      if (!filters) return [];
 
-    if (!hasZip && !hasStreet) {
-      setSnackbarMessage(
-        "Enter a valid 5-digit zip code or street name (2+ chars)"
-      );
-      setSnackbarOpen(true);
-      return;
-    }
+      const result = await queryVoters({
+        county: selectedCountyCode || undefined,
+        area: selectedAreaDistrict || undefined,
+        precinct: filters.precinct || undefined,
+        name: filters.name || undefined,
+        street: filters.street || undefined,
+        modeledParty: filters.modeledParty || undefined,
+        turnout: filters.turnout || undefined,
+        ageGroup: filters.ageGroup || undefined,
+        mailBallot: filters.mailBallot || undefined,
+        zipCode: filters.zipCode || undefined,
+      });
 
-    setFilters(submittedFilters);
-    setPage(0);
-  }, []);
+      return (result.data as any)?.voters ?? [];
+    },
+    enabled: !!filters,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
 
   // === Household grouping ===
-  const households = React.useMemo(() => {
+  const households = useMemo(() => {
     const groups: Record<string, any[]> = {};
 
     voters.forEach((voter: any) => {
@@ -144,6 +125,86 @@ export default function WalkListPage() {
       .sort((a, b) => a.address.localeCompare(b.address));
   }, [voters]);
 
+  // === Load notes when household expands ===
+  useEffect(() => {
+    if (!expandedHouse) {
+      console.log("No household expanded");
+      return;
+    }
+
+    console.log("🔍 Expanding household:", expandedHouse);
+
+    const fetchNotesForHousehold = async () => {
+      setLoadingNotesFor(expandedHouse);
+      console.log("Loading notes for:", expandedHouse);
+
+      try {
+        const household = households.find((h) => h.address === expandedHouse);
+        console.log("Found household:", household);
+
+        const voterIds = household?.voters
+          .map((v) => v.voter_id)
+          .filter(Boolean);
+
+        console.log("Voter IDs in household:", voterIds);
+
+        if (!voterIds || voterIds.length === 0) {
+          console.log("No voter IDs — skipping note fetch");
+          setHouseholdNotes((prev) => ({ ...prev, [expandedHouse]: {} }));
+          return;
+        }
+
+        console.log(
+          "Calling getVoterNotes Cloud Function with voterIds:",
+          voterIds
+        );
+
+        const getVoterNotes = httpsCallable<
+          { voterIds: string[] },
+          { notes: any[] }
+        >(functions, "getVoterNotes");
+
+        const result = await getVoterNotes({ voterIds });
+        console.log("Raw result from getVoterNotes:", result);
+        console.log("result.data:", result.data);
+
+        const notes = result.data?.notes || [];
+        console.log("Fetched notes:", notes);
+
+        const grouped: Record<string, any[]> = {};
+        notes.forEach((note: any) => {
+          const vid = note.voter_id || "unknown";
+          if (!grouped[vid]) grouped[vid] = [];
+          grouped[vid].push(note);
+        });
+
+        console.log("Grouped notes:", grouped);
+
+        setHouseholdNotes((prev) => ({ ...prev, [expandedHouse]: grouped }));
+        console.log("✅ Notes loaded and set in state");
+      } catch (err: any) {
+        console.error("❌ Failed to load notes:", err);
+        console.error("Error message:", err.message);
+        console.error("Error details:", err.details);
+        setHouseholdNotes((prev) => ({ ...prev, [expandedHouse]: {} }));
+      } finally {
+        setLoadingNotesFor(null);
+      }
+    };
+
+    if (!householdNotes[expandedHouse]) {
+      fetchNotesForHousehold();
+    } else {
+      console.log("Notes already loaded for this household");
+    }
+  }, [expandedHouse, households]);
+
+  // === Submit handler ===
+  const handleSubmit = useCallback((submittedFilters: FilterValues) => {
+    setFilters(submittedFilters);
+    setPage(0);
+  }, []);
+
   // === Safe phone call ===
   const safeCall = useCallback((phone: string | null | undefined) => {
     if (!phone || typeof phone !== "string") return;
@@ -156,36 +217,6 @@ export default function WalkListPage() {
       window.location.href = `tel:${normalized}`;
     }
   }, []);
-
-  // === Save note ===
-  const handleAddNote = useCallback(async () => {
-    if (!user || !selectedVoter || !noteText.trim()) return;
-
-    setNoteSaving(true);
-    try {
-      await addDoc(collection(db, "voter_notes"), {
-        voter_id: selectedVoter.voter_id ?? null,
-        precinct: selectedVoter.precinct ?? null,
-        full_name: selectedVoter.full_name ?? "Unknown",
-        address: selectedVoter.address ?? "Unknown",
-        note: noteText.trim(),
-        created_by_uid: user.uid,
-        created_by_name: user.displayName || user.email || "Unknown",
-        created_at: serverTimestamp(),
-      });
-
-      setSnackbarMessage("Note saved successfully");
-      setSnackbarOpen(true);
-      setNoteText("");
-      setOpenNote(false);
-    } catch (err) {
-      console.error("Failed to save note:", err);
-      setSnackbarMessage("Failed to save note – please try again");
-      setSnackbarOpen(true);
-    } finally {
-      setNoteSaving(false);
-    }
-  }, [user, selectedVoter, noteText]);
 
   if (!isLoaded) {
     return (
@@ -209,14 +240,21 @@ export default function WalkListPage() {
         Grouped by address for efficient door-knocking.
       </Typography>
 
-      {/* === FilterSelector with Zip Code + Street === */}
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isLoading}
-        unrestrictedFilters={["zipCode", "street"]} // ← Only these for WalkList
+        unrestrictedFilters={[
+          "zipCode",
+          "street",
+          "modeledParty",
+          "turnout",
+          "ageGroup",
+          "mailBallot",
+        ]}
+        onCountyCodeChange={setSelectedCountyCode}
+        onAreaDistrictChange={setSelectedAreaDistrict}
       />
 
-      {/* === Error / Empty States === */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           Failed to load walk list. Please try again.
@@ -229,7 +267,6 @@ export default function WalkListPage() {
         </Alert>
       )}
 
-      {/* === Walk List Table === */}
       {filters && households.length > 0 && (
         <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
           <Table>
@@ -299,68 +336,125 @@ export default function WalkListPage() {
                           unmountOnExit
                         >
                           <Box sx={{ p: 3, bgcolor: "#f8f9fa" }}>
-                            {house.voters.map((voter: any) => (
-                              <Box
-                                key={voter.voter_id}
-                                display="flex"
-                                justifyContent="space-between"
-                                alignItems="center"
-                                sx={{
-                                  py: 1.5,
-                                  borderBottom: 1,
-                                  borderColor: "divider",
-                                }}
-                              >
-                                <Box>
-                                  <Typography
-                                    variant="body1"
-                                    fontWeight="medium"
-                                  >
-                                    {voter.full_name || "Unknown"} (
-                                    {voter.age ?? "?"})
-                                  </Typography>
-                                  <Box display="flex" gap={1} mt={0.5}>
-                                    <Chip
-                                      label={voter.party || "N/A"}
-                                      size="small"
-                                      color={
-                                        voter.party === "R"
-                                          ? "error"
-                                          : "primary"
-                                      }
-                                    />
-                                    <Chip
-                                      label={`Score: ${
-                                        voter.turnout_score_general ?? "?"
-                                      }`}
-                                      size="small"
-                                    />
-                                  </Box>
-                                </Box>
+                            {house.voters.map((voter: any) => {
+                              const voterNotes =
+                                householdNotes[house.address]?.[
+                                  voter.voter_id
+                                ] || [];
 
-                                <Box>
-                                  {voter.phone_mobile && (
-                                    <IconButton
-                                      color="success"
-                                      onClick={() =>
-                                        safeCall(voter.phone_mobile)
-                                      }
-                                    >
-                                      <Phone />
-                                    </IconButton>
-                                  )}
-                                  <IconButton
-                                    color="primary"
-                                    onClick={() => {
-                                      setSelectedVoter(voter);
-                                      setOpenNote(true);
-                                    }}
+                              return (
+                                <Box
+                                  key={voter.voter_id}
+                                  sx={{
+                                    py: 2,
+                                    borderBottom: 1,
+                                    borderColor: "divider",
+                                  }}
+                                >
+                                  <Box
+                                    display="flex"
+                                    justifyContent="space-between"
+                                    alignItems="start"
                                   >
-                                    <AddComment />
-                                  </IconButton>
+                                    <Box>
+                                      <Typography
+                                        variant="body1"
+                                        fontWeight="medium"
+                                      >
+                                        {voter.full_name || "Unknown"} (
+                                        {voter.age ?? "?"})
+                                      </Typography>
+                                      <Box display="flex" gap={1} mt={0.5}>
+                                        <Chip
+                                          label={voter.party || "N/A"}
+                                          size="small"
+                                          color={
+                                            voter.party === "R"
+                                              ? "error"
+                                              : "primary"
+                                          }
+                                        />
+                                        <Chip
+                                          label={`Score: ${
+                                            voter.turnout_score_general ?? "?"
+                                          }`}
+                                          size="small"
+                                        />
+                                      </Box>
+                                    </Box>
+
+                                    <Box
+                                      display="flex"
+                                      alignItems="center"
+                                      gap={1}
+                                    >
+                                      {voter.phone_mobile && (
+                                        <IconButton
+                                          color="success"
+                                          onClick={() =>
+                                            safeCall(voter.phone_mobile)
+                                          }
+                                        >
+                                          <Phone />
+                                        </IconButton>
+                                      )}
+                                      <VoterNotes
+                                        voterId={voter.voter_id}
+                                        fullName={voter.full_name || "Unknown"}
+                                        address={voter.address || "Unknown"}
+                                      />
+                                    </Box>
+                                  </Box>
+
+                                  {/* Display existing notes */}
+                                  {loadingNotesFor === house.address ? (
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{ ml: 2, mt: 1 }}
+                                    >
+                                      Loading notes...
+                                    </Typography>
+                                  ) : voterNotes.length > 0 ? (
+                                    <Box mt={2} ml={2}>
+                                      <Typography
+                                        variant="subtitle2"
+                                        color="text.secondary"
+                                      >
+                                        Notes:
+                                      </Typography>
+                                      {voterNotes.map((note: any) => (
+                                        <Box
+                                          key={note.id}
+                                          mt={1}
+                                          sx={{
+                                            bgcolor: "#f5f5f5",
+                                            p: 1.5,
+                                            borderRadius: 1,
+                                          }}
+                                        >
+                                          <Typography variant="body2">
+                                            {note.note}
+                                          </Typography>
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                          >
+                                            — {note.created_by_name} •{" "}
+                                            {note.created_at
+                                              ?.toDate?.()
+                                              .toLocaleDateString() ||
+                                              new Date(
+                                                note.created_at
+                                              ).toLocaleDateString()}
+                                          </Typography>
+                                        </Box>
+                                      ))}
+                                    </Box>
+                                  ) : null}
                                 </Box>
-                              </Box>
-                            ))}
+                              );
+                            })}
                           </Box>
                         </Collapse>
                       </TableCell>
@@ -385,46 +479,6 @@ export default function WalkListPage() {
         </TableContainer>
       )}
 
-      {/* === Note Dialog === */}
-      <Dialog
-        open={openNote}
-        onClose={() => setOpenNote(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Add Canvass Note</DialogTitle>
-        <DialogContent>
-          <Typography variant="subtitle2" gutterBottom>
-            {selectedVoter?.full_name || "Unknown Voter"} •{" "}
-            {selectedVoter?.address || "Unknown Address"}
-          </Typography>
-          <TextField
-            multiline
-            rows={4}
-            fullWidth
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            placeholder="e.g., Not home, supportive, requested yard sign..."
-            sx={{ mt: 2 }}
-            disabled={noteSaving}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenNote(false)} disabled={noteSaving}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleAddNote}
-            disabled={noteSaving || !noteText.trim()}
-            sx={{ bgcolor: "#B22234" }}
-          >
-            {noteSaving ? <CircularProgress size={20} /> : "Save Note"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* === Snackbar === */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={4000}

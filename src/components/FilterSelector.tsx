@@ -32,8 +32,9 @@ interface FilterSelectorProps {
   defaultValues?: Partial<FilterValues>;
   isLoading?: boolean;
   disabled?: boolean;
-  // Which unrestricted filters to show on this page
   unrestrictedFilters?: FilterKey[];
+  onCountyCodeChange?: (code: string) => void;
+  onAreaDistrictChange?: (district: string) => void;
 }
 
 export const FilterSelector: React.FC<FilterSelectorProps> = ({

@@ -30,6 +30,7 @@
     "leaflet": "^1.9.4",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
+    "react-firebase-hooks": "^5.1.1",
     "react-hook-form": "^7.69.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^6.30.2",

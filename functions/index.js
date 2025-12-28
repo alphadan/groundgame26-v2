@@ -482,3 +482,300 @@ export const getUserProfile = onCall(
     }
   }
 );
+
+// ================================================================
+// CREATE USER PROFILE
+// ================================================================
+
+export const createUserProfile = functions.auth
+  .user()
+  .onCreate(async (user) => {
+    const uid = user.uid;
+    const email = user.email?.toLowerCase() || "";
+    const displayName = user.displayName || email.split("@")[0];
+
+    try {
+      // Aligned with UserProfile interface
+      await db.doc(`users/${uid}`).set({
+        uid,
+        display_name: displayName,
+        preferred_name: displayName.split(" ")[0], // Default to first name
+        email,
+        phone: user.phoneNumber || null,
+        photo_url: user.photoURL || null,
+        role: "base", // Default starting role
+        org_id: "pending", // Placeholder until syncOrgRolesToClaims runs
+        notifications_enabled: true,
+        login_count: 1,
+        last_ip: "auth-trigger",
+        created_at: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+        last_login: FieldValue.serverTimestamp(),
+      });
+
+      await db.collection("login_attempts").add({
+        uid,
+        email,
+        success: true,
+        type: "initial_registration",
+        ip: "auth-trigger",
+        timestamp: FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("createUserProfile failed:", err);
+    }
+  });
+
+// ================================================================
+// 6. PERMISSIONS ENGINE — CENTRALIZED & CLEAN
+// ================================================================
+
+const getPermissionsForRole = (role) => {
+  const base = {
+    can_export_csv: false,
+    can_manage_team: false,
+    can_view_phone: false,
+    can_view_full_address: false,
+    can_cut_turf: false,
+  };
+
+  switch (role?.toLowerCase()) {
+    case "county_chair":
+    case "state_admin":
+    case "state_chair":
+    case "state_rep":
+      return {
+        ...base,
+        can_export_csv: true,
+        can_manage_team: true,
+        can_view_phone: true,
+        can_view_full_address: true,
+        can_cut_turf: true,
+      };
+
+    case "area_chair":
+    case "area chairman":
+      return {
+        ...base,
+        can_export_csv: true,
+        can_manage_team: true,
+        can_view_phone: true,
+        can_view_full_address: true,
+        can_cut_turf: true,
+      };
+
+    case "candidate":
+      return {
+        ...base,
+        can_export_csv: true,
+        can_view_phone: true,
+        can_view_full_address: false,
+      };
+
+    case "ambassador":
+      return {
+        ...base,
+        can_export_csv: true,
+        can_view_phone: true,
+        can_view_full_address: false,
+      };
+
+    case "committeeperson":
+    case "committeeman":
+    case "committeewoman":
+      return {
+        ...base,
+        can_export_csv: true,
+        can_view_phone: true,
+        can_view_full_address: false,
+      };
+
+    default:
+      return base;
+  }
+};
+
+// ================================================================
+//  PSYNC ORG ROLES — CENTRALIZED & CLEAN
+// ================================================================
+
+export const syncOrgRolesToClaims = functions.firestore
+  .document("org_roles/{docId}")
+  .onWrite(async (change, context) => {
+    const before = change.before.exists ? change.before.data() : null;
+    const after = change.after.exists ? change.after.data() : null;
+
+    if (!after || after.is_vacant || !after.uid) {
+      if (before?.uid)
+        await getAuth().setCustomUserClaims(before.uid, { role: "admin" });
+      return;
+    }
+
+    const uid = after.uid;
+
+    logger.info("[syncOrgRolesToClaims]uid :", uid);
+
+    const snap = await db
+      .collection("org_roles")
+      .where("uid", "==", uid)
+      .where("is_vacant", "==", false)
+      .get();
+
+    if (snap.empty) {
+      await getAuth().setCustomUserClaims(uid, { role: "admin" });
+      logger.info("[syncOrgRolesToClaims]setCustomUserClaims:uid :", uid);
+      return;
+    }
+
+    const precincts = [];
+    const counties = new Set();
+    const areas = new Set();
+    const orgIds = new Set();
+    const roles = new Set();
+
+    snap.forEach((doc) => {
+      const d = doc.data();
+      roles.add(d.role);
+      if (d.org_id) orgIds.add(d.org_id);
+      if (d.county_code) counties.add(d.county_code);
+      if (d.area_district) areas.add(d.area_district);
+      if (d.precinct_code) precincts.push(d.precinct_code);
+    });
+
+    logger.info("[syncOrgRolesToClaims]roles :", roles);
+
+    const primaryRole = [...roles][0] || "base";
+    logger.info("[syncOrgRolesToClaims]primaryRole :", primaryRole);
+    const permissions = getPermissionsForRole(primaryRole);
+
+    const claims = {
+      role: primaryRole,
+      roles: [...roles],
+      counties: [...counties],
+      areas: [...areas],
+      precincts,
+      org_id: [...orgIds][0] || null,
+      permissions,
+      scope: [
+        ...[...counties].map((c) => `county:${c}`),
+        ...[...areas].map((a) => `area:${a}`),
+        ...precincts.map((p) => `precinct:${p}`),
+        ...[...orgIds].map((o) => `org:${o}`),
+      ],
+    };
+
+    logger.info("[syncOrgRolesToClaims]claims :", claims);
+
+    await getAuth().setCustomUserClaims(uid, claims);
+
+    await db.doc(`users/${uid}`).set(
+      {
+        primary_county: claims.counties[0] || null,
+        primary_precinct: precincts[0] || null,
+        role: primaryRole,
+        permissions,
+        updated_at: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  });
+
+// ================================================================
+//  SUBMIT VOLUNTEERS
+// ================================================================
+
+export const submitVolunteer = onRequest(
+  { cors: true, region: "us-central1" },
+  async (req, res) => {
+    try {
+      const { name, email, comment, recaptchaToken } = req.body;
+
+      if (!recaptchaToken) throw new Error("reCAPTCHA required");
+
+      await db.collection("volunteer_requests").add({
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        comment: comment?.trim() || "",
+        submitted_at: FieldValue.serverTimestamp(),
+        status: "new",
+      });
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Volunteer submit failed:", err);
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
+// ================================================================
+//  ADD VOTER NOTE
+// ================================================================
+
+export const addVoterNote = onCall(async (request) => {
+  // Auth check - automatically provided by onCall
+  if (!request.auth || !request.auth.uid) {
+    throw new Error("Unauthorized");
+  }
+
+  const { voter_id, precinct, full_name, address, note } = request.data;
+
+  if (!note || typeof note !== "string" || note.trim().length === 0) {
+    throw new Error("Note text is required");
+  }
+
+  try {
+    // Get user info from auth for created_by_name
+    const authUser = await getAuth().getUser(request.auth.uid);
+
+    await db.collection("voter_notes").add({
+      voter_id: voter_id || null,
+      precinct: precinct || null,
+      full_name: full_name || "Unknown",
+      address: address || "Unknown",
+      note: note.trim(),
+      created_by_uid: request.auth.uid,
+      created_by_name: authUser.displayName || authUser.email || "Unknown",
+      created_at: new Date(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to save voter note:", error);
+    throw new Error("Failed to save note");
+  }
+});
+
+// ================================================================
+//  Get VOTER NOTE
+// ================================================================
+
+export const getVoterNotes = onCall(async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new Error("Unauthorized");
+  }
+
+  const { voterIds } = request.data;
+
+  if (!Array.isArray(voterIds) || voterIds.length === 0) {
+    return { notes: [] };
+  }
+
+  try {
+    const snapshot = await db
+      .collection("voter_notes")
+      .where("voter_id", "in", voterIds)
+      .orderBy("created_at", "desc")
+      .get();
+
+    const notes = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return { notes };
+  } catch (error) {
+    console.error("Failed to fetch voter notes:", error);
+    throw new Error("Failed to load notes");
+  }
+});
