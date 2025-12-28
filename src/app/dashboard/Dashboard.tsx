@@ -1,7 +1,10 @@
 // src/app/dashboard/Dashboard.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { db as indexedDb } from "../../lib/db"; // ← ADD THIS LINE
+import { db as indexedDb } from "../../lib/db";
+import { UserProfile } from "../../types";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../../lib/firebase";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useVoterStats, type VoterStats } from "../../hooks/useVoterStats";
 import { FilterSelector } from "../../components/FilterSelector";
@@ -32,11 +35,52 @@ export default function Dashboard() {
   const [filters, setFilters] = useState<FilterValues | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // === Profile ===
+  useEffect(() => {
+    if (!isLoaded || !claims?.user_id) {
+      // ← Changed from claims?.uid
+      console.log("Auth not loaded yet or no UID");
+      return;
+    }
+
+    console.log("✅ Auth ready — User ID:", claims.user_id);
+
+    const fetchAndCacheUserProfile = async () => {
+      try {
+        const cached = await indexedDb.users.get(claims.user_id); // ← Changed
+        if (cached) {
+          console.log("✅ Profile already cached");
+          return;
+        }
+
+        console.log("Calling getUserProfile Cloud Function...");
+
+        const getUserProfile = httpsCallable<
+          unknown,
+          { profile: UserProfile | null }
+        >(functions, "getUserProfile");
+
+        const result = await getUserProfile();
+        const profile = result.data?.profile;
+
+        if (profile) {
+          // Ensure the profile has the correct key for Dexie
+          await indexedDb.users.put(profile);
+          console.log("✅ User profile cached successfully");
+        } else {
+          console.warn("No profile returned from function");
+        }
+      } catch (error: any) {
+        console.error("Failed to fetch/cache profile:", error.message);
+      }
+    };
+
+    fetchAndCacheUserProfile();
+  }, [isLoaded, claims]);
+
   // === Profile (from IndexedDB) ===
   const profile = useLiveQuery(
-    () => (user?.uid ? indexedDb.users.get(user.uid) : undefined),
-    [user?.uid]
+    () => (claims?.user_id ? indexedDb.users.get(claims.user_id) : undefined), // ← Changed
+    [claims?.user_id]
   );
 
   const preferredName =
@@ -130,7 +174,7 @@ export default function Dashboard() {
         <FilterSelector
           onSubmit={handleSubmit}
           isLoading={isSubmitting && turnoutLoading}
-          unrestrictedFilters={[]} 
+          unrestrictedFilters={[]}
         />
       )}
 

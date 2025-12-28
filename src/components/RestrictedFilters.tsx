@@ -23,6 +23,8 @@ interface RestrictedFiltersProps {
   onCountyChange: (value: string) => void;
   onAreaChange: (value: string) => void;
   onPrecinctChange: (value: string) => void;
+  onAreaDistrictChange: (district: string) => void;
+  onCountyCodeChange: (code: string) => void;
 }
 
 export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
@@ -32,6 +34,8 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
   onCountyChange,
   onAreaChange,
   onPrecinctChange,
+  onAreaDistrictChange,
+  onCountyCodeChange,
 }) => {
   const { claims, isLoaded: authLoaded } = useAuth();
 
@@ -127,9 +131,17 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
                 <InputLabel>County</InputLabel>
                 <Select
                   {...field}
-                  onChange={(e) => {
-                    field.onChange(e);
-                    onCountyChange(e.target.value as string);
+                  value={selectedCounty || ""}
+                  onChange={(e: SelectChangeEvent<string>) => {
+                    const newCountyId = e.target.value as string;
+                    field.onChange(newCountyId);
+                    onCountyChange(newCountyId);
+                    const selectedCountyObj = counties.find(
+                      (c) => c.id === newCountyId
+                    );
+                    const countyCodeForQuery = selectedCountyObj?.code || "";
+
+                    onCountyCodeChange(countyCodeForQuery);
                   }}
                 >
                   <MenuItem value="">All Counties</MenuItem>
@@ -153,13 +165,25 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
                 <InputLabel>Area</InputLabel>
                 <Select
                   {...field}
-                  onChange={(e) => {
-                    field.onChange(e);
-                    onAreaChange(e.target.value as string);
+                  value={selectedArea || ""}
+                  onChange={(e: SelectChangeEvent<string>) => {
+                    const newAreaId = e.target.value as string;
+                    field.onChange(newAreaId);
+                    onAreaChange(newAreaId); // Passes Area ID ("PA15-A-15") → fixes precinct filtering
+
+                    // Find the short district code needed for SQL query
+                    const selectedAreaObj = areas.find(
+                      (a) => a.id === newAreaId
+                    );
+                    const areaDistrictCode =
+                      selectedAreaObj?.area_district || "";
+
+                    onAreaDistrictChange(areaDistrictCode); // Sends "15" → correct for Firebase Function
                   }}
                 >
                   <MenuItem value="">All Areas</MenuItem>
                   {areas.map((a) => (
+                    // ← CRITICAL: value must be the full Area ID
                     <MenuItem key={a.id} value={a.id}>
                       {a.name}
                     </MenuItem>
@@ -186,7 +210,7 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
                 >
                   <MenuItem value="">All Precincts</MenuItem>
                   {precincts.map((p) => (
-                    <MenuItem key={p.id} value={p.id}>
+                    <MenuItem key={p.id} value={p.precinct_code}>
                       {p.name} ({p.precinct_code})
                     </MenuItem>
                   ))}

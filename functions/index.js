@@ -320,6 +320,8 @@ export const queryVotersDynamic = onCall(
     // === Precinct ===
     if (filters.precinct && filters.precinct.trim() !== "") {
       const normalized = filters.precinct.trim().replace(/^0+/, "") || "0";
+      console.log("Params precinct:", normalized);
+      logger.log("Params: precinct", normalized);
       sql += ` AND precinct = @precinct`;
       params.precinct = normalized;
     }
@@ -387,7 +389,9 @@ export const queryVotersDynamic = onCall(
     sql += ` ORDER BY full_name LIMIT 2000`;
 
     console.log("Final SQL:", sql);
+    logger.log("Final SQL:", sql);
     console.log("Params:", params);
+    logger.log("Params:", params);
 
     try {
       const [rows] = await bigquery.query({
@@ -401,6 +405,80 @@ export const queryVotersDynamic = onCall(
     } catch (error) {
       console.error("Dynamic query failed:", error);
       throw new HttpsError("internal", "Query failed — check server logs");
+    }
+  }
+);
+
+// ================================================================
+// GET MESSAGE IDEAS
+// ================================================================
+
+export const getMessageIdeas = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    if (!request.auth) {
+      throw new Error(
+        "Unauthorized  you must be logged in to access message templates."
+      );
+    }
+
+    const data = request.data || {};
+
+    let q = db.collection("message_templates").where("active", "==", true);
+
+    if (data.ageGroup && data.ageGroup !== "All") {
+      q = q.where("age_group", "==", data.ageGroup);
+    }
+    if (data.modeledParty && data.modeledParty !== "All") {
+      q = q.where("modeled_party", "==", data.modeledParty);
+    }
+    if (data.turnout && data.turnout !== "All") {
+      q = q.where("turnout_score_general", "==", data.turnout);
+    }
+    if (data.mailBallot && data.mailBallot !== "All") {
+      q = q.where("mail_ballot", "==", data.mailBallot);
+    }
+
+    try {
+      const snapshot = await q.limit(50).get();
+
+      const templates = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      return { templates };
+    } catch (error) {
+      console.error("Error fetching message templates:", error);
+      throw new Error("Failed to fetch message templates.");
+    }
+  }
+);
+
+// ================================================================
+// GET USER PROFILE
+// ================================================================
+
+export const getUserProfile = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    if (!request.auth || !request.auth.uid) {
+      throw new Error("Unauthorized");
+    }
+
+    const uid = request.auth.uid;
+
+    try {
+      const userDoc = await db.collection("users").doc(uid).get();
+
+      if (!userDoc.exists) {
+        // Optional: return null or default profile
+        return { profile: null };
+      }
+
+      return { profile: { uid: userDoc.id, ...userDoc.data() } };
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      throw new Error("Failed to fetch profile");
     }
   }
 );

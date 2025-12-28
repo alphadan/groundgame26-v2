@@ -34,6 +34,7 @@ export interface County extends BaseMetadata {
   // Primary Key in DB: id (formerly code '15')
   id: string;
   name: string;
+  code: string;
 }
 
 export interface Area extends BaseMetadata {
@@ -148,3 +149,16 @@ export interface FilterValues {
   ageGroup?: string;
   mailBallot?: string;
 }
+
+export interface MessageTemplate {
+  id: string;
+  title?: string;
+  body: string;
+  age_group?: string;
+  modeled_party?: string;
+  turnout_score_general?: string;
+  mail_ballot?: string;
+  tags?: string[];
+  active: boolean;
+}
+

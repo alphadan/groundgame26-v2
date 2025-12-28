@@ -1,5 +1,5 @@
 // src/components/FilterSelector.tsx
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { RestrictedFilters } from "./RestrictedFilters";
 import { UnrestrictedFilters } from "./UnrestrictedFilters";
@@ -49,6 +49,8 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
 
   const selectedCounty = watch("county", "");
   const selectedArea = watch("area", "");
+  const [selectedAreaDistrict, setSelectedAreaDistrict] = useState<string>("");
+  const [selectedCountyCode, setSelectedCountyCode] = useState<string>("");
 
   return (
     <Paper sx={{ p: 4, mb: 4, borderRadius: 2 }}>
@@ -56,7 +58,17 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
         Filters
       </Typography>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form
+        onSubmit={handleSubmit((data) => {
+          const filters: FilterValues = {
+            ...data,
+            county: selectedCountyCode || "",
+            area: selectedAreaDistrict || "",
+          };
+
+          onSubmit(filters);
+        })}
+      >
         {/* Restricted: County / Area / Precinct */}
         <Box sx={{ mb: 4 }}>
           <RestrictedFilters
@@ -70,6 +82,8 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
               reset({ ...watch(), area: value, precinct: "" })
             }
             onPrecinctChange={(value) => reset({ ...watch(), precinct: value })}
+            onAreaDistrictChange={setSelectedAreaDistrict}
+            onCountyCodeChange={setSelectedCountyCode}
           />
         </Box>
 

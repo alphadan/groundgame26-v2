@@ -1,37 +1,30 @@
 // src/app/planning/PlanningPage.tsx
 import React, { useState, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useCloudFunctions } from "../../hooks/useCloudFunctions";
-import { useQuery } from "@tanstack/react-query";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../../lib/firebase";
 import { FilterSelector } from "../../components/FilterSelector";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../../lib/firebase";
-import { saveAs } from "file-saver";
 import {
   Box,
   Typography,
   Paper,
   Card,
   CardContent,
+  CardActions,
   Button,
   Grid,
   Chip,
   Alert,
   CircularProgress,
   Snackbar,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import { saveAs } from "file-saver";
 
-interface FilterValues {
-  county: string;
-  area: string;
-  precinct: string;
-  name?: string;
-  street?: string;
-  modeledParty?: string;
-  turnout?: string;
-  ageGroup?: string;
-  mailBallot?: string;
-}
+// Import shared types
+import { FilterValues, MessageTemplate } from "../../types";
 
 export default function PlanningPage() {
   const { user, isLoaded } = useAuth();
@@ -40,7 +33,9 @@ export default function PlanningPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Messages
-  const [suggestedMessages, setSuggestedMessages] = useState<any[]>([]);
+  const [suggestedMessages, setSuggestedMessages] = useState<MessageTemplate[]>(
+    []
+  );
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messageError, setMessageError] = useState("");
 
@@ -48,69 +43,60 @@ export default function PlanningPage() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // === Submit handler (loads messages immediately) ===
-  const handleSubmit = useCallback(async (submittedFilters: FilterValues) => {
-    setFilters(submittedFilters);
-    setIsSubmitting(true);
+  // === Cloud Function: getMessageIdeas ===
+  const getMessageIdeas = httpsCallable<
+    {
+      ageGroup?: string;
+      modeledParty?: string;
+      turnout?: string;
+      mailBallot?: string;
+    },
+    { templates: MessageTemplate[] }
+  >(functions, "getMessageIdeas");
 
-    setLoadingMessages(true);
-    setMessageError("");
+  // === Submit handler ===
+  const handleSubmit = useCallback(
+    async (submittedFilters: FilterValues) => {
+      setFilters(submittedFilters);
+      setIsSubmitting(true);
+      setLoadingMessages(true);
+      setMessageError("");
 
-    try {
-      let q = query(
-        collection(db, "message_templates"),
-        where("active", "==", true)
-      );
+      try {
+        const result = await getMessageIdeas({
+          ageGroup: submittedFilters.ageGroup || undefined,
+          modeledParty: submittedFilters.modeledParty || undefined,
+          turnout: submittedFilters.turnout || undefined,
+          mailBallot: submittedFilters.mailBallot || undefined,
+        });
 
-      if (submittedFilters.ageGroup) {
-        q = query(q, where("age_group", "==", submittedFilters.ageGroup));
-      }
-      if (submittedFilters.modeledParty) {
-        q = query(
-          q,
-          where("modeled_party", "==", submittedFilters.modeledParty)
+        const templates = result.data?.templates || [];
+
+        setSuggestedMessages(templates);
+
+        if (templates.length === 0) {
+          setMessageError("No messages match your selected audience.");
+        }
+      } catch (err: any) {
+        console.error("Failed to load messages:", err);
+        setMessageError(
+          err?.message || "Failed to load messages. Please try again."
         );
+      } finally {
+        setLoadingMessages(false);
+        setIsSubmitting(false);
       }
-      if (submittedFilters.turnout) {
-        q = query(
-          q,
-          where("turnout_score_general", "==", submittedFilters.turnout)
-        );
-      }
-      if (submittedFilters.mailBallot) {
-        q = query(
-          q,
-          where("mail_ballot_status", "==", submittedFilters.mailBallot)
-        );
-      }
-
-      const snapshot = await getDocs(q);
-      const templates = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-      setSuggestedMessages(templates);
-
-      if (templates.length === 0) {
-        setMessageError("No messages match your selected audience.");
-      }
-    } catch (err) {
-      console.error("Failed to load messages:", err);
-      setMessageError("Failed to load messages. Please try again.");
-    } finally {
-      setLoadingMessages(false);
-      setIsSubmitting(false);
-    }
-  }, []);
+    },
+    [getMessageIdeas]
+  );
 
   // === Copy to Clipboard ===
-  const copyToClipboard = useCallback(async (text: string) => {
+  const copyToClipboard = useCallback(async (text: string, title: string) => {
     if (!text) return;
 
     try {
       await navigator.clipboard.writeText(text);
-      setSnackbarMessage("Message copied to clipboard!");
+      setSnackbarMessage(`"${title}" copied to clipboard!`);
       setSnackbarOpen(true);
     } catch {
       setSnackbarMessage("Copy failed — please select and copy manually");
@@ -170,10 +156,10 @@ export default function PlanningPage() {
         ]}
       />
 
-      {/* === Suggested Messages (Always Visible) === */}
+      {/* === Suggested Messages === */}
       <Paper sx={{ p: 4, mt: 5, borderRadius: 2 }}>
         <Typography variant="h6" gutterBottom fontWeight="bold">
-          Suggested Messages
+          Suggested Messages ({suggestedMessages.length})
         </Typography>
         <Typography variant="body2" color="text.secondary" mb={3}>
           Personalized templates based on your target audience
@@ -195,41 +181,75 @@ export default function PlanningPage() {
         ) : (
           <Grid container spacing={3}>
             {suggestedMessages.map((msg) => (
-              <Grid size={{ xs: 12, md: 6 }} key={msg.id}>
-                <Paper
+              <Grid size={{ xs: 12, md: 6, lg: 4 }} key={msg.id}>
+                <Card
+                  variant="outlined"
                   sx={{
-                    p: 3,
-                    bgcolor: "#f5f5f5",
-                    cursor: "pointer",
-                    "&:hover": { bgcolor: "#e0e0e0" },
-                    borderLeft: "4px solid #B22234",
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    transition: "0.2s",
+                    "&:hover": { boxShadow: 6 },
                   }}
-                  onClick={() => copyToClipboard(msg.body || "")}
                 >
-                  <Typography
-                    variant="subtitle1"
-                    fontWeight="bold"
-                    gutterBottom
-                  >
-                    {msg.title || "Untitled Message"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {msg.body?.substring(0, 200)}...
-                  </Typography>
-                  <Chip
-                    label="Click to Copy"
-                    size="small"
-                    color="primary"
-                    sx={{ mt: 2 }}
-                  />
-                </Paper>
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Typography variant="h6" gutterBottom>
+                      {msg.title || "Untitled Message"}
+                    </Typography>
+
+                    {msg.tags && msg.tags.length > 0 && (
+                      <Box mb={2}>
+                        {msg.tags.map((tag) => (
+                          <Chip
+                            key={tag}
+                            label={tag}
+                            size="small"
+                            sx={{ mr: 0.5, mb: 0.5 }}
+                          />
+                        ))}
+                      </Box>
+                    )}
+
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      paragraph
+                    >
+                      {msg.body}
+                    </Typography>
+                  </CardContent>
+
+                  <CardActions sx={{ justifyContent: "space-between", pt: 0 }}>
+                    <Button
+                      size="small"
+                      startIcon={<ContentCopyIcon />}
+                      onClick={() =>
+                        copyToClipboard(msg.body, msg.title || "Message")
+                      }
+                      color="primary"
+                    >
+                      Copy Message
+                    </Button>
+
+                    <Tooltip title="Click card to copy full message">
+                      <IconButton
+                        size="small"
+                        onClick={() =>
+                          copyToClipboard(msg.body, msg.title || "Message")
+                        }
+                      >
+                        <ContentCopyIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </CardActions>
+                </Card>
               </Grid>
             ))}
           </Grid>
         )}
       </Paper>
 
-      {/* === Mail Ballot Chase (Always Visible) === */}
+      {/* === Mail Ballot Chase Section === */}
       <Paper sx={{ p: 4, mt: 5, borderRadius: 2 }}>
         <Typography variant="h6" gutterBottom fontWeight="bold">
           Mail Ballot Chase
@@ -238,9 +258,8 @@ export default function PlanningPage() {
           Voters who requested mail ballots but have not yet returned them
         </Typography>
 
-        {/* Placeholder stats until real function */}
         <Grid container spacing={4} justifyContent="center">
-          <Grid size={{ xs: 12 }}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <Paper sx={{ p: 4, textAlign: "center", bgcolor: "#ffebee" }}>
               <Typography variant="h3" color="error">
                 1,240
@@ -248,7 +267,7 @@ export default function PlanningPage() {
               <Typography variant="h6">Outstanding</Typography>
             </Paper>
           </Grid>
-          <Grid size={{ xs: 12 }}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <Paper sx={{ p: 4, textAlign: "center", bgcolor: "#e8f5e8" }}>
               <Typography variant="h3" color="success">
                 68%
@@ -256,7 +275,7 @@ export default function PlanningPage() {
               <Typography variant="h6">Return Rate</Typography>
             </Paper>
           </Grid>
-          <Grid size={{ xs: 12 }}>
+          <Grid size={{ xs: 12, sm: 4 }}>
             <Paper sx={{ p: 4, textAlign: "center" }}>
               <Typography variant="h3">3,880</Typography>
               <Typography variant="h6">Requested</Typography>
