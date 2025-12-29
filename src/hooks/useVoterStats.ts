@@ -23,6 +23,26 @@ export type VoterStats = {
   swing: number;
   weak_d: number;
   hard_d: number;
+
+  // === Age Group Breakdowns ===
+  age_18_25_r: number;
+  age_18_25_d: number;
+  age_26_40_r: number;
+  age_26_40_d: number;
+  age_41_70_r: number;
+  age_41_70_d: number;
+  age_71_plus_r: number;
+  age_71_plus_d: number;
+
+  // === Mail Ballots by Age ===
+  mail_age_18_25_r: number;
+  mail_age_18_25_d: number;
+  mail_age_26_40_r: number;
+  mail_age_26_40_d: number;
+  mail_age_41_70_r: number;
+  mail_age_41_70_d: number;
+  mail_age_71_plus_r: number;
+  mail_age_71_plus_d: number;
 };
 
 export const useVoterStats = (params: VoterStatsParams) => {

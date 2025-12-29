@@ -27,9 +27,10 @@ import {
   Button,
 } from "@mui/material";
 import { Phone, Message, AddComment } from "@mui/icons-material";
+import DownloadIcon from "@mui/icons-material/Download";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import { FilterValues } from "../../types"; // ← Shared type
+import { FilterValues } from "../../types";
 
 export default function VoterListPage() {
   const { user, isLoaded: authLoaded } = useAuth();
@@ -125,6 +126,63 @@ export default function VoterListPage() {
     }
   }, [user, selectedVoter, noteText, filters?.precinct]);
 
+  const handleDownloadCSV = useCallback(() => {
+    if (!voters || voters.length === 0) return;
+
+    const headers = [
+      "Full Name",
+      "Age",
+      "Party",
+      "Address",
+      "City",
+      "Zip Code",
+      "Phone Mobile",
+      "Phone Home",
+      "Precinct",
+      "Modeled Party",
+      "Turnout Score",
+      "Has Mail Ballot",
+    ];
+
+    const rows = voters.map((voter: any) => [
+      voter.full_name || "",
+      voter.age || "",
+      voter.party || "",
+      voter.address || "",
+      voter.city || "",
+      voter.zip_code || "",
+      voter.phone_mobile || "",
+      voter.phone_home || "",
+      voter.precinct || "",
+      voter.modeled_party || "",
+      voter.turnout_score_general || "",
+      voter.has_mail_ballot ? "Yes" : "No",
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row.map((field) => `"${(field + "").replace(/"/g, '""')}"`).join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `voter_list_${new Date().toISOString().slice(0, 10)}.csv`
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setSnackbarMessage(`Downloaded ${voters.length} voters as CSV`);
+    setSnackbarOpen(true);
+  }, [voters]);
+
   if (!authLoaded) {
     return (
       <Box
@@ -171,104 +229,117 @@ export default function VoterListPage() {
 
       {/* === Voter Table === */}
       {filters && voters.length > 0 && (
-        <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
-          <Table size="small">
-            <TableHead sx={{ bgcolor: "#0A3161" }}>
-              <TableRow>
-                <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                  Name & Address
-                </TableCell>
-                <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                  Age
-                </TableCell>
-                <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                  Party
-                </TableCell>
-                <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                  Precinct
-                </TableCell>
-                <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                  Contact
-                </TableCell>
-                <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                  Note
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {voters
-                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                .map((voter: any) => (
-                  <TableRow key={voter.voter_id} hover>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight="medium">
-                        {voter.full_name || "Unknown"}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {voter.address || "No address"}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{voter.age ?? "?"}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={voter.party || "N/A"}
-                        size="small"
-                        color={
-                          voter.party === "R"
-                            ? "error"
-                            : voter.party === "D"
-                            ? "primary"
-                            : "default"
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>{voter.precinct || "-"}</TableCell>
-                    <TableCell>
-                      {voter.phone_mobile && (
-                        <>
-                          <IconButton
-                            color="success"
-                            onClick={() => safeCall(voter.phone_mobile)}
-                          >
-                            <Phone fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            color="info"
-                            onClick={() => safeText(voter.phone_mobile)}
-                          >
-                            <Message fontSize="small" />
-                          </IconButton>
-                        </>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <IconButton
-                        onClick={() => {
-                          setSelectedVoter(voter);
-                          setOpenNote(true);
-                        }}
-                      >
-                        <AddComment fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
+        <>
+          {/* Download Button */}
+          <Box sx={{ mb: 3, textAlign: "right" }}>
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadCSV}
+              sx={{ bgcolor: "#B22234", "&:hover": { bgcolor: "#8B1A1A" } }}
+            >
+              Download CSV
+            </Button>
+          </Box>
+          <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+            <Table size="small">
+              <TableHead sx={{ bgcolor: "#0A3161" }}>
+                <TableRow>
+                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                    Name & Address
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                    Age
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                    Party
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                    Precinct
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                    Contact
+                  </TableCell>
+                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                    Note
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {voters
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((voter: any) => (
+                    <TableRow key={voter.voter_id} hover>
+                      <TableCell>
+                        <Typography variant="body2" fontWeight="medium">
+                          {voter.full_name || "Unknown"}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {voter.address || "No address"}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{voter.age ?? "?"}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={voter.party || "N/A"}
+                          size="small"
+                          color={
+                            voter.party === "R"
+                              ? "error"
+                              : voter.party === "D"
+                              ? "primary"
+                              : "default"
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>{voter.precinct || "-"}</TableCell>
+                      <TableCell>
+                        {voter.phone_mobile && (
+                          <>
+                            <IconButton
+                              color="success"
+                              onClick={() => safeCall(voter.phone_mobile)}
+                            >
+                              <Phone fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              color="info"
+                              onClick={() => safeText(voter.phone_mobile)}
+                            >
+                              <Message fontSize="small" />
+                            </IconButton>
+                          </>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <IconButton
+                          onClick={() => {
+                            setSelectedVoter(voter);
+                            setOpenNote(true);
+                          }}
+                        >
+                          <AddComment fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
 
-          <TablePagination
-            rowsPerPageOptions={[10, 25, 50]}
-            component="div"
-            count={voters.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            onRowsPerPageChange={(e) => {
-              setRowsPerPage(parseInt(e.target.value, 10));
-              setPage(0);
-            }}
-          />
-        </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[10, 25, 50]}
+              component="div"
+              count={voters.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={(_, newPage) => setPage(newPage)}
+              onRowsPerPageChange={(e) => {
+                setRowsPerPage(parseInt(e.target.value, 10));
+                setPage(0);
+              }}
+            />
+          </TableContainer>
+        </>
       )}
 
       {/* === Note Dialog === */}

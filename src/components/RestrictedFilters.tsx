@@ -1,5 +1,5 @@
 // src/components/RestrictedFilters.tsx
-import React from "react";
+import React, { useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db as indexedDb } from "../lib/db";
 import { useAuth } from "../context/AuthContext";
@@ -100,6 +100,48 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
         .toArray()
         .then((list) => list.sort((a, b) => a.name.localeCompare(b.name)));
     }, [authLoaded, claims, selectedArea]) ?? [];
+
+  // === AUTO-PRESELECT COUNTY IF ONLY ONE ===
+  useEffect(() => {
+    if (!authLoaded || !claims || claims.role !== "state_admin") return;
+    if (selectedCounty || counties.length !== 1) return; // Already selected or multiple choices
+
+    const singleCounty = counties[0];
+    if (singleCounty) {
+      // Simulate selection
+      onCountyChange(singleCounty.id);
+      onCountyCodeChange(singleCounty.code);
+      console.log("Auto-selected county:", singleCounty.name);
+    }
+  }, [
+    authLoaded,
+    claims,
+    counties,
+    selectedCounty,
+    onCountyChange,
+    onCountyCodeChange,
+  ]);
+
+  // === AUTO-PRESELECT AREA IF ONLY ONE (after county selected) ===
+  useEffect(() => {
+    if (!authLoaded || !claims || claims.role !== "state_admin") return;
+    if (!selectedCounty || selectedArea || areas.length !== 1) return;
+
+    const singleArea = areas[0];
+    if (singleArea) {
+      onAreaChange(singleArea.id);
+      onAreaDistrictChange(singleArea.area_district);
+      console.log("Auto-selected area:", singleArea.name);
+    }
+  }, [
+    authLoaded,
+    claims,
+    selectedCounty,
+    areas,
+    selectedArea,
+    onAreaChange,
+    onAreaDistrictChange,
+  ]);
 
   const isLoading =
     !authLoaded ||

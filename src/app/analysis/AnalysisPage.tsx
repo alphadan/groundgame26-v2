@@ -1,106 +1,158 @@
 // src/app/analysis/AnalysisPage.tsx
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { useCloudFunctions } from "../../hooks/useCloudFunctions";
-import { useQuery } from "@tanstack/react-query";
-import { saveAs } from "file-saver";
+import { db as indexedDb } from "../../lib/db";
+import { UserProfile } from "../../types";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../../lib/firebase";
+import { useLiveQuery } from "dexie-react-hooks";
+import { useDynamicVoters } from "../../hooks/useDynamicVoters";
 import { FilterSelector } from "../../components/FilterSelector";
 import {
   Box,
+  Button,
   Typography,
   Paper,
-  Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  CircularProgress,
-  TablePagination,
-  Button,
-  Snackbar,
   Grid,
+  Card,
+  CardContent,
   LinearProgress,
+  Chip,
+  Avatar,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  Divider,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
+import { Phone, Email } from "@mui/icons-material";
 import { BarChart } from "@mui/x-charts/BarChart";
+import { FilterValues } from "../../types";
 
-interface FilterValues {
-  county: string;
-  area: string;
-  precinct: string;
-  name?: string;
-  street?: string;
-  modeledParty?: string;
-  turnout?: string;
-  ageGroup?: string;
-  mailBallot?: string;
-}
-
-// Dummy data until real Cloud Function is ready
-const dummyAnalysisData = [
-  { group: "Hard R", count: 85000 },
-  { group: "Weak R", count: 62000 },
-  { group: "Swing", count: 78000 },
-  { group: "Weak D", count: 71000 },
-  { group: "Hard D", count: 102000 },
+// Dummy data — replace with real Cloud Functions later
+const dummyKPIs = [
+  {
+    label: "New Republican Voter Registrations",
+    current: 5240,
+    goal: 10000,
+    percentage: 52.4,
+  },
+  {
+    label: "GOP Have Mail Ballots",
+    current: 1820,
+    goal: 5000,
+    percentage: 36.4,
+  },
+  {
+    label: "Messages Sent / Doors Knocked",
+    current: 3100,
+    goal: 6000,
+    percentage: 51.7,
+  },
+  { label: "New Volunteers", current: 87, goal: 150, percentage: 58 },
 ];
 
-const useAnalysis = (filters: FilterValues | null) => {
-  const { callFunction } = useCloudFunctions();
-
-  return useQuery({
-    queryKey: ["analysis", filters],
-    queryFn: async () => {
-      if (!filters) return [];
-
-      // TODO: Replace with real Cloud Function when ready
-      // const result = await callFunction("analyzeVoters", { filters });
-      // return result.data;
-
-      // For now, return dummy aggregated data
-      return dummyAnalysisData;
-    },
-    enabled: !!filters,
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-};
+const dummyTrendData = [
+  { month: "Sep", contacts: 3200 },
+  { month: "Oct", contacts: 4100 },
+  { month: "Nov", contacts: 4800 },
+  { month: "Dec", contacts: 5240 },
+];
 
 export default function AnalysisPage() {
-  const { isLoaded } = useAuth();
+  const authState = useAuth();
+
+  const user = authState?.user ?? null;
+  const claims = authState?.claims ?? null;
+  const isLoaded = authState?.isLoaded ?? false;
 
   const [filters, setFilters] = useState<FilterValues | null>(null);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<string | null>("trend");
 
-  // Feedback
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
+  // === User Profile Caching ===
+  useEffect(() => {
+    if (!isLoaded || !claims?.user_id) {
+      console.log("Auth not loaded yet or no UID");
+      return;
+    }
 
-  // === Analysis data (aggregated) ===
-  const { data: analysisData = [], isLoading, error } = useAnalysis(filters);
+    console.log("✅ Auth ready — User ID:", claims.user_id);
 
-  // === Submit handler ===
-  const handleSubmit = useCallback((submittedFilters: FilterValues) => {
+    const fetchAndCacheUserProfile = async () => {
+      try {
+        const cached = await indexedDb.users.get(claims.user_id);
+        if (cached) {
+          console.log("✅ Profile already cached");
+          return;
+        }
+
+        console.log("Calling getUserProfile Cloud Function...");
+
+        const getUserProfile = httpsCallable<
+          unknown,
+          { profile: UserProfile | null }
+        >(functions, "getUserProfile");
+
+        const result = await getUserProfile();
+        const profile = result.data?.profile;
+
+        if (profile) {
+          await indexedDb.users.put(profile);
+          console.log("✅ User profile cached successfully");
+        } else {
+          console.warn("No profile returned from function");
+        }
+      } catch (error: any) {
+        console.error("Failed to fetch/cache profile:", error.message);
+      }
+    };
+
+    fetchAndCacheUserProfile();
+  }, [isLoaded, claims]);
+
+  useEffect(() => {
+    if (isLoaded && !filters && selectedReport !== "trend") {
+      setSelectedReport("trend");
+    }
+  }, [isLoaded, filters]);
+
+  // === Profile (from IndexedDB) ===
+  const profile = useLiveQuery(
+    () => (claims?.user_id ? indexedDb.users.get(claims.user_id) : undefined),
+    [claims?.user_id]
+  );
+
+  const preferredName =
+    profile?.preferred_name || user?.displayName || user?.email || "User";
+
+  // === Extract codes for query ===
+  const extractAreaCode = (fullId: string | undefined): string | undefined => {
+    if (!fullId) return undefined;
+    const match = fullId.match(/A-(\d+)$/);
+    return match ? match[1] : undefined;
+  };
+
+  const extractPrecinctCode = (fullId?: string): string | undefined => {
+    if (!fullId) return undefined;
+    const match = fullId.match(/P-(\d+)$/);
+    return match ? match[1] : undefined;
+  };
+
+  const extractCountyCode = (fullId: string): string => {
+    const match = fullId.match(/PA-C-(\d+)$/);
+    return match ? match[1] : "15";
+  };
+
+  // === Voter data from dynamic query ===
+  const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
+
+  const handleSubmit = (submittedFilters: FilterValues) => {
+    setSelectedReport(null);
     setFilters(submittedFilters);
-    setPage(0);
-  }, []);
-
-  // === CSV Export ===
-  const exportList = useCallback(() => {
-    if (analysisData.length === 0) return;
-
-    const headers = ["Group", "Voter Count"];
-    const rows = analysisData.map((item: any) => [item.group, item.count]);
-
-    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    saveAs(
-      blob,
-      `Target_Analysis_${new Date().toISOString().slice(0, 10)}.csv`
-    );
-  }, [analysisData]);
+  };
 
   if (!isLoaded) {
     return (
@@ -118,145 +170,297 @@ export default function AnalysisPage() {
   return (
     <Box p={4}>
       <Typography variant="h4" gutterBottom color="#B22234" fontWeight="bold">
-        Analysis — Voter Targeting Engine
-      </Typography>
-      <Typography variant="body1" color="text.secondary" mb={4}>
-        Create filtered reports to identify high-priority voter segments for
-        outreach.
+        Reports & Analytics
       </Typography>
 
-      {/* === Filter Selector === */}
-      <FilterSelector
-        onSubmit={handleSubmit}
-        isLoading={isLoading}
-        unrestrictedFilters={[
-          "modeledParty",
-          "ageGroup",
-          "mailBallot",
-          "turnout",
-        ]}
-      />
-
-      {/* === Error / Empty States === */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Analysis failed. Please try again.
+      {/* Executive Summary */}
+      <Paper sx={{ p: 4, mb: 5, borderRadius: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          Executive Summary — December 29, 2025
+        </Typography>
+        <Alert severity="success" sx={{ mb: 3 }}>
+          <strong>Strong Progress:</strong> We are 52% toward our voter contact
+          goal with momentum building.
         </Alert>
-      )}
+        <Typography paragraph>
+          App usage is up 18% this week with 87 new volunteers onboarded. Voter
+          registration in our target areas grew 2.1% vs PA statewide average of
+          1.4%.
+        </Typography>
+        <Typography paragraph>
+          Priority: Focus on mail ballot signups among Republicans — currently
+          at 36% of goal. Swing voter contacts are tracking well.
+        </Typography>
+        <Typography>
+          <strong>Next Action:</strong> Launch targeted mail ballot drive in
+          low-signup precincts next week.
+        </Typography>
+      </Paper>
 
-      {filters && !isLoading && analysisData.length === 0 && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          No data available for current filters.
-        </Alert>
-      )}
+      {/* KPI Cards */}
+      <Grid container spacing={3} mb={5}>
+        {dummyKPIs.map((kpi) => (
+          <Grid size={{ xs: 12, md: 6 }} key={kpi.label}>
+            <Card sx={{ height: "100%", boxShadow: 3 }}>
+              <CardContent>
+                <Typography
+                  variant="subtitle2"
+                  color="text.secondary"
+                  gutterBottom
+                >
+                  {kpi.label}
+                </Typography>
+                <Typography variant="h4" fontWeight="bold">
+                  {kpi.current.toLocaleString()}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Goal: {kpi.goal.toLocaleString()}
+                </Typography>
+                <Box sx={{ mt: 2 }}>
+                  <LinearProgress
+                    variant="determinate"
+                    value={kpi.percentage}
+                    sx={{
+                      height: 10,
+                      borderRadius: 5,
+                      bgcolor: "grey.300",
+                      "& .MuiLinearProgress-bar": {
+                        bgcolor: kpi.percentage >= 100 ? "#4caf50" : "#B22234",
+                      },
+                    }}
+                  />
+                  <Typography variant="body2" align="right" mt={1}>
+                    {kpi.percentage.toFixed(1)}%
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
 
-      {/* === Bar Chart Report === */}
-      {filters && analysisData.length > 0 && (
-        <Paper sx={{ borderRadius: 2, mb: 4 }}>
-          <Box
-            p={3}
-            sx={{ bgcolor: "#f8f9fa", borderBottom: 1, borderColor: "divider" }}
-          >
-            <Typography variant="h6" fontWeight="bold">
-              Targeted Voter Breakdown (
-              {analysisData
-                .reduce((sum: number, item: any) => sum + item.count, 0)
-                .toLocaleString()}{" "}
-              voters)
-            </Typography>
-            <Box sx={{ mt: 2, textAlign: "right" }}>
-              <Button
-                variant="contained"
-                onClick={exportList}
-                sx={{ bgcolor: "#B22234" }}
-              >
-                Export CSV
-              </Button>
-            </Box>
-          </Box>
-
-          {isLoading && <LinearProgress />}
-
-          <Box p={4}>
-            <BarChart
-              dataset={analysisData}
-              xAxis={[{ scaleType: "band", dataKey: "group" }]}
-              series={[{ dataKey: "count", label: "Voters" }]}
-              height={400}
-              barLabel="value"
-              colors={["#B22234", "#FF6347", "#9370DB", "#6495ED", "#1E90FF"]}
-            />
-          </Box>
+      {/* === Default Trend Report (Only when no specific report selected) === */}
+      {selectedReport === "trend" && (
+        <Paper sx={{ p: 4, mb: 5, borderRadius: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Contact Trend (Last 4 Months)
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mb={3}>
+            Overall canvassing activity across all precincts
+          </Typography>
+          <BarChart
+            dataset={dummyTrendData}
+            xAxis={[{ scaleType: "band", dataKey: "month" }]}
+            series={[
+              {
+                dataKey: "contacts",
+                label: "Voters Contacted",
+                color: "#B22234",
+              },
+            ]}
+            height={350}
+          />
         </Paper>
       )}
 
-      {/* === Popular Reports (Quick Buttons) === */}
-      <Paper sx={{ p: 4, borderRadius: 2 }}>
+      {/* === Custom Report from Filters === */}
+      {selectedReport === null && filters && (
+        <Paper sx={{ p: 4, mb: 5, borderRadius: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Custom Report: {voters.length.toLocaleString()} Voters Match Your
+            Filters
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mb={3}>
+            Breakdown by party, age, turnout, and mail ballot status
+          </Typography>
+
+          {isLoading ? (
+            <Box textAlign="center" py={6}>
+              <CircularProgress />
+              <Typography>Loading report...</Typography>
+            </Box>
+          ) : error ? (
+            <Alert severity="error">Failed to load voter data</Alert>
+          ) : (
+            <Grid container spacing={3}>
+              {/* Party Breakdown */}
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Typography variant="subtitle1" fontWeight="bold" mb={2}>
+                  Party Affiliation
+                </Typography>
+                <BarChart
+                  dataset={[
+                    {
+                      party: "Republican",
+                      count: voters.filter((v) => v.party === "R").length,
+                    },
+                    {
+                      party: "Democrat",
+                      count: voters.filter((v) => v.party === "D").length,
+                    },
+                    {
+                      party: "Other/None",
+                      count: voters.filter(
+                        (v) => !v.party || !["R", "D"].includes(v.party)
+                      ).length,
+                    },
+                  ]}
+                  xAxis={[{ scaleType: "band", dataKey: "party" }]}
+                  series={[{ dataKey: "count", label: "Voters" }]}
+                  height={300}
+                  colors={["#B22234", "#1E90FF", "#9370DB"]}
+                />
+              </Grid>
+
+              {/* Age Groups */}
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Typography variant="subtitle1" fontWeight="bold" mb={2}>
+                  Age Distribution
+                </Typography>
+                <BarChart
+                  dataset={[
+                    {
+                      range: "18-29",
+                      count: voters.filter((v) => v.age && v.age <= 29).length,
+                    },
+                    {
+                      range: "30-49",
+                      count: voters.filter(
+                        (v) => v.age && v.age >= 30 && v.age <= 49
+                      ).length,
+                    },
+                    {
+                      range: "50-64",
+                      count: voters.filter(
+                        (v) => v.age && v.age >= 50 && v.age <= 64
+                      ).length,
+                    },
+                    {
+                      range: "65+",
+                      count: voters.filter((v) => v.age && v.age >= 65).length,
+                    },
+                  ]}
+                  xAxis={[{ scaleType: "band", dataKey: "range" }]}
+                  series={[{ dataKey: "count", label: "Voters" }]}
+                  height={300}
+                />
+              </Grid>
+
+              {/* Mail Ballot Status */}
+              <Grid size={12}>
+                <Typography variant="subtitle1" fontWeight="bold" mb={2}>
+                  Mail Ballot Status
+                </Typography>
+                <BarChart
+                  dataset={[
+                    {
+                      status: "Requested",
+                      count: voters.filter((v) => v.has_mail_ballot).length,
+                    },
+                    {
+                      status: "Not Requested",
+                      count: voters.filter((v) => !v.has_mail_ballot).length,
+                    },
+                  ]}
+                  xAxis={[{ scaleType: "band", dataKey: "status" }]}
+                  series={[{ dataKey: "count", label: "Voters" }]}
+                  height={250}
+                  colors={["#FFD700", "#808080"]}
+                />
+              </Grid>
+            </Grid>
+          )}
+        </Paper>
+      )}
+
+      {/* === Default Popular Targeting Report === */}
+      <Paper sx={{ p: 4, mb: 5, borderRadius: 2 }}>
         <Typography variant="h6" gutterBottom>
           Popular Targeting Reports
         </Typography>
-        <Grid container spacing={2}>
-          <Grid size={{ xs: 12 }}>
-            <Button
-              variant="outlined"
-              onClick={() =>
-                handleSubmit({
-                  county: "",
-                  area: "",
-                  precinct: "",
-                  modeledParty: "1 - Hard Republican,2 - Weak Republican",
-                  mailBallot: "false",
-                })
-              }
-            >
-              Republicans Without Mail Ballots
-            </Button>
-          </Grid>
-          <Grid size={{ xs: 12 }}>
-            <Button
-              variant="outlined"
-              onClick={() =>
-                handleSubmit({
-                  county: "",
-                  area: "",
-                  precinct: "",
-                  modeledParty: "3 - Swing",
-                  turnout: "high",
-                })
-              }
-            >
-              High-Turnout Swing Voters
-            </Button>
-          </Grid>
-          <Grid size={{ xs: 12 }}>
-            <Button
-              variant="outlined"
-              onClick={() =>
-                handleSubmit({
-                  county: "",
-                  area: "",
-                  precinct: "",
-                  ageGroup: "18-29",
-                  turnout: "low",
-                })
-              }
-            >
-              Young Low-Turnout Voters
-            </Button>
-          </Grid>
-        </Grid>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+          <Chip
+            label="Contact Trend (Default)"
+            color={selectedReport === "trend" ? "primary" : "default"}
+            onClick={() => {
+              setSelectedReport("trend");
+              setFilters(null);
+            }}
+            clickable
+          />
+          <Chip
+            label="Republicans Without Mail Ballots"
+            color={selectedReport === "noMailR" ? "primary" : "default"}
+            onClick={() => {
+              setSelectedReport("noMailR");
+              handleSubmit({
+                county: "",
+                area: "",
+                precinct: "",
+                modeledParty: "1 - Hard Republican,2 - Weak Republican",
+                mailBallot: "false",
+              });
+            }}
+            clickable
+          />
+          <Chip
+            label="High-Turnout Swing Voters"
+            color={selectedReport === "swingHigh" ? "primary" : "default"}
+            onClick={() => {
+              setSelectedReport("swingHigh");
+              handleSubmit({
+                county: "",
+                area: "",
+                precinct: "",
+                modeledParty: "3 - Swing",
+                turnout: "high",
+              });
+            }}
+            clickable
+          />
+          <Chip
+            label="Young Low-Turnout Voters"
+            color={selectedReport === "youngLow" ? "primary" : "default"}
+            onClick={() => {
+              setSelectedReport("youngLow");
+              handleSubmit({
+                county: "",
+                area: "",
+                precinct: "",
+                ageGroup: "18-25",
+                turnout: "low",
+              });
+            }}
+            clickable
+          />
+        </Box>
       </Paper>
 
-      {/* === Snackbar === */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={4000}
-        onClose={() => setSnackbarOpen(false)}
-      >
-        <Alert onClose={() => setSnackbarOpen(false)} severity="info">
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Filter Selector */}
+      {claims?.role === "state_admin" && (
+        <FilterSelector
+          onSubmit={handleSubmit}
+          isLoading={isSubmitting && isLoading}
+          unrestrictedFilters={[
+            "modeledParty",
+            "turnout",
+            "ageGroup",
+            "mailBallot",
+          ]}
+        />
+      )}
+      {/* === No Filters Message === */}
+      {filters === null && (
+        <Box textAlign="center" py={8}>
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            Select a report or use filters to view analytics
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Click one of the quick reports above or apply filters and submit to
+            generate detailed charts and insights.
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }

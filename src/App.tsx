@@ -16,9 +16,9 @@ import EnrollMFAScreen from "./components/auth/EnrollMFAScreen";
 import { useActivityLogger } from "./hooks/useActivityLogger";
 
 import Dashboard from "./app/dashboard/Dashboard";
-import ReportsPage from "./app/reports/ReportsPage";
+import ReportsPage from "./app/reports/ReportsAnalysisPage";
 import AnalysisPage from "./app/analysis/AnalysisPage";
-import PlanningPage from "./app/planning/PlanningPage";
+import MessagingPage from "./app/messaging/MessagingPage";
 import VoterListPage from "./app/voters/VoterListPage";
 import WalkListPage from "./app/walk/WalkListPage";
 import NameSearchPage from "./app/voters/NameSearchPage";
@@ -211,9 +211,8 @@ export default function App() {
       <MainLayout>
         <Routes>
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/analysis" element={<AnalysisPage />} />
-          <Route path="/planning" element={<PlanningPage />} />
+          <Route path="/messaging" element={<MessagingPage />} />
           <Route path="/voters" element={<VoterListPage />} />
           <Route path="/walk-lists" element={<WalkListPage />} />
           <Route path="/name-search" element={<NameSearchPage />} />

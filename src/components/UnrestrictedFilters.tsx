@@ -92,10 +92,14 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
                 <InputLabel>Modeled Party</InputLabel>
                 <Select {...field} label="Modeled Party">
                   <MenuItem value="">All</MenuItem>
-                  <MenuItem value="1 - Hard Republican">Hard R</MenuItem>
-                  <MenuItem value="2 - Weak Republican">Weak R</MenuItem>
+                  <MenuItem value="1 - Hard Republican">
+                    Hard Republican
+                  </MenuItem>
+                  <MenuItem value="2 - Weak Republican">
+                    Weak Republican
+                  </MenuItem>
                   <MenuItem value="3 - Swing">Swing</MenuItem>
-                  <MenuItem value="4 - Weak Democrat">Weak D</MenuItem>
+                  <MenuItem value="4 - Weak Democrat">Weak Democrat</MenuItem>
                   <MenuItem value="5 - Hard Democrat">Hard D</MenuItem>
                 </Select>
               </FormControl>
@@ -136,10 +140,10 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
                 <InputLabel>Age Group</InputLabel>
                 <Select {...field} label="Age Group">
                   <MenuItem value="">All</MenuItem>
-                  <MenuItem value="18-29">18-29</MenuItem>
-                  <MenuItem value="30-44">30-44</MenuItem>
-                  <MenuItem value="45-64">45-64</MenuItem>
-                  <MenuItem value="65+">65+</MenuItem>
+                  <MenuItem value="18-25">18-25</MenuItem>
+                  <MenuItem value="26-40">26-40</MenuItem>
+                  <MenuItem value="41-70">41-70</MenuItem>
+                  <MenuItem value="71+">71+</MenuItem>
                 </Select>
               </FormControl>
             )}
@@ -157,8 +161,8 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
                 <InputLabel>Mail Ballot Status</InputLabel>
                 <Select {...field} label="Mail Ballot Status">
                   <MenuItem value="">All</MenuItem>
-                  <MenuItem value="true">Requested Mail Ballot</MenuItem>
-                  <MenuItem value="false">No Mail Ballot Requested</MenuItem>
+                  <MenuItem value="true">Has Mail Ballot</MenuItem>
+                  <MenuItem value="false">Does Not Have Mail Ballot</MenuItem>
                 </Select>
               </FormControl>
             )}

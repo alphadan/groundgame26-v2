@@ -21,12 +21,11 @@ import {
   Tooltip,
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import { saveAs } from "file-saver";
 
 // Import shared types
 import { FilterValues, MessageTemplate } from "../../types";
 
-export default function PlanningPage() {
+export default function MessagingPage() {
   const { user, isLoaded } = useAuth();
 
   const [filters, setFilters] = useState<FilterValues | null>(null);
@@ -104,23 +103,6 @@ export default function PlanningPage() {
     }
   }, []);
 
-  // === Export Chase List (Placeholder) ===
-  const exportOutstanding = useCallback(() => {
-    const csv = [
-      ["Name", "Address", "Phone", "Precinct"],
-      ["John Doe", "123 Main St", "555-0123", "001"],
-      ["Jane Smith", "456 Oak Ave", "555-0456", "002"],
-    ]
-      .map((row) => row.join(","))
-      .join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    saveAs(
-      blob,
-      `Mail_Ballot_Chase_${new Date().toISOString().slice(0, 10)}.csv`
-    );
-  }, []);
-
   if (!isLoaded) {
     return (
       <Box
@@ -137,7 +119,7 @@ export default function PlanningPage() {
   return (
     <Box p={4}>
       <Typography variant="h4" gutterBottom color="#B22234" fontWeight="bold">
-        Planning — Target & Message
+        Target & Message
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={4}>
         Define your audience and get personalized message templates for
@@ -247,52 +229,6 @@ export default function PlanningPage() {
             ))}
           </Grid>
         )}
-      </Paper>
-
-      {/* === Mail Ballot Chase Section === */}
-      <Paper sx={{ p: 4, mt: 5, borderRadius: 2 }}>
-        <Typography variant="h6" gutterBottom fontWeight="bold">
-          Mail Ballot Chase
-        </Typography>
-        <Typography variant="body2" color="text.secondary" mb={3}>
-          Voters who requested mail ballots but have not yet returned them
-        </Typography>
-
-        <Grid container spacing={4} justifyContent="center">
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <Paper sx={{ p: 4, textAlign: "center", bgcolor: "#ffebee" }}>
-              <Typography variant="h3" color="error">
-                1,240
-              </Typography>
-              <Typography variant="h6">Outstanding</Typography>
-            </Paper>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <Paper sx={{ p: 4, textAlign: "center", bgcolor: "#e8f5e8" }}>
-              <Typography variant="h3" color="success">
-                68%
-              </Typography>
-              <Typography variant="h6">Return Rate</Typography>
-            </Paper>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 4 }}>
-            <Paper sx={{ p: 4, textAlign: "center" }}>
-              <Typography variant="h3">3,880</Typography>
-              <Typography variant="h6">Requested</Typography>
-            </Paper>
-          </Grid>
-        </Grid>
-
-        <Box textAlign="center" mt={4}>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={exportOutstanding}
-            sx={{ bgcolor: "#B22234" }}
-          >
-            Export Chase List (CSV)
-          </Button>
-        </Box>
       </Paper>
 
       {/* === Snackbar === */}

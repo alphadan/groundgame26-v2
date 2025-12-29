@@ -26,8 +26,11 @@ interface Committeeman {
   id: string;
   display_name?: string;
   email?: string;
+  role?: string;
+  area_district?: string;
   phone_mobile?: string;
   phone_home?: string;
+  precinct_name?: string;
   precincts?: string[];
 }
 
@@ -75,12 +78,204 @@ export default function ManageTeamPage() {
         const mockTeam: Committeeman[] = [
           // Example data – replace with real query
           {
-            id: "user1",
-            display_name: "John Doe",
+            id: "user01",
+            display_name: "VACANT",
             email: "john@example.com",
-            phone_mobile: "5551234567",
-            phone_home: "5559876543",
-            precincts: ["PA15-P-225", "PA15-P-230"],
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "Atglen",
+            precincts: ["PA15-P-005"],
+          },
+          {
+            id: "user02",
+            display_name: "VACANT",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "Atglen",
+            precincts: ["PA15-P-005"],
+          },
+          {
+            id: "user03",
+            display_name: "Carol Kulp",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "East Fallowfield E",
+            precincts: ["PA15-P-225"],
+          },
+          {
+            id: "user04",
+            display_name: "Robert Kulp",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "East Fallowfield E",
+            precincts: ["PA15-P-225"],
+          },
+          {
+            id: "user05",
+            display_name: "Robert Knecht",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "East Fallowfield W",
+            precincts: ["PA15-P-230"],
+          },
+          {
+            id: "user06",
+            display_name: "Nina Petro",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "East Fallowfield W",
+            precincts: ["PA15-P-230"],
+          },
+          {
+            id: "user07",
+            display_name: "Dana Young",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "Highland",
+            precincts: ["PA15-P-290"],
+          },
+          {
+            id: "user08",
+            display_name: "Joshua Wall",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "Highland",
+            precincts: ["PA15-P-290"],
+          },
+          {
+            id: "user10",
+            display_name: "Sharon Wolf",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "Parkesburg N",
+            precincts: ["PA15-P-440"],
+          },
+          {
+            id: "user11",
+            display_name: "VACANT",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "Parkesburg N",
+            precincts: ["PA15-P-440"],
+          },
+          {
+            id: "user12",
+            display_name: "VACANT",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "Parkesburg S",
+            precincts: ["PA15-P-445"],
+          },
+          {
+            id: "user13",
+            display_name: "Nick Ohar",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "Parkesburg S",
+            precincts: ["PA15-P-445"],
+          },
+          {
+            id: "user14",
+            display_name: "Brendan Murphy",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "Sadsbury N",
+            precincts: ["PA15-P-535"],
+          },
+          {
+            id: "user15",
+            display_name: "Tricia Daller",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "Sadsbury N",
+            precincts: ["PA15-P-535"],
+          },
+          {
+            id: "user16",
+            display_name: "Richard Felice",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "Sadsbury S",
+            precincts: ["PA15-P-540"],
+          },
+          {
+            id: "user17",
+            display_name: "Joseph Felice",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "Sadsbury S",
+            precincts: ["PA15-P-540"],
+          },
+          {
+            id: "user18",
+            display_name: "Art Wright",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "W Sadsbury",
+            precincts: ["PA15-P-545"],
+          },
+          {
+            id: "user19",
+            display_name: "Herbert Myers",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "W Sadsbury",
+            precincts: ["PA15-P-545"],
+          },
+          {
+            id: "user20",
+            display_name: "Joseph Piazza",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "W Fallowfield",
+            precincts: ["PA15-P-235"],
+          },
+          {
+            id: "user20",
+            display_name: "Herb Phillips",
+            email: "john@example.com",
+            phone_mobile: "+16108066875",
+            role: "committeeperson",
+            area_district: "15",
+            precinct_name: "W Fallowfield",
+            precincts: ["PA15-P-235"],
           },
           // ... more members
         ];
@@ -173,7 +368,7 @@ export default function ManageTeamPage() {
   }
 
   return (
-    <Box maxWidth={1200} mx="auto" p={4}>
+    <Box maxWidth={1400} mx="auto" p={4}>
       <Typography variant="h4" gutterBottom color="#B22234" fontWeight="bold">
         Team Directory
       </Typography>
@@ -193,6 +388,9 @@ export default function ManageTeamPage() {
               </TableCell>
               <TableCell sx={{ color: "white", fontWeight: "bold" }}>
                 Phone
+              </TableCell>
+              <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                Precinct Name
               </TableCell>
               <TableCell sx={{ color: "white", fontWeight: "bold" }}>
                 Precincts
@@ -223,6 +421,7 @@ export default function ManageTeamPage() {
                 <TableCell>
                   {member.phone_mobile || member.phone_home || "-"}
                 </TableCell>
+                <TableCell>{member.precinct_name || "-"}</TableCell>
                 <TableCell>
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                     {(member.precincts || []).map((p: string) => (

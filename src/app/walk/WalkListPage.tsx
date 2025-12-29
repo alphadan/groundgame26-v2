@@ -382,6 +382,35 @@ export default function WalkListPage() {
                                         />
                                       </Box>
                                     </Box>
+                                    {/* New registrant highlight */}
+                                    {voter.date_registered &&
+                                      (() => {
+                                        const regDate = new Date(
+                                          voter.date_registered
+                                        );
+                                        const daysSince =
+                                          (Date.now() - regDate.getTime()) /
+                                          (1000 * 60 * 60 * 24);
+                                        if (daysSince < 180) {
+                                          // Registered in last 6 months
+                                          return (
+                                            <Chip
+                                              label="New Registrant"
+                                              color="success"
+                                              size="small"
+                                            />
+                                          );
+                                        }
+                                      })()}
+
+                                    {/* Likely mover */}
+                                    {voter.likely_mover && (
+                                      <Chip
+                                        label="Likely Mover"
+                                        color="warning"
+                                        size="small"
+                                      />
+                                    )}
 
                                     <Box
                                       display="flex"
@@ -442,11 +471,15 @@ export default function WalkListPage() {
                                           >
                                             — {note.created_by_name} •{" "}
                                             {note.created_at
-                                              ?.toDate?.()
-                                              .toLocaleDateString() ||
-                                              new Date(
-                                                note.created_at
-                                              ).toLocaleDateString()}
+                                              ? (
+                                                  note.created_at.toDate?.() ||
+                                                  new Date(note.created_at)
+                                                ).toLocaleDateString("en-US", {
+                                                  month: "short",
+                                                  day: "numeric",
+                                                  year: "numeric",
+                                                })
+                                              : "Unknown date"}
                                           </Typography>
                                         </Box>
                                       ))}

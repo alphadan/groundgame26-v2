@@ -24,7 +24,6 @@ import {
   Tooltip,
 } from "@mui/material";
 import {
-  BarChart,
   Analytics,
   Campaign,
   Logout,
@@ -111,9 +110,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
   // === Menu Items (Dynamic & Safe) ===
   const menuItems = [
     { text: "Dashboard", icon: <HomeWork />, path: "/dashboard" },
-    { text: "Reports", icon: <BarChart />, path: "/reports" },
     { text: "Analysis", icon: <Analytics />, path: "/analysis" },
-    { text: "Planning", icon: <Campaign />, path: "/planning" },
+    { text: "Messaging", icon: <Campaign />, path: "/messaging" },
     { divider: true },
     { text: "Voter List", icon: <Phone />, path: "/voters" },
     { text: "Walk Lists", icon: <DirectionsWalk />, path: "/walk-lists" },

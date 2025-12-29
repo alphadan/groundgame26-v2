@@ -178,17 +178,34 @@ export const getDashboardStats = onCall(
         COUNTIF(party = 'R') AS total_r,
         COUNTIF(party = 'D') AS total_d,
         COUNTIF(party NOT IN ('R','D') AND party IS NOT NULL) AS total_nf,
+
         COUNTIF(has_mail_ballot = TRUE AND party = 'R') AS mail_r,
         COUNTIF(has_mail_ballot = TRUE AND party = 'D') AS mail_d,
         COUNTIF(has_mail_ballot = TRUE AND party NOT IN ('R','D') AND party IS NOT NULL) AS mail_nf,
-        COUNTIF(mail_ballot_returned = TRUE AND party = 'R') AS returned_r,
-        COUNTIF(mail_ballot_returned = TRUE AND party = 'D') AS returned_d,
-        COUNTIF(mail_ballot_returned = TRUE AND party NOT IN ('R','D') AND party IS NOT NULL) AS returned_nf,
+
         COUNTIF(modeled_party = '1 - Hard Republican') AS hard_r,
         COUNTIF(modeled_party LIKE '2 - Weak%') AS weak_r,
         COUNTIF(modeled_party = '3 - Swing') AS swing,
         COUNTIF(modeled_party LIKE '4 - Weak%') AS weak_d,
-        COUNTIF(modeled_party = '5 - Hard Democrat') AS hard_d
+        COUNTIF(modeled_party = '5 - Hard Democrat') AS hard_d,
+
+        COUNTIF(age_group = '18-25' AND party = 'R') AS age_18_25_r,
+        COUNTIF(age_group = '18-25' AND party = 'D') AS age_18_25_d,
+        COUNTIF(age_group = '26-40' AND party = 'R') AS age_26_40_r,
+        COUNTIF(age_group = '26-40' AND party = 'D') AS age_26_40_d,
+        COUNTIF(age_group = '41-70' AND party = 'R') AS age_41_70_r,
+        COUNTIF(age_group = '41-70' AND party = 'D') AS age_41_70_d,
+        COUNTIF(age_group = '71+' AND party = 'R') AS age_71_plus_r,
+        COUNTIF(age_group = '71+' AND party = 'D') AS age_71_plus_d,
+
+        COUNTIF(has_mail_ballot = TRUE AND age_group = '18-25' AND party = 'R') AS mail_age_18_25_r,
+        COUNTIF(has_mail_ballot = TRUE AND age_group = '18-25' AND party = 'D') AS mail_age_18_25_d,
+        COUNTIF(has_mail_ballot = TRUE AND age_group = '26-40' AND party = 'R') AS mail_age_26_40_r,
+        COUNTIF(has_mail_ballot = TRUE AND age_group = '26-40' AND party = 'D') AS mail_age_26_40_d,
+        COUNTIF(has_mail_ballot = TRUE AND age_group = '41-70' AND party = 'R') AS mail_age_41_70_r,
+        COUNTIF(has_mail_ballot = TRUE AND age_group = '41-70' AND party = 'D') AS mail_age_41_70_d,
+        COUNTIF(has_mail_ballot = TRUE AND age_group = '71+' AND party = 'R') AS mail_age_71_plus_r,
+        COUNTIF(has_mail_ballot = TRUE AND age_group = '71+' AND party = 'D') AS mail_age_71_plus_d
       FROM \`${table}\`
       WHERE 1=1
     `;
@@ -302,9 +319,9 @@ export const queryVotersDynamic = onCall(
 
     let sql = `
       SELECT 
-        voter_id, full_name, age, party, precinct, area_district,
-        address, phone_mobile, phone_home, has_mail_ballot,
-        modeled_party, turnout_score_general, zip_code
+        voter_id, full_name, gender, age, party, precinct, area_district,
+        address, city, phone_mobile, phone_home, has_mail_ballot,
+        modeled_party, turnout_score_general, date_registered, likely_mover, zip_code
       FROM \`${table}\`
       WHERE 1=1
     `;
@@ -355,17 +372,8 @@ export const queryVotersDynamic = onCall(
 
     // === Age Group ===
     if (filters.ageGroup && filters.ageGroup.trim() !== "") {
-      const [min, maxStr] = filters.ageGroup.split("-");
-      const minAge = parseInt(min);
-      const maxAge = maxStr === "+" ? null : parseInt(maxStr);
-
-      sql += ` AND age >= @ageMin`;
-      params.ageMin = minAge;
-
-      if (maxAge !== null) {
-        sql += ` AND age <= @ageMax`;
-        params.ageMax = maxAge;
-      }
+      sql += ` AND age_group = @ageGroup`;
+      params.ageGroup = filters.ageGroup.trim();
     }
 
     // === Mail Ballot ===

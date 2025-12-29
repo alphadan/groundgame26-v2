@@ -64,7 +64,7 @@ const dummyTeam = [
   },
 ];
 
-export default function ReportsPage() {
+export default function AnalysisPage() {
   const { user, claims, isLoaded } = useAuth();
 
   if (!isLoaded) {
