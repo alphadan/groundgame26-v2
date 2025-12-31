@@ -39,6 +39,7 @@ import {
   Search as SearchIcon,
   Settings,
 } from "@mui/icons-material";
+import TipsAndUpdatesIcon from "@mui/icons-material/TipsAndUpdates";
 import Logo from "../../components/ui/Logo";
 import DataObjectIcon from "@mui/icons-material/DataObject";
 
@@ -127,6 +128,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
     { text: "Name Search", icon: <SearchIcon />, path: "/name-search" },
     { divider: true },
     { text: "Settings", icon: <Settings />, path: "/settings" },
+    { text: "How to Use", icon: <TipsAndUpdatesIcon />, path: "/how-to-use" },
     // Admin only
     ...(claims?.role === "state_admin"
       ? [{ text: "Firebase", icon: <DataObjectIcon />, path: "/admin" }]

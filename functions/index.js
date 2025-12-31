@@ -362,6 +362,12 @@ export const queryVotersDynamic = onCall(
       params.modeledParty = filters.modeledParty.trim();
     }
 
+    // === Party ===
+    if (filters.party && filters.party.trim() !== "") {
+      sql += ` AND party = @party`;
+      params.party = filters.party.trim();
+    }
+
     // === Turnout Score ===
     if (filters.turnout && filters.turnout.trim() !== "") {
       const score = parseInt(filters.turnout.trim());
@@ -605,7 +611,7 @@ const getPermissionsForRole = (role) => {
 };
 
 // ================================================================
-//  PSYNC ORG ROLES — CENTRALIZED & CLEAN
+//  SYNC ORG ROLES — CENTRALIZED & CLEAN
 // ================================================================
 
 export const syncOrgRolesToClaims = functions.firestore
@@ -693,56 +699,40 @@ export const syncOrgRolesToClaims = functions.firestore
 //  SUBMIT VOLUNTEERS
 // ================================================================
 
-export const submitVolunteer = onCall(
-  {
-    cors: true,
-    region: "us-central1",
-    secrets: ["RECAPTCHA_SECRET"], // <--- Grant access here
-  },
-  async (request) => {
-    try {
-      // Firebase httpsCallable wraps data in a 'data' property
-      logger.info("[submitVolunteer]request.data :", request.data);
-      const { name, email, comment, recaptchaToken } = request.data;
+export const submitVolunteer = onCall(async (request) => {
+  try {
+    // Firebase httpsCallable wraps data in a 'data' property
+    logger.info("[submitVolunteer]request :", request.data);
 
-      if (!recaptchaToken) {
-        throw new Error("invalid-argument", "reCAPTCHA required");
-      }
-
-      // Access the secret via process.env
-      const secretKey = process.env.RECAPTCHA_SECRET;
-
-      const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${recaptchaToken}`;
-      const verification = await axios.post(verifyUrl);
-
-      if (!verification.data.success) {
-        return res.status(400).json({ data: { error: "Invalid reCAPTCHA" } });
-      }
-
-      await db.collection("volunteer_requests").add({
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        comment: comment?.trim() || "",
-        submitted_at: FieldValue.serverTimestamp(),
-        status: "new",
-      });
-
-      return {
-        success: true,
-        message: "Volunteer submitted successfully",
-      };
-    } catch (err) {
-      logger.error("Submit failed error:", err);
-
-      // Re-throw Firebase HttpsErrors so the frontend sees them
-      if (err instanceof HttpsError) {
-        throw err;
-      }
-      // If it's a generic error, wrap it in an HttpsError
-      throw new HttpsError("internal", err.message || "Unknown error occurred");
+    if (!request) {
+      throw new Error("invalid-argument", "request required");
     }
+
+    const { name, email, comment, recaptchaToken } = request.data;
+
+    await db.collection("volunteer_requests").add({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      comment: comment?.trim() || "",
+      submitted_at: FieldValue.serverTimestamp(),
+      status: "new",
+    });
+
+    return {
+      success: true,
+      message: "Volunteer submitted successfully",
+    };
+  } catch (error) {
+    logger.error("Submit failed error:", error);
+
+    // Re-throw Firebase HttpsErrors so the frontend sees them
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    // If it's a generic error, wrap it in an HttpsError
+    throw new HttpsError("internal", error.message || "Unknown error occurred");
   }
-);
+});
 
 // ================================================================
 //  ADD VOTER NOTE

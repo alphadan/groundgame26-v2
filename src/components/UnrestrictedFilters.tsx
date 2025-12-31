@@ -16,6 +16,7 @@ type FilterKey =
   | "name"
   | "street"
   | "modeledParty"
+  | "party"
   | "turnout"
   | "ageGroup"
   | "mailBallot"
@@ -121,6 +122,29 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
                     <MenuItem value="3 - Swing">Swing Voter</MenuItem>
                     <MenuItem value="4 - Weak Democrat">Weak Democrat</MenuItem>
                     <MenuItem value="5 - Hard Democrat">Hard Democrat</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
+            />
+          </Grid>
+        )}
+
+        {/* Modeled Party */}
+        {shouldShow("party") && (
+          <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+            <Controller
+              name="party"
+              control={control}
+              render={({ field }) => (
+                <FormControl fullWidth>
+                  <InputLabel>Party Affilliation</InputLabel>
+                  <Select {...field} label="Modeled Party">
+                    <MenuItem value="">
+                      <em>All Parties</em>
+                    </MenuItem>
+                    <MenuItem value="R">Republican</MenuItem>
+                    <MenuItem value="D">Democrat</MenuItem>
+                    <MenuItem value="NF">Independant</MenuItem>
                   </Select>
                 </FormControl>
               )}

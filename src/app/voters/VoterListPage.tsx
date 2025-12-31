@@ -3,6 +3,7 @@ import React, { useState, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useDynamicVoters } from "../../hooks/useDynamicVoters";
 import { FilterSelector } from "../../components/FilterSelector";
+import { VoterNotes } from "../../components/VoterNotes";
 import {
   Box,
   Typography,
@@ -10,7 +11,6 @@ import {
   IconButton,
   Tooltip,
   Stack,
-  Chip,
   CircularProgress,
   Alert,
   Dialog,
@@ -22,6 +22,7 @@ import {
   useTheme,
   useMediaQuery,
   Snackbar,
+  Chip,
 } from "@mui/material";
 import {
   Phone,
@@ -74,6 +75,7 @@ export default function VoterListPage() {
   const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
   const [noteText, setNoteText] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
+  const [showReturnHint, setShowReturnHint] = useState<boolean>(false);
 
   // Feedback
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -91,34 +93,59 @@ export default function VoterListPage() {
     setFilters(submittedFilters);
   }, []);
 
-  // Device capabilities
-  const canCall =
-    "tel:" in window.location || "tel:" in document.createElement("a");
-  const canText =
-    "sms:" in window.location || "sms:" in document.createElement("a");
+  // Device capabilities - only allow call/text on mobile
+  const canCall = isMobile;
+  const canText = isMobile;
 
   const handleCall = useCallback(
     (phone?: string) => {
+      setShowReturnHint(true);
       if (!phone || !canCall) return;
       const cleaned = phone.replace(/\D/g, "");
       const normalized =
         cleaned.length === 11 && cleaned.startsWith("1")
           ? cleaned
           : "1" + cleaned;
-      window.location.href = `tel:${normalized}`;
+      setTimeout(() => {
+        window.location.href = `tel:${normalized}`;
+      }, 1500);
+      setShowReturnHint(false);
     },
     [canCall]
   );
 
   const handleText = useCallback(
-    (phone?: string) => {
+    async (phone?: string) => {
       if (!phone || !canText) return;
+
+      setShowReturnHint(true);
+
       const cleaned = phone.replace(/\D/g, "");
       const normalized =
         cleaned.length === 11 && cleaned.startsWith("1")
           ? cleaned
           : "1" + cleaned;
-      window.location.href = `sms:${normalized}`;
+
+      let messageBody = "";
+
+      try {
+        // Try to read from clipboard
+        const clipboardText = await navigator.clipboard.readText();
+        if (clipboardText.trim()) {
+          messageBody = clipboardText.trim();
+        }
+      } catch (err) {
+        console.log("Clipboard access denied or empty — using default message");
+      }
+
+      // Open SMS with the message
+      setTimeout(() => {
+        window.location.href = `sms:${normalized}?body=${encodeURIComponent(
+          messageBody
+        )}`;
+      }, 1500);
+
+      setShowReturnHint(false);
     },
     [canText]
   );
@@ -268,15 +295,22 @@ export default function VoterListPage() {
     {
       field: "contact",
       headerName: "Contact",
-      width: 140,
+      width: 160,
       align: "right",
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
       renderCell: ({ row }) => (
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-          {(row.phone_mobile || row.phone_home) && canCall && (
-            <Tooltip title="Call">
+          {/* Show phone number on desktop */}
+          {!isMobile && (row.phone_mobile || row.phone_home) && (
+            <Typography variant="body2" color="text.secondary">
+              {row.phone_mobile || row.phone_home || "-"}
+            </Typography>
+          )}
+          {/* Show icons only on mobile */}
+          {isMobile && (row.phone_mobile || row.phone_home) && (
+            <Tooltip title="Opens Phone app — tap back arrow in top-left to return">
               <IconButton
                 size="small"
                 color="success"
@@ -286,8 +320,8 @@ export default function VoterListPage() {
               </IconButton>
             </Tooltip>
           )}
-          {row.phone_mobile && canText && (
-            <Tooltip title="Text">
+          {isMobile && row.phone_mobile && (
+            <Tooltip title="Opens Messages app — tap back arrow in top-left to return">
               <IconButton
                 size="small"
                 color="info"
@@ -353,12 +387,7 @@ export default function VoterListPage() {
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isLoading}
-        unrestrictedFilters={[
-          "modeledParty",
-          "turnout",
-          "ageGroup",
-          "mailBallot",
-        ]}
+        unrestrictedFilters={["party", "turnout", "ageGroup", "mailBallot"]}
       />
 
       {/* Results */}
@@ -366,6 +395,24 @@ export default function VoterListPage() {
         <Alert severity="error" sx={{ mt: 3 }}>
           Failed to load voters. Please try again.
         </Alert>
+      )}
+
+      {showReturnHint && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bgcolor: "primary.main",
+            color: "white",
+            p: 2,
+            textAlign: "center",
+            zIndex: 9999,
+          }}
+        >
+          Opening Messages... Tap back when finished!
+        </Box>
       )}
 
       {filters && !isLoading && voters.length === 0 && (

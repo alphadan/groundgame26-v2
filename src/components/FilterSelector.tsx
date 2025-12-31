@@ -30,6 +30,7 @@ type FilterKey =
   | "name"
   | "street"
   | "modeledParty"
+  | "party"
   | "turnout"
   | "ageGroup"
   | "mailBallot"

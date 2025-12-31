@@ -129,6 +129,9 @@ export default function BadgeRedemptionCenter() {
       <Typography variant="h6" color="text.secondary" gutterBottom mb={4}>
         Redeem your earned badges for exclusive rewards and recognition
       </Typography>
+      <Typography variant="body1" paragraph>
+        <strong>*** SAMPLE ***</strong>
+      </Typography>
 
       {/* Points Summary */}
       <Paper sx={{ p: 4, mb: 5, borderRadius: 3, bgcolor: "primary.50" }}>

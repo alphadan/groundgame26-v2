@@ -75,7 +75,7 @@ export default function Dashboard() {
       {/* Executive Summary */}
       <Paper elevation={3} sx={{ p: { xs: 3, sm: 4 }, mb: 5, borderRadius: 3 }}>
         <Typography variant="h5" gutterBottom fontWeight="bold">
-          Executive Summary — December 30, 2025
+          Executive Summary — December 31, 2025
         </Typography>
 
         <Alert severity="success" sx={{ mb: 3 }}>
@@ -85,6 +85,7 @@ export default function Dashboard() {
 
         <Stack spacing={2}>
           <Typography variant="body1">
+            <strong>*** SAMPLE ***</strong>
             App usage up <strong>18%</strong> this week • <strong>87</strong>{" "}
             new volunteers
           </Typography>
@@ -240,6 +241,7 @@ export default function Dashboard() {
           {/* Introductory Narrative */}
           <Box>
             <Typography variant="body1" paragraph>
+              <strong>*** BEGIN SAMPLE ***</strong>
               The Chester County Republican Committee is building a modern,
               data-driven field operation powered by GroundGame26. With
               bi-weekly BigQuery refreshes, we now have reliable precinct-level
@@ -322,7 +324,7 @@ export default function Dashboard() {
             <Box component="ol" sx={{ pl: 4, my: 2, "& li": { mb: 2 } }}>
               <Typography component="li" variant="body1">
                 <strong>Prioritize door-knocking</strong> in precincts showing
-                rising “Weak R” scores and recent registrants—these voters
+                rising "Weak R" scores and recent registrants—these voters
                 demonstrate the highest persuasion potential.
               </Typography>
               <Typography component="li" variant="body1">
@@ -360,6 +362,7 @@ export default function Dashboard() {
               strong foundational progress—positioning Chester County for the
               most organized, measurable, and effective Republican ground game
               in 2026.
+              <strong>*** END SAMPLE ***</strong>
             </Typography>
           </Box>
         </Stack>

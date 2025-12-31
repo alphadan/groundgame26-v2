@@ -67,6 +67,11 @@ const useDynamicVoters = (filters: FilterValues | null) => {
 export default function NameSearchPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [showReturnHint, setShowReturnHint] = useState<boolean>(false);
+
+  // Device capabilities
+  const canCall = isMobile;
+  const canText = isMobile;
 
   const { isLoaded } = useAuth();
 
@@ -95,15 +100,41 @@ export default function NameSearchPage() {
     window.location.href = `tel:${normalized}`;
   }, []);
 
-  const handleText = useCallback((phone?: string) => {
-    if (!phone) return;
-    const cleaned = phone.replace(/\D/g, "");
-    const normalized =
-      cleaned.length === 11 && cleaned.startsWith("1")
-        ? cleaned
-        : "1" + cleaned;
-    window.location.href = `sms:${normalized}`;
-  }, []);
+  const handleText = useCallback(
+    async (phone?: string) => {
+      if (!phone || !canText) return;
+
+      setShowReturnHint(true);
+
+      const cleaned = phone.replace(/\D/g, "");
+      const normalized =
+        cleaned.length === 11 && cleaned.startsWith("1")
+          ? cleaned
+          : "1" + cleaned;
+
+      let messageBody = "";
+
+      try {
+        // Try to read from clipboard
+        const clipboardText = await navigator.clipboard.readText();
+        if (clipboardText.trim()) {
+          messageBody = clipboardText.trim();
+        }
+      } catch (err) {
+        console.log("Clipboard access denied or empty — using default message");
+      }
+
+      // Open SMS with the message
+      setTimeout(() => {
+        window.location.href = `sms:${normalized}?body=${encodeURIComponent(
+          messageBody
+        )}`;
+      }, 1500);
+
+      setShowReturnHint(false);
+    },
+    [canText]
+  );
 
   const paginatedVoters = useMemo(
     () => voters.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
@@ -147,6 +178,24 @@ export default function NameSearchPage() {
         <Alert severity="error" sx={{ mt: 3 }}>
           Search failed. Please try again.
         </Alert>
+      )}
+
+      {showReturnHint && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bgcolor: "primary.main",
+            color: "white",
+            p: 2,
+            textAlign: "center",
+            zIndex: 9999,
+          }}
+        >
+          Opening Messages... Tap back when finished!
+        </Box>
       )}
 
       {filters && !isLoading && voters.length === 0 && (
@@ -236,23 +285,30 @@ export default function NameSearchPage() {
                         spacing={0.5}
                         justifyContent="flex-end"
                       >
-                        {(voter.phone_mobile || voter.phone_home) && (
-                          <Tooltip title="Call">
-                            <IconButton
-                              size="small"
-                              color="success"
-                              onClick={() =>
-                                handleCall(
-                                  voter.phone_mobile || voter.phone_home
-                                )
-                              }
-                            >
-                              <Phone fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                        {voter.phone_mobile && (
-                          <Tooltip title="Text">
+                        {(voter.phone_mobile || voter.phone_home) &&
+                          !isMobile && (
+                            <Typography variant="body2">
+                              {voter.phone_mobile || voter.phone_home || "—"}
+                            </Typography>
+                          )}
+                        {(voter.phone_mobile || voter.phone_home) &&
+                          isMobile && (
+                            <Tooltip title="Opens Phone app — tap back arrow in top-left to return">
+                              <IconButton
+                                size="small"
+                                color="success"
+                                onClick={() =>
+                                  handleCall(
+                                    voter.phone_mobile || voter.phone_home
+                                  )
+                                }
+                              >
+                                <Phone fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        {voter.phone_mobile && isMobile && (
+                          <Tooltip title="Opens Messages app — tap back arrow in top-left to return">
                             <IconButton
                               size="small"
                               color="info"

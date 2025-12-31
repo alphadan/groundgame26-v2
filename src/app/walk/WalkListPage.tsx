@@ -1,12 +1,10 @@
 // src/app/walk/WalkListPage.tsx
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../lib/firebase";
 import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
-import { VoterNotesProps } from "../../types";
-import { useQuery } from "@tanstack/react-query";
 import {
   Box,
   Typography,
@@ -21,7 +19,6 @@ import {
   Chip,
   Badge,
 } from "@mui/material";
-
 import {
   Phone,
   Home,
@@ -29,14 +26,13 @@ import {
   ExpandLess,
   Message,
 } from "@mui/icons-material";
-
 import {
   DataGrid,
   GridColDef,
-  GridRenderCellParams,
   GridToolbarContainer,
   GridToolbarQuickFilter,
 } from "@mui/x-data-grid";
+import { useQuery } from "@tanstack/react-query";
 
 interface FilterValues {
   county: string;
@@ -71,24 +67,66 @@ export default function WalkListPage() {
   const [filters, setFilters] = useState<FilterValues | null>(null);
   const [selectedCountyCode, setSelectedCountyCode] = useState<string>("");
   const [selectedAreaDistrict, setSelectedAreaDistrict] = useState<string>("");
+  const [showReturnHint, setShowReturnHint] = useState<boolean>(false);
 
   const [expandedHouse, setExpandedHouse] = useState<string>("");
 
-  // Notes state: { [address]: { [voter_id]: note[] } }
-  const [householdNotes, setHouseholdNotes] = useState<
-    Record<string, Record<string, any[]>>
-  >({});
-  const [loadingNotesFor, setLoadingNotesFor] = useState<string | null>(null);
-
   // Device capabilities
-  const canCall =
-    "tel:" in window.location || "tel:" in document.createElement("a");
-  const canText =
-    "sms:" in window.location || "sms:" in document.createElement("a");
+  const canCall = isMobile;
+  const canText = isMobile;
 
-  // Feedback
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const handleCall = useCallback(
+    (phone?: string) => {
+      setShowReturnHint(true);
+      if (!phone || !canCall) return;
+      const cleaned = phone.replace(/\D/g, "");
+      const normalized =
+        cleaned.length === 11 && cleaned.startsWith("1")
+          ? cleaned
+          : "1" + cleaned;
+      setTimeout(() => {
+        window.location.href = `tel:${normalized}`;
+      }, 1500);
+      setShowReturnHint(false);
+    },
+    [canCall]
+  );
+
+  const handleText = useCallback(
+    async (phone?: string) => {
+      if (!phone || !canText) return;
+
+      setShowReturnHint(true);
+
+      const cleaned = phone.replace(/\D/g, "");
+      const normalized =
+        cleaned.length === 11 && cleaned.startsWith("1")
+          ? cleaned
+          : "1" + cleaned;
+
+      let messageBody = "";
+
+      try {
+        // Try to read from clipboard
+        const clipboardText = await navigator.clipboard.readText();
+        if (clipboardText.trim()) {
+          messageBody = clipboardText.trim();
+        }
+      } catch (err) {
+        console.log("Clipboard access denied or empty — using default message");
+      }
+
+      // Open SMS with the message
+      setTimeout(() => {
+        window.location.href = `sms:${normalized}?body=${encodeURIComponent(
+          messageBody
+        )}`;
+      }, 1500);
+
+      setShowReturnHint(false);
+    },
+    [canText]
+  );
 
   // Query voters
   const queryVoters = httpsCallable(functions, "queryVotersDynamic");
@@ -153,110 +191,10 @@ export default function WalkListPage() {
       .sort((a, b) => a.address.localeCompare(b.address));
   }, [voters]);
 
-  // === Load notes when household expands ===
-  useEffect(() => {
-    if (!expandedHouse) {
-      console.log("No household expanded");
-      return;
-    }
-
-    console.log("🔍 Expanding household:", expandedHouse);
-
-    const fetchNotesForHousehold = async () => {
-      setLoadingNotesFor(expandedHouse);
-      console.log("Loading notes for:", expandedHouse);
-
-      try {
-        const household = households.find((h) => h.address === expandedHouse);
-        console.log("Found household:", household);
-
-        const voterIds = household?.voters
-          .map((v) => v.voter_id)
-          .filter(Boolean);
-
-        console.log("Voter IDs in household:", voterIds);
-
-        if (!voterIds || voterIds.length === 0) {
-          console.log("No voter IDs — skipping note fetch");
-          setHouseholdNotes((prev) => ({ ...prev, [expandedHouse]: {} }));
-          return;
-        }
-
-        console.log(
-          "Calling getVoterNotes Cloud Function with voterIds:",
-          voterIds
-        );
-
-        const getVoterNotes = httpsCallable<
-          { voterIds: string[] },
-          { notes: any[] }
-        >(functions, "getVoterNotes");
-
-        const result = await getVoterNotes({ voterIds });
-        console.log("Raw result from getVoterNotes:", result);
-        console.log("result.data:", result.data);
-
-        const notes = result.data?.notes || [];
-        console.log("Fetched notes:", notes);
-
-        const grouped: Record<string, any[]> = {};
-        notes.forEach((note: any) => {
-          const vid = note.voter_id || "unknown";
-          if (!grouped[vid]) grouped[vid] = [];
-          grouped[vid].push(note);
-        });
-
-        console.log("Grouped notes:", grouped);
-
-        setHouseholdNotes((prev) => ({ ...prev, [expandedHouse]: grouped }));
-        console.log("✅ Notes loaded and set in state");
-      } catch (err: any) {
-        console.error("❌ Failed to load notes:", err);
-        console.error("Error message:", err.message);
-        console.error("Error details:", err.details);
-        setHouseholdNotes((prev) => ({ ...prev, [expandedHouse]: {} }));
-      } finally {
-        setLoadingNotesFor(null);
-      }
-    };
-
-    if (!householdNotes[expandedHouse]) {
-      fetchNotesForHousehold();
-    } else {
-      console.log("Notes already loaded for this household");
-    }
-  }, [expandedHouse, households]);
-
   const handleSubmit = useCallback((submittedFilters: FilterValues) => {
     setFilters(submittedFilters);
     setExpandedHouse("");
   }, []);
-
-  const handleCall = useCallback(
-    (phone?: string) => {
-      if (!phone || !canCall) return;
-      const cleaned = phone.replace(/\D/g, "");
-      const normalized =
-        cleaned.length === 11 && cleaned.startsWith("1")
-          ? cleaned
-          : "1" + cleaned;
-      window.location.href = `tel:${normalized}`;
-    },
-    [canCall]
-  );
-
-  const handleText = useCallback(
-    (phone?: string) => {
-      if (!phone || !canText) return;
-      const cleaned = phone.replace(/\D/g, "");
-      const normalized =
-        cleaned.length === 11 && cleaned.startsWith("1")
-          ? cleaned
-          : "1" + cleaned;
-      window.location.href = `sms:${normalized}`;
-    },
-    [canText]
-  );
 
   if (!isLoaded) {
     return (
@@ -310,10 +248,26 @@ export default function WalkListPage() {
         </Alert>
       )}
 
-      {filters && households.length > 0 && (
-        <Paper
-          sx={{ borderRadius: 3, overflow: "hidden", boxShadow: 4, mt: 4 }}
+      {showReturnHint && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bgcolor: "primary.main",
+            color: "white",
+            p: 2,
+            textAlign: "center",
+            zIndex: 9999,
+          }}
         >
+          Opening Messages... Tap back when finished!
+        </Box>
+      )}
+
+      {filters && households.length > 0 && (
+        <Paper sx={{ borderRadius: 3, overflow: "hidden", boxShadow: 4 }}>
           <DataGrid
             rows={households}
             getRowId={(row) => row.address}
@@ -322,7 +276,7 @@ export default function WalkListPage() {
                 field: "address",
                 headerName: "Household",
                 flex: 2,
-                minWidth: 240,
+                minWidth: 280,
                 renderCell: (params) => (
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <Home color="action" />
@@ -330,8 +284,6 @@ export default function WalkListPage() {
                       <Typography variant="body1" fontWeight="medium">
                         {params.value}
                       </Typography>
-                    </Box>
-                    <Box>
                       <Typography variant="caption" color="text.secondary">
                         {params.row.city} {params.row.zip_code}
                       </Typography>
@@ -362,11 +314,21 @@ export default function WalkListPage() {
                   <IconButton
                     onClick={(e) => {
                       e.stopPropagation();
-                      setExpandedHouse(
+                      const newExpanded =
                         expandedHouse === params.row.address
                           ? ""
-                          : params.row.address
-                      );
+                          : params.row.address;
+                      setExpandedHouse(newExpanded);
+                      if (newExpanded) {
+                        setTimeout(() => {
+                          document
+                            .getElementById(`household-${newExpanded}`)
+                            ?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "center",
+                            });
+                        }, 100);
+                      }
                     }}
                     size="small"
                   >
@@ -382,9 +344,16 @@ export default function WalkListPage() {
             slots={{ toolbar: CustomToolbar }}
             hideFooter
             onRowClick={(params) => {
-              setExpandedHouse(
-                expandedHouse === params.row.address ? "" : params.row.address
-              );
+              const newExpanded =
+                expandedHouse === params.row.address ? "" : params.row.address;
+              setExpandedHouse(newExpanded);
+              if (newExpanded) {
+                setTimeout(() => {
+                  document
+                    .getElementById(`household-${newExpanded}`)
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 100);
+              }
             }}
             sx={{
               cursor: "pointer",
@@ -402,6 +371,7 @@ export default function WalkListPage() {
           {/* Expanded Household Details */}
           {expandedHouse && (
             <Box
+              id={`household-${expandedHouse}`}
               sx={{
                 p: 3,
                 bgcolor: "grey.50",
@@ -496,8 +466,21 @@ export default function WalkListPage() {
                           </Box>
 
                           <Stack direction="row" spacing={1}>
-                            {voter.phone_mobile && canCall && (
-                              <Tooltip title="Call">
+                            {/* Show phone number on desktop */}
+                            {!isMobile &&
+                              (voter.phone_mobile || voter.phone_home) && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                >
+                                  {voter.phone_mobile ||
+                                    voter.phone_home ||
+                                    "-"}
+                                </Typography>
+                              )}
+                            {/* Show icons only on mobile */}
+                            {isMobile && voter.phone_mobile && (
+                              <Tooltip title="Opens Phone app — tap back arrow in top-left to return">
                                 <IconButton
                                   color="success"
                                   onClick={() => handleCall(voter.phone_mobile)}
@@ -506,8 +489,8 @@ export default function WalkListPage() {
                                 </IconButton>
                               </Tooltip>
                             )}
-                            {voter.phone_mobile && canText && (
-                              <Tooltip title="Text">
+                            {isMobile && voter.phone_mobile && (
+                              <Tooltip title="Opens Messages app — tap back arrow in top-left to return">
                                 <IconButton
                                   color="info"
                                   onClick={() => handleText(voter.phone_mobile)}

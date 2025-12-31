@@ -34,6 +34,7 @@ import SettingsPage from "./app/settings/SettingsPage";
 import FirebasePage from "./app/admin/FirebaseManagementPage";
 import ManageTeamPage from "./app/precincts/ManageTeamPage";
 import BadgeRedemptionPage from "./app/rewards/BadgeRedemptionPage";
+import HowToUsePage from "./app/guide/HowToUsePage";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -227,6 +228,7 @@ export default function App() {
           <Route path="/name-search" element={<NameSearchPage />} />
           <Route path="/manage-team" element={<ManageTeamPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/how-to-use" element={<HowToUsePage />} />
           <Route path="/admin" element={<FirebasePage />} />
           <Route path="/rewards" element={<BadgeRedemptionPage />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

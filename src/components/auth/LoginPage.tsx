@@ -189,7 +189,7 @@ export default function LoginPage() {
       setMfaResolver({ resolver, verificationId });
       setMfaOpen(true);
       setMfaCode("");
-    } catch (mfaErr: any) {
+    } catch (mfaErr) {
       console.error("MFA setup failed:", mfaErr);
       setError("Unable to start MFA challenge. Please try again.");
     }
@@ -213,12 +213,12 @@ export default function LoginPage() {
       setMfaOpen(false);
       setMfaCode("");
       setMfaResolver(null);
-    } catch (err: any) {
-      if (err.code === "auth/invalid-verification-code") {
+    } catch (error: any) {
+      if (error.code === "auth/invalid-verification-code") {
         setError("Invalid code. Please try again.");
       } else {
         setError(
-          "MFA verification failed: " + (err.message || "Unknown error")
+          "MFA verification failed: " + (error.message || "Unknown error")
         );
       }
     } finally {
@@ -281,12 +281,13 @@ export default function LoginPage() {
         comment: volComment.trim(),
         recaptchaToken: token,
       });
-
+      
+      setVolunteerOpen(false);
       setShowThankYou(true);
-    } catch (err: any) {
-      console.error("Volunteer submission failed:", err);
+    } catch (error: any) {
+      console.error("Volunteer submission failed:", error);
       // If the error comes from the function, it will be in err.message
-      setError(err.message || "Submission failed. Please try again later.");
+      setError(error.message || "Submission failed. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -546,8 +547,8 @@ export default function LoginPage() {
         <DialogTitle sx={{ bgcolor: "primary.main", color: "white" }}>
           Want to Volunteer?
         </DialogTitle>
-        <DialogContent sx={{ pt: 3, mt: 2 }}>
-          <Stack spacing={3}>
+        <DialogContent sx={{ pt: 3, mt: 4 }}>
+          <Stack spacing={3} sx={{ pt: 1, mt: 1 }}>
             <TextField
               label="Full Name *"
               fullWidth

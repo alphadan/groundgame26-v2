@@ -60,6 +60,7 @@ export default function SettingsPage() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -117,7 +118,7 @@ export default function SettingsPage() {
       return;
     }
 
-    setLoading(true);
+    setSaving(true);
     setError("");
     setSuccess(false);
 
@@ -129,7 +130,6 @@ export default function SettingsPage() {
         const storageRef = ref(storage, `profile-photos/${user.uid}`);
         await uploadBytes(storageRef, formData.photoFile);
         photoURL = await getDownloadURL(storageRef);
-        setPhotoUploading(false);
       }
 
       await updateProfile(user, {
@@ -148,8 +148,6 @@ export default function SettingsPage() {
         photo_url: photoURL || null,
         updated_at: new Date().toISOString(),
       });
-
-      setSuccess(true);
     } catch (err: any) {
       if (err.code === "auth/requires-recent-login") {
         setError(
@@ -161,7 +159,8 @@ export default function SettingsPage() {
         setError(err.message || "Failed to save changes");
       }
     } finally {
-      setLoading(false);
+      setSaving(false);
+      console.log("[Settings]", "Profile saved.");
       setPhotoUploading(false);
     }
   }, [user, formData]);
@@ -239,13 +238,12 @@ export default function SettingsPage() {
                   ? null
                   : (user?.displayName || user?.email || "U")[0].toUpperCase()}
               </Avatar>
-
               <Button
                 variant="text"
                 component="label"
                 startIcon={<PhotoCamera />}
                 sx={{ mt: 2, color: "primary.main", fontWeight: "medium" }}
-                disabled={photoUploading}
+                disabled={true}
               >
                 {photoUploading ? "Uploading..." : "Change Photo"}
                 <input
@@ -279,13 +277,10 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, email: e.target.value }))
                 }
-                helperText="Changing email requires recent login"
-                disabled={loading}
+                helperText="Changing email requires permission."
+                disabled={true}
               />
 
-              {success && (
-                <Alert severity="success">Profile updated successfully!</Alert>
-              )}
               {error && <Alert severity="error">{error}</Alert>}
               {resetSent && (
                 <Alert severity="info">
@@ -297,18 +292,11 @@ export default function SettingsPage() {
                 fullWidth
                 variant="contained"
                 size="large"
-                startIcon={
-                  loading ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : (
-                    <Save />
-                  )
-                }
                 onClick={handleSave}
                 disabled={loading}
                 sx={{ py: 1.5, fontWeight: "bold" }}
               >
-                {loading ? "Saving..." : "Save Profile"}
+                {saving ? "Saving..." : "Save Profile"}
               </Button>
 
               <Button
@@ -356,6 +344,9 @@ export default function SettingsPage() {
             <Paper sx={{ p: 4, borderRadius: 3 }}>
               <Typography variant="h6" fontWeight="bold" gutterBottom>
                 Badges & Rewards
+              </Typography>
+              <Typography variant="body1" paragraph>
+                <strong>*** SAMPLE ***</strong>
               </Typography>
 
               <Alert severity="info" sx={{ borderRadius: 2, mb: 3 }}>
