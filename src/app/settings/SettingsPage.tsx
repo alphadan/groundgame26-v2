@@ -1,5 +1,7 @@
 // src/app/settings/SettingsPage.tsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { Redeem } from "@mui/icons-material";
 import {
   Box,
   Container,
@@ -9,24 +11,46 @@ import {
   Button,
   Alert,
   CircularProgress,
-  InputAdornment,
-  Link,
   Paper,
+  Stack,
+  Divider,
+  Switch,
+  FormControlLabel,
+  List,
+  ListItem,
+  ListItemText,
+  Grid,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
-import { PhotoCamera, Save, LockReset } from "@mui/icons-material";
+import {
+  PhotoCamera,
+  Save,
+  LockReset,
+  DarkMode,
+  LightMode,
+  Badge as BadgeIcon,
+} from "@mui/icons-material";
 import {
   updateProfile,
   updateEmail,
   sendPasswordResetEmail,
-  User,
 } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 import { auth, db, storage } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
+import { useThemeMode } from "../../context/ThemeContext";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db as indexedDb } from "../../lib/db";
 
 export default function SettingsPage() {
+  const theme = useTheme();
+  const { mode, toggleTheme } = useThemeMode();
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+  const navigate = useNavigate();
+
   const { user, isLoaded } = useAuth();
 
   const [formData, setFormData] = useState({
@@ -41,10 +65,13 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
   const [resetSent, setResetSent] = useState(false);
 
-  // Track current photo preview URL for cleanup
   const photoUrlRef = useRef<string | null>(null);
 
-  // === Sync form with current user (defensive) ===
+  // Fetch app_control from IndexedDB
+  const appControl = useLiveQuery(() =>
+    indexedDb.app_control.toArray().then((arr) => arr[0])
+  );
+
   useEffect(() => {
     if (user) {
       setFormData({
@@ -55,7 +82,6 @@ export default function SettingsPage() {
     }
   }, [user]);
 
-  // === Cleanup object URL on unmount or change ===
   useEffect(() => {
     return () => {
       if (photoUrlRef.current) {
@@ -68,18 +94,15 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Revoke previous preview
     if (photoUrlRef.current) {
       URL.revokeObjectURL(photoUrlRef.current);
     }
 
-    // Validate file type/size
     if (!file.type.startsWith("image/")) {
       setError("Please select a valid image file");
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      // 5MB limit
       setError("Image must be under 5MB");
       return;
     }
@@ -101,7 +124,6 @@ export default function SettingsPage() {
     try {
       let photoURL = user.photoURL;
 
-      // === Photo Upload (isolated) ===
       if (formData.photoFile) {
         setPhotoUploading(true);
         const storageRef = ref(storage, `profile-photos/${user.uid}`);
@@ -110,22 +132,16 @@ export default function SettingsPage() {
         setPhotoUploading(false);
       }
 
-      // === Update Auth Profile ===
       await updateProfile(user, {
         displayName: formData.displayName.trim() || null,
         photoURL: photoURL || null,
       });
 
-      // === Update Email (with validation) ===
       const newEmail = formData.email.trim();
       if (newEmail && newEmail !== user.email) {
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
-          throw new Error("Invalid email format");
-        }
         await updateEmail(user, newEmail);
       }
 
-      // === Update Firestore Meta ===
       await updateDoc(doc(db, "users", user.uid), {
         display_name: formData.displayName.trim() || null,
         email: newEmail || null,
@@ -135,7 +151,6 @@ export default function SettingsPage() {
 
       setSuccess(true);
     } catch (err: any) {
-      console.error("Profile update failed:", err);
       if (err.code === "auth/requires-recent-login") {
         setError(
           "For security, please log out and log in again before changing email."
@@ -162,21 +177,21 @@ export default function SettingsPage() {
       setResetSent(true);
       setError("");
     } catch (err: any) {
-      console.error("Password reset failed:", err);
       setError("Failed to send reset email");
     }
   }, [user]);
 
-  // === Loading Guard ===
   if (!isLoaded) {
     return (
       <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="70vh"
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "70vh",
+        }}
       >
-        <CircularProgress sx={{ color: "#B22234" }} />
+        <CircularProgress color="primary" size={60} />
       </Box>
     );
   }
@@ -186,110 +201,214 @@ export default function SettingsPage() {
     : user?.photoURL || "";
 
   return (
-    <Container maxWidth="sm">
-      <Paper sx={{ p: 4, mt: 4, borderRadius: 3, boxShadow: 3 }}>
-        <Typography variant="h4" fontWeight="bold" color="#B22234" gutterBottom>
-          Profile Settings
-        </Typography>
-        <Typography variant="body2" color="text.secondary" mb={4}>
-          Manage your identity and contact information.
-        </Typography>
+    <Container maxWidth="lg">
+      <Typography
+        variant="h4"
+        fontWeight="bold"
+        color="primary"
+        gutterBottom
+        sx={{ mt: 4, mb: 3 }}
+      >
+        Settings
+      </Typography>
 
-        <Box sx={{ textAlign: "center", mb: 4 }}>
-          <Avatar
-            src={currentPhotoUrl || undefined}
-            sx={{
-              width: 120,
-              height: 120,
-              mx: "auto",
-              border: "4px solid #f0f0f0",
-            }}
-          />
-          <Button
-            variant="text"
-            component="label"
-            startIcon={<PhotoCamera />}
-            sx={{ mt: 1, color: "#B22234" }}
-            disabled={photoUploading}
-          >
-            {photoUploading ? "Uploading..." : "Change Photo"}
-            <input
-              type="file"
-              hidden
-              accept="image/*"
-              onChange={handlePhotoChange}
-            />
-          </Button>
-        </Box>
+      <Grid container spacing={4}>
+        {/* Left Column: Profile */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Paper sx={{ p: 4, borderRadius: 3, height: "100%" }}>
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              Profile
+            </Typography>
 
-        <Box sx={{ "& > :not(style)": { mb: 3 } }}>
-          <TextField
-            fullWidth
-            label="Full Name"
-            value={formData.displayName}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, displayName: e.target.value }))
-            }
-            disabled={loading}
-          />
+            <Box sx={{ textAlign: "center", my: 4 }}>
+              <Avatar
+                src={currentPhotoUrl || undefined}
+                sx={{
+                  width: 140,
+                  height: 140,
+                  mx: "auto",
+                  border: 6,
+                  borderColor: "background.paper",
+                  bgcolor: currentPhotoUrl ? "transparent" : "gold.main",
+                  color: "#FFFFFF",
+                  fontSize: "3rem",
+                  fontWeight: "bold",
+                }}
+              >
+                {currentPhotoUrl
+                  ? null
+                  : (user?.displayName || user?.email || "U")[0].toUpperCase()}
+              </Avatar>
 
-          <TextField
-            fullWidth
-            label="Email Address"
-            type="email"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, email: e.target.value }))
-            }
-            helperText="Changing email requires recent login"
-            disabled={loading}
-          />
+              <Button
+                variant="text"
+                component="label"
+                startIcon={<PhotoCamera />}
+                sx={{ mt: 2, color: "primary.main", fontWeight: "medium" }}
+                disabled={photoUploading}
+              >
+                {photoUploading ? "Uploading..." : "Change Photo"}
+                <input
+                  type="file"
+                  hidden
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                />
+              </Button>
+            </Box>
 
-          {success && (
-            <Alert severity="success">Profile updated successfully!</Alert>
-          )}
-          {error && <Alert severity="error">{error}</Alert>}
-          {resetSent && (
-            <Alert severity="info">
-              Password reset email sent to {user?.email}
-            </Alert>
-          )}
+            <Stack spacing={3}>
+              <TextField
+                fullWidth
+                label="Full Name"
+                value={formData.displayName}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    displayName: e.target.value,
+                  }))
+                }
+                disabled={loading}
+              />
 
-          <Button
-            fullWidth
-            variant="contained"
-            size="large"
-            startIcon={
-              loading ? (
-                <CircularProgress size={20} color="inherit" />
-              ) : (
-                <Save />
-              )
-            }
-            onClick={handleSave}
-            disabled={loading}
-            sx={{
-              bgcolor: "#B22234",
-              py: 1.5,
-              fontWeight: "bold",
-              "&:hover": { bgcolor: "#8B1A1A" },
-            }}
-          >
-            {loading ? "Saving..." : "Save Profile"}
-          </Button>
+              <TextField
+                fullWidth
+                label="Email Address"
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, email: e.target.value }))
+                }
+                helperText="Changing email requires recent login"
+                disabled={loading}
+              />
 
-          <Box textAlign="center" pt={2}>
-            <Button
-              startIcon={<LockReset />}
-              onClick={handlePasswordReset}
-              disabled={loading || !user?.email}
-              sx={{ color: "#666", textTransform: "none" }}
-            >
-              Send Password Reset Link
-            </Button>
-          </Box>
-        </Box>
-      </Paper>
+              {success && (
+                <Alert severity="success">Profile updated successfully!</Alert>
+              )}
+              {error && <Alert severity="error">{error}</Alert>}
+              {resetSent && (
+                <Alert severity="info">
+                  Password reset email sent to {user?.email}
+                </Alert>
+              )}
+
+              <Button
+                fullWidth
+                variant="contained"
+                size="large"
+                startIcon={
+                  loading ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    <Save />
+                  )
+                }
+                onClick={handleSave}
+                disabled={loading}
+                sx={{ py: 1.5, fontWeight: "bold" }}
+              >
+                {loading ? "Saving..." : "Save Profile"}
+              </Button>
+
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<LockReset />}
+                onClick={handlePasswordReset}
+                disabled={loading || !user?.email}
+              >
+                Send Password Reset Email
+              </Button>
+            </Stack>
+          </Paper>
+        </Grid>
+
+        {/* Right Column: App Settings */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Stack spacing={4}>
+            {/* Appearance */}
+            <Paper sx={{ p: 4, borderRadius: 3 }}>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>
+                Appearance
+              </Typography>
+
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={mode === "dark"}
+                    onChange={toggleTheme}
+                    icon={<LightMode />}
+                    checkedIcon={<DarkMode />}
+                  />
+                }
+                label={
+                  <Typography variant="body1" fontWeight="medium">
+                    Dark Mode
+                  </Typography>
+                }
+                sx={{ ml: 0 }}
+              />
+            </Paper>
+
+            {/* Badges & Rewards */}
+            {/* Badges & Rewards */}
+            <Paper sx={{ p: 4, borderRadius: 3 }}>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>
+                Badges & Rewards
+              </Typography>
+
+              <Alert severity="info" sx={{ borderRadius: 2, mb: 3 }}>
+                Earn badges by completing canvassing goals. Redeem for exclusive
+                GOP swag and early access to campaign updates.
+              </Alert>
+
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                startIcon={<Redeem />}
+                onClick={() => navigate("/rewards")}
+                sx={{ py: 2, fontWeight: "bold" }}
+              >
+                Open Redemption Center
+              </Button>
+            </Paper>
+
+            {/* App Information — now from IndexedDB */}
+            <Paper sx={{ p: 4, borderRadius: 3 }}>
+              <Typography variant="h6" fontWeight="bold" gutterBottom>
+                App Information
+              </Typography>
+
+              <List dense>
+                <ListItem>
+                  <ListItemText
+                    primary="Version"
+                    secondary={appControl?.current_app_version || "—"}
+                    primaryTypographyProps={{
+                      variant: "body2",
+                      fontWeight: "medium",
+                    }}
+                    secondaryTypographyProps={{ variant: "caption" }}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText
+                    primary="Database"
+                    secondary={appControl?.current_db_version || "—"}
+                    primaryTypographyProps={{
+                      variant: "body2",
+                      fontWeight: "medium",
+                    }}
+                    secondaryTypographyProps={{ variant: "caption" }}
+                  />
+                </ListItem>
+              </List>
+            </Paper>
+          </Stack>
+        </Grid>
+      </Grid>
     </Container>
   );
 }

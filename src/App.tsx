@@ -4,8 +4,16 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { User, onIdTokenChanged, multiFactor } from "firebase/auth";
 import { auth } from "./lib/firebase";
 
-import { Box, CircularProgress, Typography, Button } from "@mui/material";
+import {
+  Box,
+  CircularProgress,
+  Typography,
+  Button,
+  CssBaseline,
+} from "@mui/material";
 
+import { CustomThemeProvider } from "./context/ThemeContext";
+import "./themeAugmentations";
 import { AuthProvider } from "./context/AuthContext";
 import { syncReferenceData } from "./services/referenceDataSync";
 import MainLayout from "./app/layout/MainLayout";
@@ -25,6 +33,7 @@ import NameSearchPage from "./app/voters/NameSearchPage";
 import SettingsPage from "./app/settings/SettingsPage";
 import FirebasePage from "./app/admin/FirebaseManagementPage";
 import ManageTeamPage from "./app/precincts/ManageTeamPage";
+import BadgeRedemptionPage from "./app/rewards/BadgeRedemptionPage";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -219,6 +228,7 @@ export default function App() {
           <Route path="/manage-team" element={<ManageTeamPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/admin" element={<FirebasePage />} />
+          <Route path="/rewards" element={<BadgeRedemptionPage />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

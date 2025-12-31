@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import { CssBaseline } from "@mui/material";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
+import { CustomThemeProvider } from "./context/ThemeContext";
 
 // === Global Error Boundary (Catches unhandled exceptions) ===
 class RootErrorBoundary extends React.Component<
@@ -92,12 +93,14 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <RootErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <CssBaseline />
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </QueryClientProvider>
+      <CustomThemeProvider>
+        <QueryClientProvider client={queryClient}>
+          <CssBaseline />
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </QueryClientProvider>
+      </CustomThemeProvider>
     </RootErrorBoundary>
   </React.StrictMode>
 );

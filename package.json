@@ -9,6 +9,7 @@
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
     "@mui/x-charts": "^8.22.0",
+    "@mui/x-data-grid": "^8.23.0",
     "@mui/x-data-grid-pro": "^8.22.0",
     "@tanstack/react-query": "^5.90.12",
     "@testing-library/dom": "^10.4.1",

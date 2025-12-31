@@ -1,9 +1,17 @@
 // src/components/FilterSelector.tsx
-import React, { useState } from "react";
+import React from "react";
 import { useForm } from "react-hook-form";
 import { RestrictedFilters } from "./RestrictedFilters";
 import { UnrestrictedFilters } from "./UnrestrictedFilters";
-import { Button, Paper, Typography, Box } from "@mui/material";
+import {
+  Paper,
+  Typography,
+  Box,
+  Button,
+  Stack,
+  Divider,
+  useTheme,
+} from "@mui/material";
 
 interface FilterValues {
   county: string;
@@ -15,9 +23,9 @@ interface FilterValues {
   turnout?: string;
   ageGroup?: string;
   mailBallot?: string;
+  zipCode?: string;
 }
 
-// === NEW: Define the allowed unrestricted filter keys ===
 type FilterKey =
   | "name"
   | "street"
@@ -42,77 +50,106 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
   defaultValues = {},
   isLoading = false,
   disabled = false,
-  unrestrictedFilters = [], // default: show none
+  unrestrictedFilters = [],
 }) => {
+  const theme = useTheme();
+
   const { control, handleSubmit, watch, reset } = useForm<FilterValues>({
     defaultValues,
   });
 
   const selectedCounty = watch("county", "");
   const selectedArea = watch("area", "");
-  const [selectedAreaDistrict, setSelectedAreaDistrict] = useState<string>("");
-  const [selectedCountyCode, setSelectedCountyCode] = useState<string>("");
+
+  const [selectedAreaDistrict, setSelectedAreaDistrict] =
+    React.useState<string>("");
+  const [selectedCountyCode, setSelectedCountyCode] =
+    React.useState<string>("");
+
+  const onSubmitForm = (data: FilterValues) => {
+    const filters: FilterValues = {
+      ...data,
+      county: selectedCountyCode || "",
+      area: selectedAreaDistrict || "",
+    };
+
+    onSubmit(filters);
+  };
 
   return (
-    <Paper sx={{ p: 4, mb: 4, borderRadius: 2 }}>
-      <Typography variant="h6" gutterBottom>
-        Filters
+    <Paper
+      elevation={3}
+      sx={{
+        p: { xs: 3, sm: 4 },
+        borderRadius: 3,
+        bgcolor: "background.paper",
+      }}
+    >
+      <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
+        Voter Filters
+      </Typography>
+      <Typography variant="body2" color="text.secondary" mb={4}>
+        Narrow down voters by location and attributes for targeted analysis.
       </Typography>
 
-      <form
-        onSubmit={handleSubmit((data) => {
-          const filters: FilterValues = {
-            ...data,
-            county: selectedCountyCode || "",
-            area: selectedAreaDistrict || "",
-          };
-
-          onSubmit(filters);
-        })}
-      >
-        {/* Restricted: County / Area / Precinct */}
-        <Box sx={{ mb: 4 }}>
-          <RestrictedFilters
-            control={control}
-            selectedCounty={selectedCounty}
-            selectedArea={selectedArea}
-            onCountyChange={(value) =>
-              reset({ county: value, area: "", precinct: "" })
-            }
-            onAreaChange={(value) =>
-              reset({ ...watch(), area: value, precinct: "" })
-            }
-            onPrecinctChange={(value) => reset({ ...watch(), precinct: value })}
-            onAreaDistrictChange={setSelectedAreaDistrict}
-            onCountyCodeChange={setSelectedCountyCode}
-          />
-        </Box>
-
-        {/* Unrestricted: Only show the ones requested by the page */}
-        {unrestrictedFilters.length > 0 && (
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Additional Filters
+      <form onSubmit={handleSubmit(onSubmitForm)}>
+        <Stack spacing={4}>
+          {/* Restricted Location Filters */}
+          <Box>
+            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+              Location
             </Typography>
-            <UnrestrictedFilters
+            <RestrictedFilters
               control={control}
-              filtersToShow={unrestrictedFilters}
+              selectedCounty={selectedCounty}
+              selectedArea={selectedArea}
+              onCountyChange={(value) =>
+                reset({ county: value, area: "", precinct: "" })
+              }
+              onAreaChange={(value) =>
+                reset({ ...watch(), area: value, precinct: "" })
+              }
+              onPrecinctChange={(value) =>
+                reset({ ...watch(), precinct: value })
+              }
+              onAreaDistrictChange={setSelectedAreaDistrict}
+              onCountyCodeChange={setSelectedCountyCode}
             />
           </Box>
-        )}
 
-        {/* Submit Button */}
-        <Box sx={{ textAlign: "right" }}>
-          <Button
-            type="submit"
-            variant="contained"
-            size="large"
-            disabled={disabled || isLoading}
-            sx={{ bgcolor: "#B22234" }}
-          >
-            {isLoading ? "Loading..." : "Submit Query"}
-          </Button>
-        </Box>
+          <Divider />
+
+          {/* Unrestricted Additional Filters */}
+          {unrestrictedFilters.length > 0 && (
+            <Box>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Additional Criteria
+              </Typography>
+              <UnrestrictedFilters
+                control={control}
+                filtersToShow={unrestrictedFilters}
+              />
+            </Box>
+          )}
+
+          {/* Submit */}
+          <Box sx={{ textAlign: "right" }}>
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              disabled={disabled || isLoading}
+              sx={{
+                px: 6,
+                py: 1.5,
+                fontWeight: "bold",
+                fontSize: "1.1rem",
+              }}
+            >
+              {isLoading ? "Loading..." : "Apply Filters"}
+            </Button>
+          </Box>
+        </Stack>
       </form>
     </Paper>
   );

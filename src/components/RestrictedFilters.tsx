@@ -11,6 +11,10 @@ import {
   Grid,
   CircularProgress,
   Box,
+  Typography,
+  Stack,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import { SelectChangeEvent } from "@mui/material/Select";
 import { Control, Controller } from "react-hook-form";
@@ -37,6 +41,9 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
   onAreaDistrictChange,
   onCountyCodeChange,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const { claims, isLoaded: authLoaded } = useAuth();
 
   // Load Counties
@@ -54,7 +61,7 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
         .sort((a, b) => a.name.localeCompare(b.name));
     }, [authLoaded, claims]) ?? [];
 
-  // Load Areas (by county + claims)
+  // Load Areas (filtered by selected county and claims)
   const areas =
     useLiveQuery(async () => {
       if (
@@ -75,7 +82,7 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
         .sort((a, b) => a.name.localeCompare(b.name));
     }, [authLoaded, claims, selectedCounty]) ?? [];
 
-  // Load Precincts (by area + claims)
+  // Load Precincts (by selected area and claims)
   const precincts =
     useLiveQuery(async () => {
       if (
@@ -101,17 +108,15 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
         .then((list) => list.sort((a, b) => a.name.localeCompare(b.name)));
     }, [authLoaded, claims, selectedArea]) ?? [];
 
-  // === AUTO-PRESELECT COUNTY IF ONLY ONE ===
+  // Auto-select single county
   useEffect(() => {
     if (!authLoaded || !claims || claims.role !== "state_admin") return;
-    if (selectedCounty || counties.length !== 1) return; // Already selected or multiple choices
+    if (selectedCounty || counties.length !== 1) return;
 
     const singleCounty = counties[0];
     if (singleCounty) {
-      // Simulate selection
       onCountyChange(singleCounty.id);
-      onCountyCodeChange(singleCounty.code);
-      console.log("Auto-selected county:", singleCounty.name);
+      onCountyCodeChange(singleCounty.code || "");
     }
   }, [
     authLoaded,
@@ -122,7 +127,7 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
     onCountyCodeChange,
   ]);
 
-  // === AUTO-PRESELECT AREA IF ONLY ONE (after county selected) ===
+  // Auto-select single area
   useEffect(() => {
     if (!authLoaded || !claims || claims.role !== "state_admin") return;
     if (!selectedCounty || selectedArea || areas.length !== 1) return;
@@ -130,8 +135,7 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
     const singleArea = areas[0];
     if (singleArea) {
       onAreaChange(singleArea.id);
-      onAreaDistrictChange(singleArea.area_district);
-      console.log("Auto-selected area:", singleArea.name);
+      onAreaDistrictChange(singleArea.area_district || "");
     }
   }, [
     authLoaded,
@@ -143,16 +147,12 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
     onAreaDistrictChange,
   ]);
 
-  const isLoading =
-    !authLoaded ||
-    counties.length === 0 ||
-    (selectedCounty && areas.length === 0) ||
-    (selectedArea && precincts.length === 0);
+  const isLoading = !authLoaded || counties.length === 0;
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" my={4}>
-        <CircularProgress />
+      <Box sx={{ display: "flex", justifyContent: "center", my: 6 }}>
+        <CircularProgress color="primary" />
       </Box>
     );
   }
@@ -162,31 +162,35 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
   }
 
   return (
-    <>
+    <Stack spacing={3}>
       <Grid container spacing={2}>
+        {/* County */}
         <Grid size={{ xs: 12, md: 4 }}>
           <Controller
             name="county"
             control={control}
             render={({ field }) => (
               <FormControl fullWidth>
-                <InputLabel>County</InputLabel>
+                <InputLabel id="county-label">County</InputLabel>
                 <Select
                   {...field}
+                  labelId="county-label"
+                  label="County"
                   value={selectedCounty || ""}
                   onChange={(e: SelectChangeEvent<string>) => {
                     const newCountyId = e.target.value as string;
                     field.onChange(newCountyId);
                     onCountyChange(newCountyId);
+
                     const selectedCountyObj = counties.find(
                       (c) => c.id === newCountyId
                     );
-                    const countyCodeForQuery = selectedCountyObj?.code || "";
-
-                    onCountyCodeChange(countyCodeForQuery);
+                    onCountyCodeChange(selectedCountyObj?.code || "");
                   }}
                 >
-                  <MenuItem value="">All Counties</MenuItem>
+                  <MenuItem value="">
+                    <em>All Counties</em>
+                  </MenuItem>
                   {counties.map((c) => (
                     <MenuItem key={c.id} value={c.id}>
                       {c.name}
@@ -198,34 +202,34 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
           />
         </Grid>
 
+        {/* Area */}
         <Grid size={{ xs: 12, md: 4 }}>
           <Controller
             name="area"
             control={control}
             render={({ field }) => (
               <FormControl fullWidth disabled={!selectedCounty}>
-                <InputLabel>Area</InputLabel>
+                <InputLabel id="area-label">Area</InputLabel>
                 <Select
                   {...field}
+                  labelId="area-label"
+                  label="Area"
                   value={selectedArea || ""}
                   onChange={(e: SelectChangeEvent<string>) => {
                     const newAreaId = e.target.value as string;
                     field.onChange(newAreaId);
-                    onAreaChange(newAreaId); // Passes Area ID ("PA15-A-15") → fixes precinct filtering
+                    onAreaChange(newAreaId);
 
-                    // Find the short district code needed for SQL query
                     const selectedAreaObj = areas.find(
                       (a) => a.id === newAreaId
                     );
-                    const areaDistrictCode =
-                      selectedAreaObj?.area_district || "";
-
-                    onAreaDistrictChange(areaDistrictCode); // Sends "15" → correct for Firebase Function
+                    onAreaDistrictChange(selectedAreaObj?.area_district || "");
                   }}
                 >
-                  <MenuItem value="">All Areas</MenuItem>
+                  <MenuItem value="">
+                    <em>All Areas</em>
+                  </MenuItem>
                   {areas.map((a) => (
-                    // ← CRITICAL: value must be the full Area ID
                     <MenuItem key={a.id} value={a.id}>
                       {a.name}
                     </MenuItem>
@@ -236,21 +240,26 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
           />
         </Grid>
 
+        {/* Precinct */}
         <Grid size={{ xs: 12, md: 4 }}>
           <Controller
             name="precinct"
             control={control}
             render={({ field }) => (
               <FormControl fullWidth disabled={!selectedArea}>
-                <InputLabel>Precinct</InputLabel>
+                <InputLabel id="precinct-label">Precinct</InputLabel>
                 <Select
                   {...field}
+                  labelId="precinct-label"
+                  label="Precinct"
                   onChange={(e) => {
                     field.onChange(e);
                     onPrecinctChange(e.target.value as string);
                   }}
                 >
-                  <MenuItem value="">All Precincts</MenuItem>
+                  <MenuItem value="">
+                    <em>All Precincts</em>
+                  </MenuItem>
                   {precincts.map((p) => (
                     <MenuItem key={p.id} value={p.precinct_code}>
                       {p.name} ({p.precinct_code})
@@ -262,6 +271,6 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
           />
         </Grid>
       </Grid>
-    </>
+    </Stack>
   );
 };

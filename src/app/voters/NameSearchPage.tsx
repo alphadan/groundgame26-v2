@@ -19,7 +19,10 @@ import {
   TablePagination,
   CircularProgress,
   IconButton,
-  Snackbar,
+  Tooltip,
+  Stack,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import { Phone, Message } from "@mui/icons-material";
 
@@ -35,28 +38,24 @@ interface FilterValues {
   mailBallot?: string;
 }
 
-// Shared hook using the dynamic query function
 const useDynamicVoters = (filters: FilterValues | null) => {
   const { callFunction } = useCloudFunctions();
 
   return useQuery({
-    queryKey: ["dynamicVoters", filters],
+    queryKey: ["nameSearchVoters", filters],
     queryFn: async (): Promise<any[]> => {
-      if (!filters) return [];
-
-      // Only require name for NameSearch
-      if (!filters.name || filters.name.trim().length < 3) return [];
+      if (!filters || !filters.name || filters.name.trim().length < 3)
+        return [];
 
       try {
         const result = await callFunction<{ voters: any[] }>(
           "queryVotersDynamic",
           filters
         );
-
         return result.voters ?? [];
       } catch (err) {
-        console.error("Dynamic voter query failed:", err);
-        return [];
+        console.error("Name search query failed:", err);
+        throw err;
       }
     },
     enabled: !!filters && !!filters.name && filters.name.trim().length >= 3,
@@ -66,59 +65,47 @@ const useDynamicVoters = (filters: FilterValues | null) => {
 };
 
 export default function NameSearchPage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const { isLoaded } = useAuth();
 
   const [filters, setFilters] = useState<FilterValues | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
-  // Feedback
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-
-  // === Voter data from dynamic query ===
   const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
 
-  // === Submit handler with name validation ===
   const handleSubmit = useCallback((submittedFilters: FilterValues) => {
     if (!submittedFilters.name || submittedFilters.name.trim().length < 3) {
-      setSnackbarMessage(
-        "Please enter at least 3 characters in the name field"
-      );
-      setSnackbarOpen(true);
+      // Feedback handled in FilterSelector via snackbar
       return;
     }
-
     setFilters(submittedFilters);
     setPage(0);
   }, []);
 
-  // === Safe contact actions ===
-  const safeCall = useCallback((phone?: string) => {
-    if (!phone || typeof phone !== "string") return;
+  const handleCall = useCallback((phone?: string) => {
+    if (!phone) return;
     const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.length >= 10) {
-      const normalized =
-        cleaned.length === 11 && cleaned.startsWith("1")
-          ? cleaned
-          : "1" + cleaned;
-      window.location.href = `tel:${normalized}`;
-    }
+    const normalized =
+      cleaned.length === 11 && cleaned.startsWith("1")
+        ? cleaned
+        : "1" + cleaned;
+    window.location.href = `tel:${normalized}`;
   }, []);
 
-  const safeText = useCallback((phone?: string) => {
-    if (!phone || typeof phone !== "string") return;
+  const handleText = useCallback((phone?: string) => {
+    if (!phone) return;
     const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.length >= 10) {
-      const normalized =
-        cleaned.length === 11 && cleaned.startsWith("1")
-          ? cleaned
-          : "1" + cleaned;
-      window.location.href = `sms:${normalized}`;
-    }
+    const normalized =
+      cleaned.length === 11 && cleaned.startsWith("1")
+        ? cleaned
+        : "1" + cleaned;
+    window.location.href = `sms:${normalized}`;
   }, []);
 
-  const paginatedData = useMemo(
+  const paginatedVoters = useMemo(
     () => voters.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
     [voters, page, rowsPerPage]
   );
@@ -126,77 +113,104 @@ export default function NameSearchPage() {
   if (!isLoaded) {
     return (
       <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="70vh"
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "70vh",
+        }}
       >
-        <CircularProgress sx={{ color: "#B22234" }} />
+        <CircularProgress color="primary" size={60} />
       </Box>
     );
   }
 
   return (
-    <Box p={4}>
-      <Typography variant="h4" gutterBottom color="#B22234" fontWeight="bold">
-        Name Search — Find Any Voter
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+      {/* Header */}
+      <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
+        Name Search
+      </Typography>
+      <Typography variant="h6" color="text.secondary" gutterBottom>
+        Quickly find any voter by name or address
       </Typography>
 
-      {/* === FilterSelector — Name + Street only === */}
+      {/* Filter Selector — Name + Street only */}
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isLoading}
         unrestrictedFilters={["name", "street"]}
       />
 
-      {/* === Results === */}
+      {/* Results */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mt: 3 }}>
           Search failed. Please try again.
         </Alert>
       )}
 
       {filters && !isLoading && voters.length === 0 && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          No voters found matching your search.
+        <Alert severity="info" sx={{ mt: 3 }}>
+          No voters found matching your search. Try broadening your criteria.
         </Alert>
       )}
 
       {filters && voters.length > 0 && (
-        <Paper sx={{ borderRadius: 2, overflow: "hidden" }}>
+        <Paper
+          sx={{ mt: 4, borderRadius: 3, overflow: "hidden", boxShadow: 4 }}
+        >
           <TableContainer>
-            <Table size="small">
-              <TableHead sx={{ bgcolor: "#0A3161" }}>
-                <TableRow>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
-                    Name & Address
+            <Table size={isMobile ? "small" : "medium"}>
+              <TableHead>
+                <TableRow sx={{ bgcolor: "secondary.main" }}>
+                  <TableCell
+                    sx={{ color: "secondary.contrastText", fontWeight: "bold" }}
+                  >
+                    Voter
                   </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                  <TableCell
+                    sx={{ color: "secondary.contrastText", fontWeight: "bold" }}
+                  >
                     Age
                   </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                  <TableCell
+                    sx={{ color: "secondary.contrastText", fontWeight: "bold" }}
+                  >
                     Party
                   </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                  <TableCell
+                    sx={{ color: "secondary.contrastText", fontWeight: "bold" }}
+                  >
                     Precinct
                   </TableCell>
-                  <TableCell sx={{ color: "white", fontWeight: "bold" }}>
+                  <TableCell
+                    align="right"
+                    sx={{ color: "secondary.contrastText", fontWeight: "bold" }}
+                  >
                     Contact
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {paginatedData.map((voter: any) => (
-                  <TableRow key={voter.voter_id} hover>
+                {paginatedVoters.map((voter: any) => (
+                  <TableRow
+                    key={voter.voter_id}
+                    hover
+                    sx={{ "&:hover": { bgcolor: "action.hover" } }}
+                  >
                     <TableCell>
-                      <Typography variant="body2" fontWeight="medium">
+                      <Typography variant="body1" fontWeight="medium">
                         {voter.full_name || "Unknown"}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {voter.address || "No address"}
+                      <Typography variant="body2" color="text.secondary">
+                        {voter.address || "No address on file"}
                       </Typography>
                     </TableCell>
-                    <TableCell>{voter.age ?? "?"}</TableCell>
+                    <TableCell>
+                      <Typography variant="body1">
+                        {voter.age ?? "?"}
+                      </Typography>
+                    </TableCell>
                     <TableCell>
                       <Chip
                         label={voter.party || "N/A"}
@@ -208,26 +222,47 @@ export default function NameSearchPage() {
                             ? "primary"
                             : "default"
                         }
+                        sx={{ minWidth: 60 }}
                       />
                     </TableCell>
-                    <TableCell>{voter.precinct || "-"}</TableCell>
                     <TableCell>
-                      {voter.phone_mobile && (
-                        <>
-                          <IconButton
-                            color="success"
-                            onClick={() => safeCall(voter.phone_mobile)}
-                          >
-                            <Phone fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            color="info"
-                            onClick={() => safeText(voter.phone_mobile)}
-                          >
-                            <Message fontSize="small" />
-                          </IconButton>
-                        </>
-                      )}
+                      <Typography variant="body2">
+                        {voter.precinct || "—"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        justifyContent="flex-end"
+                      >
+                        {(voter.phone_mobile || voter.phone_home) && (
+                          <Tooltip title="Call">
+                            <IconButton
+                              size="small"
+                              color="success"
+                              onClick={() =>
+                                handleCall(
+                                  voter.phone_mobile || voter.phone_home
+                                )
+                              }
+                            >
+                              <Phone fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {voter.phone_mobile && (
+                          <Tooltip title="Text">
+                            <IconButton
+                              size="small"
+                              color="info"
+                              onClick={() => handleText(voter.phone_mobile)}
+                            >
+                              <Message fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -246,20 +281,25 @@ export default function NameSearchPage() {
               setRowsPerPage(parseInt(e.target.value, 10));
               setPage(0);
             }}
+            sx={{
+              borderTop: 1,
+              borderColor: "divider",
+            }}
           />
         </Paper>
       )}
 
-      {/* === Snackbar === */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={4000}
-        onClose={() => setSnackbarOpen(false)}
-      >
-        <Alert onClose={() => setSnackbarOpen(false)} severity="warning">
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {/* Initial State */}
+      {!filters && (
+        <Box sx={{ textAlign: "center", py: 10, mt: 4 }}>
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            Enter a name to begin searching
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Use at least 3 characters for best results.
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }

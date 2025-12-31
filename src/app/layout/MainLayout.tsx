@@ -4,6 +4,8 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../../lib/db";
 import {
   Box,
   Drawer,
@@ -22,6 +24,9 @@ import {
   Menu,
   MenuItem,
   Tooltip,
+  Stack,
+  Divider,
+  useTheme,
 } from "@mui/material";
 import {
   Analytics,
@@ -37,20 +42,26 @@ import {
 import Logo from "../../components/ui/Logo";
 import DataObjectIcon from "@mui/icons-material/DataObject";
 
-// Icons (safe fallbacks)
+// Role & Org Icons
 import GopElephant from "../../assets/icons/gop-elephant.svg";
 import CandidateRosette from "../../assets/icons/candidate-rosette.svg";
 import CountyChairCrown from "../../assets/icons/county-chair-crown.svg";
 import AreaChairBadge from "../../assets/icons/area-chair-badge.svg";
 import CommitteepersonShield from "../../assets/icons/committeeperson-shield.svg";
 
-const drawerWidth = 260;
+// === Badge Icons (24x24 SVGs) – Replace these with your actual badge SVGs ===
+import BadgeTrophy from "../../assets/icons/badge-trophy.svg";
+import BadgeFirstTimer from "../../assets/icons/badge-first-timer.svg";
+import BadgeTeamLeader from "../../assets/icons/badge-team-leader.svg";
+import BadgeMailMaster from "../../assets/icons/badge-mail-master.svg";
+import BadgeTopRecruiter from "../../assets/icons/badge-top-recruiter.svg";
+
+const drawerWidth = 280;
 
 interface MainLayoutProps {
   children?: ReactNode;
 }
 
-// === Safe Icon Maps with Fallbacks ===
 const ROLE_ICONS: Record<string, string> = {
   state_admin: CommitteepersonShield,
   candidate: CandidateRosette,
@@ -58,47 +69,46 @@ const ROLE_ICONS: Record<string, string> = {
   area_chair: AreaChairBadge,
   committeeperson: CommitteepersonShield,
   ambassador: CandidateRosette,
-  // Add more as needed
 };
 
 const ORG_ICONS: Record<string, string> = {
   chester_gop: GopElephant,
-  // Add more organizations
 };
 
 export default function MainLayout({ children }: MainLayoutProps) {
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up("lg"));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isDesktop = useMediaQuery("(min-width:1200px)");
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { user, claims, isLoaded } = useAuth();
+  const { user, claims } = useAuth();
+  const appControl = useLiveQuery(() =>
+    db.app_control.toArray().then((arr) => arr[0])
+  );
 
-  // === Safe Derived Values ===
   const userRole =
     typeof claims?.role === "string" ? claims.role.toLowerCase() : null;
   const userOrgId = typeof claims?.org_id === "string" ? claims.org_id : null;
 
-  // Avatar menu
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const handleAvatarClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
   const handleMenuClose = () => setAnchorEl(null);
 
-  // === Safe Sign Out ===
   const handleSignOut = useCallback(async () => {
     try {
       await signOut(auth);
     } catch (err) {
       console.error("Sign out failed:", err);
-      // Still navigate away – best effort
     } finally {
       navigate("/", { replace: true });
     }
   }, [navigate]);
 
-  // === Breadcrumb ===
   const pathnames = location.pathname.split("/").filter(Boolean);
   const breadcrumbName =
     pathnames.length > 0
@@ -107,7 +117,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
           .replace(/\b\w/g, (l) => l.toUpperCase())
       : "Dashboard";
 
-  // === Menu Items (Dynamic & Safe) ===
   const menuItems = [
     { text: "Dashboard", icon: <HomeWork />, path: "/dashboard" },
     { text: "Analysis", icon: <Analytics />, path: "/analysis" },
@@ -118,60 +127,69 @@ export default function MainLayout({ children }: MainLayoutProps) {
     { text: "Name Search", icon: <SearchIcon />, path: "/name-search" },
     { divider: true },
     { text: "Settings", icon: <Settings />, path: "/settings" },
+    // Admin only
+    ...(claims?.role === "state_admin"
+      ? [{ text: "Firebase", icon: <DataObjectIcon />, path: "/admin" }]
+      : []),
   ];
 
-  // Admin-only items
-  menuItems.push({
-    text: "Firebase",
-    icon: <DataObjectIcon />,
-    path: "/admin", // ← make sure this matches your route
-  });
+  const handleDrawerToggle = () => setMobileOpen((prev) => !prev);
+
+  // === Earned Badges with SVG icons and tooltips ===
+  const earnedBadges = [
+    { id: 1, icon: BadgeTrophy, tooltip: "100 Doors Knocked" },
+    { id: 2, icon: BadgeFirstTimer, tooltip: "First-Time User" },
+    { id: 3, icon: BadgeTeamLeader, tooltip: "Team Leader" },
+    { id: 4, icon: BadgeMailMaster, tooltip: "Mail Ballot Master" },
+    { id: 5, icon: BadgeTopRecruiter, tooltip: "Top Recruiter" },
+  ];
 
   const drawer = (
     <Box>
-      <Toolbar sx={{ mt: 2, mb: 2, justifyContent: "center" }}>
+      <Toolbar sx={{ justifyContent: "center", py: 3 }}>
         <Logo />
       </Toolbar>
-      <List>
+
+      <Divider />
+
+      <List sx={{ px: 2 }}>
         {menuItems.map((item, index) => {
           if ("divider" in item) {
-            return (
-              <Box
-                key={`divider-${index}`}
-                sx={{ my: 2, mx: 2, borderTop: 1, borderColor: "divider" }}
-              />
-            );
+            return <Divider key={`divider-${index}`} sx={{ my: 2 }} />;
           }
 
           const isActive = location.pathname === item.path;
 
           return (
-            <ListItem key={item.text} disablePadding>
+            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
                 onClick={() => {
                   navigate(item.path);
                   if (!isDesktop) setMobileOpen(false);
                 }}
                 sx={{
-                  borderLeft: isActive ? 4 : 0,
-                  borderColor: "#B22234",
-                  pl: isActive ? 2.5 : 3,
-                  backgroundColor: isActive
-                    ? "rgba(178, 34, 52, 0.08)"
-                    : "transparent",
-                  "&:hover": { backgroundColor: "rgba(178, 34, 52, 0.12)" },
+                  // Subtle primary tint instead of full color
+                  bgcolor: isActive ? "primary.50" : "transparent",
+                  "&:hover": {
+                    bgcolor: isActive ? "primary.100" : "action.hover",
+                  },
+                  // No border radius
+                  borderRadius: 0,
                 }}
               >
                 <ListItemIcon
-                  sx={{ color: isActive ? "#B22234" : "inherit", minWidth: 40 }}
+                  sx={{
+                    color: isActive ? "primary.main" : "text.secondary",
+                    minWidth: 40,
+                  }}
                 >
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
                   primary={item.text}
                   primaryTypographyProps={{
-                    fontWeight: isActive ? "bold" : "medium",
-                    color: isActive ? "#B22234" : "inherit",
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? "primary.main" : "text.primary",
                   }}
                 />
               </ListItemButton>
@@ -179,7 +197,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           );
         })}
 
-        <ListItem disablePadding>
+        <ListItem disablePadding sx={{ mt: 4 }}>
           <ListItemButton onClick={handleSignOut}>
             <ListItemIcon>
               <Logout />
@@ -191,12 +209,15 @@ export default function MainLayout({ children }: MainLayoutProps) {
     </Box>
   );
 
-  // === Mobile Drawer Toggle ===
-  const handleDrawerToggle = () => setMobileOpen((prev) => !prev);
-
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh" }}>
-      {/* Permanent Desktop Drawer */}
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        bgcolor: "background.default",
+      }}
+    >
+      {/* Drawer */}
       <Drawer
         variant={isDesktop ? "permanent" : "temporary"}
         open={isDesktop || mobileOpen}
@@ -208,26 +229,25 @@ export default function MainLayout({ children }: MainLayoutProps) {
           "& .MuiDrawer-paper": {
             width: drawerWidth,
             boxSizing: "border-box",
-            bgcolor: "#fafafa",
+            bgcolor: "background.paper",
+            borderRight: 1,
+            borderColor: "divider",
           },
         }}
       >
         {drawer}
       </Drawer>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <Box
         component="main"
         sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}
       >
-        {/* Top App Bar (Mobile Only) */}
+        {/* Mobile Top Bar */}
         {!isDesktop && (
           <AppBar
             position="fixed"
-            sx={{
-              bgcolor: "#B22234",
-              zIndex: (theme) => theme.zIndex.drawer + 1,
-            }}
+            sx={{ bgcolor: "primary.main", zIndex: theme.zIndex.drawer + 1 }}
           >
             <Toolbar>
               <IconButton
@@ -237,7 +257,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
               >
                 <MenuIcon />
               </IconButton>
-              <Box sx={{ flexGrow: 1, textAlign: "center" }}>
+              <Box sx={{ flexGrow: 1, textAlign: "center", mr: 5 }}>
                 <Logo />
               </Box>
             </Toolbar>
@@ -252,21 +272,50 @@ export default function MainLayout({ children }: MainLayoutProps) {
             borderColor: "divider",
             position: "sticky",
             top: 0,
-            zIndex: 1099,
-            ...(!isDesktop && { mt: "64px" }), // Offset for mobile app bar
+            zIndex: 1100,
+            ...(isMobile && { pt: "56px" }),
           }}
         >
           <Toolbar sx={{ justifyContent: "space-between" }}>
+            {/* Left: Breadcrumbs */}
             <Breadcrumbs aria-label="breadcrumb">
               <IconButton size="small" onClick={() => navigate("/dashboard")}>
-                <HomeWork sx={{ color: "#B22234" }} />
+                <HomeWork color="primary" />
               </IconButton>
-              <Typography color="text.primary" fontWeight="medium">
+              <Typography variant="h6" fontWeight="medium" color="text.primary">
                 {breadcrumbName}
               </Typography>
             </Breadcrumbs>
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Stack
+                direction="row"
+                spacing={1.5}
+                alignItems="center"
+                sx={{ display: "inline-flex", pr: 4 }}
+              >
+                {/* Badges with SVG icons and tooltips */}
+                {earnedBadges.map((badge) => (
+                  <Tooltip key={badge.id} title={badge.tooltip} arrow>
+                    <Box
+                      component="img"
+                      src={badge.icon}
+                      alt={badge.tooltip}
+                      sx={{ width: 24, height: 24, flexShrink: 0 }}
+                    />
+                  </Tooltip>
+                ))}
+
+                {/* Placeholder if no badges */}
+                {earnedBadges.length === 0 && (
+                  <Typography variant="body2" color="text.secondary">
+                    Earn badges by completing goals!
+                  </Typography>
+                )}
+              </Stack>
+
+              {/* Right: Badges already above, now Role, Org, Settings, Avatar */}
+
               {/* Role Icon */}
               {userRole && ROLE_ICONS[userRole] && (
                 <Tooltip
@@ -293,7 +342,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                   <Box
                     component="img"
                     src={ORG_ICONS[userOrgId]}
-                    alt="Organization"
+                    alt="Org"
                     sx={{ height: 36 }}
                   />
                 </Tooltip>
@@ -305,16 +354,22 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 </IconButton>
               </Tooltip>
 
-              {/* Avatar Menu */}
               <Tooltip title={user?.displayName || user?.email || "User"}>
                 <IconButton onClick={handleAvatarClick}>
                   <Avatar
                     src={user?.photoURL ?? ""}
-                    sx={{ width: 40, height: 40 }}
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      bgcolor: user?.photoURL ? "transparent" : "gold.main", // Gold background if no photo
+                      color: "gold.contrastText", // White text for contrast
+                      fontWeight: "bold",
+                      fontSize: "1.1rem",
+                    }}
                   >
-                    {(user?.displayName ||
-                      user?.email ||
-                      "U")[0]?.toUpperCase()}
+                    {(user?.displayName || user?.email || "U")
+                      .charAt(0)
+                      .toUpperCase()}
                   </Avatar>
                 </IconButton>
               </Tooltip>
@@ -344,13 +399,56 @@ export default function MainLayout({ children }: MainLayoutProps) {
                   <Logout fontSize="small" sx={{ mr: 1 }} />
                   Log Out
                 </MenuItem>
+
+                {/* Version & Database Info – caption style */}
+                <Divider sx={{ my: 1 }} />
+
+                <MenuItem
+                  disableRipple
+                  disabled
+                  sx={{
+                    opacity: 0.7,
+                    cursor: "default",
+                    py: 0.2,
+                    fontWeight: 500,
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      width: "100%",
+                      textAlign: "left",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Version: {appControl?.current_app_version || "—"}
+                  </Typography>
+                </MenuItem>
+
+                <MenuItem
+                  disableRipple
+                  disabled
+                  sx={{
+                    opacity: 0.7,
+                    cursor: "default",
+                    py: 0.2,
+                    fontWeight: 500,
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{ width: "100%", textAlign: "left", fontWeight: 500 }}
+                  >
+                    Database: {appControl?.current_db_version || "—"}
+                  </Typography>
+                </MenuItem>
               </Menu>
-            </Box>
+            </Stack>
           </Toolbar>
         </Box>
 
         {/* Page Content */}
-        <Box sx={{ flexGrow: 1, p: { xs: 2, sm: 3 } }}>
+        <Box sx={{ flexGrow: 1, p: { xs: 2, sm: 3, md: 4 } }}>
           {children || <Outlet />}
         </Box>
       </Box>

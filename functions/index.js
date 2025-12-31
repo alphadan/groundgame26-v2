@@ -5,6 +5,7 @@ import { BigQuery } from "@google-cloud/bigquery";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import axios from "axios";
 
 initializeApp();
 
@@ -692,13 +693,31 @@ export const syncOrgRolesToClaims = functions.firestore
 //  SUBMIT VOLUNTEERS
 // ================================================================
 
-export const submitVolunteer = onRequest(
-  { cors: true, region: "us-central1" },
-  async (req, res) => {
+export const submitVolunteer = onCall(
+  {
+    cors: true,
+    region: "us-central1",
+    secrets: ["RECAPTCHA_SECRET"], // <--- Grant access here
+  },
+  async (request) => {
     try {
-      const { name, email, comment, recaptchaToken } = req.body;
+      // Firebase httpsCallable wraps data in a 'data' property
+      logger.info("[submitVolunteer]request.data :", request.data);
+      const { name, email, comment, recaptchaToken } = request.data;
 
-      if (!recaptchaToken) throw new Error("reCAPTCHA required");
+      if (!recaptchaToken) {
+        throw new Error("invalid-argument", "reCAPTCHA required");
+      }
+
+      // Access the secret via process.env
+      const secretKey = process.env.RECAPTCHA_SECRET;
+
+      const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${recaptchaToken}`;
+      const verification = await axios.post(verifyUrl);
+
+      if (!verification.data.success) {
+        return res.status(400).json({ data: { error: "Invalid reCAPTCHA" } });
+      }
 
       await db.collection("volunteer_requests").add({
         name: name.trim(),
@@ -708,10 +727,19 @@ export const submitVolunteer = onRequest(
         status: "new",
       });
 
-      res.json({ success: true });
+      return {
+        success: true,
+        message: "Volunteer submitted successfully",
+      };
     } catch (err) {
-      console.error("Volunteer submit failed:", err);
-      res.status(400).json({ error: err.message });
+      logger.error("Submit failed error:", err);
+
+      // Re-throw Firebase HttpsErrors so the frontend sees them
+      if (err instanceof HttpsError) {
+        throw err;
+      }
+      // If it's a generic error, wrap it in an HttpsError
+      throw new HttpsError("internal", err.message || "Unknown error occurred");
     }
   }
 );

@@ -12,6 +12,7 @@ import {
 import { auth } from "../../lib/firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { useActivityLogger } from "../../hooks/useActivityLogger";
+import { useTheme } from "@mui/material/styles";
 
 import {
   Box,
@@ -25,7 +26,9 @@ import {
   DialogActions,
   CircularProgress,
   Link,
+  Stack,
 } from "@mui/material";
+
 import LogoSvg from "../../assets/icons/icon-blue-512.svg";
 
 declare global {
@@ -35,6 +38,8 @@ declare global {
 }
 
 export default function LoginPage() {
+  const theme = useTheme();
+
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
   const verifierRef = useRef<RecaptchaVerifier | null>(null);
 
@@ -164,7 +169,6 @@ export default function LoginPage() {
         return;
       }
 
-      // Reset and recreate verifier to avoid "already rendered" errors
       clearRecaptcha();
       setupRecaptcha();
 
@@ -232,7 +236,7 @@ export default function LoginPage() {
     try {
       await sendPasswordResetEmail(auth, resetEmail.trim());
     } catch (err) {
-      // Intentionally silent — security best practice
+      // Silent for security
     } finally {
       setResetSent(true);
     }
@@ -250,12 +254,27 @@ export default function LoginPage() {
 
     try {
       if (!verifierRef.current) {
-        throw new Error("reCAPTCHA not initialized");
+        throw new Error("reCAPTCHA not initialized. Please refresh.");
       }
 
+      // 1. Manually trigger the invisible reCAPTCHA challenge
       const token = await verifierRef.current.verify();
 
-      const submitVolunteer = httpsCallable(getFunctions(), "submitVolunteer");
+      // 2. Log the token to verify it's working (optional, for debugging)
+      console.log("Captured Token:", token);
+
+      // 3. Call your function via HTTPS Callable
+      const functions = getFunctions(undefined, "us-central1");
+      const submitVolunteer = httpsCallable(functions, "submitVolunteer");
+
+      console.log(
+        "Submitting volunteer with token:",
+        volName,
+        volEmail,
+        volComment
+      );
+
+      // IMPORTANT: Note the key name 'recaptchaToken' matches your Cloud Function body check
       await submitVolunteer({
         name: volName.trim(),
         email: volEmail.trim().toLowerCase(),
@@ -266,7 +285,8 @@ export default function LoginPage() {
       setShowThankYou(true);
     } catch (err: any) {
       console.error("Volunteer submission failed:", err);
-      setError("Submission failed. Please try again later.");
+      // If the error comes from the function, it will be in err.message
+      setError(err.message || "Submission failed. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -274,61 +294,60 @@ export default function LoginPage() {
 
   return (
     <>
-      {/* Thank You Screen */}
+      {/* Hidden reCAPTCHA container */}
+      <div ref={recaptchaContainerRef} style={{ display: "none" }} />
+
+      {/* === Thank You Screen === */}
       {showThankYou ? (
         <Box
-          display="flex"
-          flexDirection="column"
-          justifyContent="center"
-          alignItems="center"
-          minHeight="100vh"
-          bgcolor="#f5f5f5"
-          p={3}
+          sx={{
+            minHeight: "100vh",
+            bgcolor: "background.default",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            p: 3,
+          }}
         >
           <Box
-            width={{ xs: "95%", sm: 500 }}
-            p={6}
-            bgcolor="white"
-            borderRadius={3}
-            boxShadow={6}
-            textAlign="center"
+            sx={{
+              width: { xs: "95%", sm: 520 },
+              p: { xs: 5, sm: 7 },
+              bgcolor: "background.paper",
+              borderRadius: 4,
+              boxShadow: 8,
+              textAlign: "center",
+            }}
           >
             <Box
               component="img"
               src={LogoSvg}
               alt="GroundGame26"
               sx={{
-                width: "80%",
-                maxWidth: 280,
-                height: "auto",
-                mx: "auto",
-                display: "block",
-                mb: 3,
+                width: "70%",
+                maxWidth: 300,
+                mb: 4,
               }}
             />
 
             <Typography
-              variant="h4"
+              variant="h3"
               fontWeight="bold"
-              color="#B22234"
-              mb={2}
-              sx={{ fontSize: { xs: "1.8rem", sm: "2.2rem" } }}
+              color="primary"
+              gutterBottom
+              sx={{ fontSize: { xs: "2.2rem", sm: "2.8rem" } }}
             >
               Thank You!
             </Typography>
 
             <Typography
-              variant="body1"
+              variant="h6"
               color="text.secondary"
-              lineHeight={1.7}
-              mb={5}
-              sx={{ fontSize: { xs: "1rem", sm: "1.1rem" } }}
+              sx={{ mb: 5, lineHeight: 1.8 }}
             >
               Thank you for your interest in volunteering.
               <br />
-              We will have an Area Captain reach out to you
-              <br />
-              within one business day.
+              An Area Captain will reach out within one business day.
             </Typography>
 
             <Button
@@ -342,13 +361,10 @@ export default function LoginPage() {
                 setVolComment("");
               }}
               sx={{
-                bgcolor: "#B22234",
-                "&:hover": { bgcolor: "#8B1A1A" },
-                px: 6,
-                py: 1.8,
-                fontSize: "1.1rem",
+                px: 8,
+                py: 2,
+                fontSize: "1.2rem",
                 fontWeight: "bold",
-                textTransform: "none",
               }}
             >
               Return to Login
@@ -356,264 +372,267 @@ export default function LoginPage() {
           </Box>
         </Box>
       ) : (
-        /* Main Login Page */
+        /* === Main Login Screen === */
         <Box
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          minHeight="100vh"
-          bgcolor="#f5f5f5"
+          sx={{
+            minHeight: "100vh",
+            bgcolor: "background.default",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            p: 2,
+          }}
         >
-          <Box width={420} p={5} bgcolor="white" borderRadius={3} boxShadow={4}>
-            <Box
-              component="img"
-              src={LogoSvg}
-              alt="GroundGame26"
-              sx={{
-                width: "100%",
-                maxWidth: 280,
-                height: "auto",
-                mx: "auto",
-                display: "block",
-                mb: 2,
-              }}
-            />
-
-            <Typography
-              variant="h6"
-              textAlign="center"
-              fontWeight="bold"
-              color="#5e5e5e"
-              mb={4}
-              sx={{
-                fontSize: { xs: "1.1rem", sm: "1.25rem" },
-                fontStyle: "italic",
-              }}
-            >
-              A Republican Get Out The Vote App
-            </Typography>
-
-            {/* Hidden reCAPTCHA container */}
-            <div ref={recaptchaContainerRef} style={{ display: "none" }} />
-
-            <form
-              onSubmit={handleLogin}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                }
-              }}
-            >
-              <TextField
-                label="Email"
-                type="email"
-                fullWidth
-                margin="normal"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <TextField
-                label="Password"
-                type="password"
-                fullWidth
-                margin="normal"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-
-              <Link
-                component="button"
-                variant="body2"
-                onClick={() => setForgotOpen(true)}
-                sx={{
-                  display: "block",
-                  textAlign: "right",
-                  mt: 1,
-                  color: "#B22234",
-                }}
-              >
-                Forgot Password?
-              </Link>
-
-              {error && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  {error}
-                </Alert>
-              )}
-
-              <Button
-                type="submit"
-                variant="contained"
-                fullWidth
-                size="large"
-                disabled={loading}
-                sx={{
-                  mt: 3,
-                  py: 1.8,
-                  bgcolor: "#B22234",
-                  "&:hover": { bgcolor: "#8B1A1A" },
-                  textTransform: "none",
-                  fontSize: "1.1rem",
-                  fontWeight: "bold",
-                }}
-              >
-                {loading ? "Signing in..." : "Sign In"}
-              </Button>
-            </form>
-
-            <Typography textAlign="center" mt={3}>
-              <Link
-                component="button"
-                variant="body1"
-                onClick={() => setVolunteerOpen(true)}
-                sx={{
-                  color: "#B22234",
-                  fontWeight: "bold",
-                  fontSize: "1.05rem",
-                }}
-              >
-                Want to Volunteer?
-              </Link>
-            </Typography>
-          </Box>
-
-          {/* Forgot Password Dialog */}
-          <Dialog
-            open={forgotOpen}
-            onClose={() => setForgotOpen(false)}
-            maxWidth="xs"
-            fullWidth
+          <Box
+            sx={{
+              width: { xs: "100%", sm: 460 },
+              maxWidth: 460,
+              p: { xs: 4, sm: 6 },
+              bgcolor: "background.paper",
+              borderRadius: 4,
+              boxShadow: 6,
+            }}
           >
-            <DialogTitle sx={{ bgcolor: "#B22234", color: "white" }}>
-              Reset Password
-            </DialogTitle>
-            <DialogContent sx={{ pt: 3 }}>
-              {resetSent ? (
-                <Alert severity="success">
-                  If an account exists with that email, a password reset link
-                  has been sent.
-                </Alert>
-              ) : (
+            <Stack spacing={4} alignItems="center">
+              <Box
+                component="img"
+                src={LogoSvg}
+                alt="GroundGame26"
+                sx={{
+                  width: "80%",
+                  maxWidth: 320,
+                }}
+              />
+
+              <Typography
+                variant="h6"
+                color="text.secondary"
+                textAlign="center"
+                fontStyle="italic"
+              >
+                A Republican Get Out The Vote App
+              </Typography>
+
+              <Stack
+                component="form"
+                onSubmit={handleLogin}
+                spacing={3}
+                width="100%"
+              >
                 <TextField
-                  label="Email Address"
+                  label="Email"
                   type="email"
                   fullWidth
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  sx={{ mt: 1 }}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoFocus
                 />
-              )}
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setForgotOpen(false)}>Close</Button>
-              {!resetSent && (
-                <Button
-                  onClick={handleForgotPassword}
-                  variant="contained"
-                  sx={{ bgcolor: "#B22234" }}
+                <TextField
+                  label="Password"
+                  type="password"
+                  fullWidth
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+
+                <Link
+                  component="button"
+                  variant="body2"
+                  onClick={() => setForgotOpen(true)}
+                  sx={{
+                    alignSelf: "flex-end",
+                    color: "primary.main",
+                    fontWeight: 500,
+                  }}
                 >
-                  Send Reset Link
+                  Forgot Password?
+                </Link>
+
+                {error && (
+                  <Alert severity="error" onClose={() => setError("")}>
+                    {error}
+                  </Alert>
+                )}
+
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  disabled={loading}
+                  sx={{
+                    py: 2,
+                    fontSize: "1.1rem",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {loading ? (
+                    <CircularProgress size={28} color="inherit" />
+                  ) : (
+                    "Sign In"
+                  )}
                 </Button>
-              )}
-            </DialogActions>
-          </Dialog>
+              </Stack>
 
-          {/* Volunteer Form Dialog */}
-          <Dialog
-            open={volunteerOpen}
-            onClose={() => setVolunteerOpen(false)}
-            maxWidth="sm"
-            fullWidth
-          >
-            <DialogTitle sx={{ bgcolor: "#B22234", color: "white" }}>
-              Want to Volunteer?
-            </DialogTitle>
-            <DialogContent sx={{ pt: 3 }}>
-              <TextField
-                label="Full Name *"
-                fullWidth
-                margin="normal"
-                value={volName}
-                onChange={(e) => setVolName(e.target.value)}
-              />
-              <TextField
-                label="Email *"
-                type="email"
-                fullWidth
-                margin="normal"
-                value={volEmail}
-                onChange={(e) => setVolEmail(e.target.value)}
-              />
-              <TextField
-                label="How would you like to help?"
-                multiline
-                rows={4}
-                fullWidth
-                margin="normal"
-                value={volComment}
-                onChange={(e) => setVolComment(e.target.value)}
-              />
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setVolunteerOpen(false)}>Cancel</Button>
-              <Button
-                onClick={handleVolunteerSubmit}
-                variant="contained"
-                disabled={loading || !volName.trim() || !volEmail.trim()}
-                sx={{ bgcolor: "#B22234", "&:hover": { bgcolor: "#8B1A1A" } }}
-              >
-                {loading ? "Submitting..." : "Submit"}
-              </Button>
-            </DialogActions>
-          </Dialog>
-
-          {/* MFA Code Input Dialog */}
-          <Dialog open={mfaOpen} onClose={() => setMfaOpen(false)}>
-            <DialogTitle>Enter Verification Code</DialogTitle>
-            <DialogContent>
-              <Typography gutterBottom>
-                A 6-digit code was sent to your phone. Enter it below:
+              <Typography variant="body1" textAlign="center">
+                <Link
+                  component="button"
+                  onClick={() => setVolunteerOpen(true)}
+                  sx={{
+                    color: "primary.main",
+                    fontWeight: "bold",
+                    fontSize: "1.05rem",
+                  }}
+                >
+                  Want to Volunteer?
+                </Link>
               </Typography>
-              <TextField
-                autoFocus
-                label="Code"
-                value={mfaCode}
-                onChange={(e) =>
-                  setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-                }
-                fullWidth
-                inputProps={{ maxLength: 6 }}
-                sx={{ mt: 2 }}
-              />
-              {error && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  {error}
-                </Alert>
-              )}
-            </DialogContent>
-            <DialogActions>
-              <Button
-                onClick={() => {
-                  setMfaOpen(false);
-                  setMfaCode("");
-                  setError("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={completeMFA}
-                variant="contained"
-                disabled={loading}
-              >
-                {loading ? <CircularProgress size={20} /> : "Verify"}
-              </Button>
-            </DialogActions>
-          </Dialog>
+            </Stack>
+          </Box>
         </Box>
       )}
+
+      {/* === Forgot Password Dialog === */}
+      <Dialog
+        open={forgotOpen}
+        onClose={() => setForgotOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle sx={{ bgcolor: "primary.main", color: "white" }}>
+          Reset Password
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {resetSent ? (
+            <Alert severity="success">
+              If an account exists with that email, a password reset link has
+              been sent.
+            </Alert>
+          ) : (
+            <TextField
+              label="Email Address"
+              type="email"
+              fullWidth
+              value={resetEmail}
+              onChange={(e) => setResetEmail(e.target.value)}
+              autoFocus
+              sx={{ mt: 1 }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setForgotOpen(false)}>Close</Button>
+          {!resetSent && (
+            <Button
+              onClick={handleForgotPassword}
+              variant="contained"
+              color="primary"
+            >
+              Send Reset Link
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* === Volunteer Form Dialog === */}
+      <Dialog
+        open={volunteerOpen}
+        onClose={() => setVolunteerOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ bgcolor: "primary.main", color: "white" }}>
+          Want to Volunteer?
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3, mt: 2 }}>
+          <Stack spacing={3}>
+            <TextField
+              label="Full Name *"
+              fullWidth
+              value={volName}
+              onChange={(e) => setVolName(e.target.value)}
+            />
+            <TextField
+              label="Email *"
+              type="email"
+              fullWidth
+              value={volEmail}
+              onChange={(e) => setVolEmail(e.target.value)}
+            />
+            <TextField
+              label="How would you like to help?"
+              multiline
+              rows={4}
+              fullWidth
+              value={volComment}
+              onChange={(e) => setVolComment(e.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setVolunteerOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleVolunteerSubmit}
+            variant="contained"
+            color="primary"
+            disabled={loading || !volName.trim() || !volEmail.trim()}
+          >
+            {loading ? "Submitting..." : "Submit"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* === MFA Dialog === */}
+      <Dialog
+        open={mfaOpen}
+        onClose={() => setMfaOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Enter Verification Code</DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            A 6-digit code was sent to your phone. Enter it below:
+          </Typography>
+          <TextField
+            autoFocus
+            label="Code"
+            value={mfaCode}
+            onChange={(e) =>
+              setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+            }
+            fullWidth
+            inputProps={{ maxLength: 6 }}
+            sx={{ mt: 2 }}
+          />
+          {error && (
+            <Alert severity="error" sx={{ mt: 2 }} onClose={() => setError("")}>
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setMfaOpen(false);
+              setMfaCode("");
+              setError("");
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={completeMFA}
+            variant="contained"
+            color="primary"
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={20} /> : "Verify"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

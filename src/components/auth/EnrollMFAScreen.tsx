@@ -19,6 +19,7 @@ import {
   Tooltip,
   InputAdornment,
   IconButton,
+  Stack,
 } from "@mui/material";
 import InfoIcon from "@mui/icons-material/Info";
 
@@ -36,10 +37,8 @@ declare global {
 const normalizeUSPhone = (input: string): string | null => {
   if (!input) return null;
 
-  // Remove all non-digits
   const digits = input.replace(/\D/g, "");
 
-  // Must be 10 or 11 digits
   if (digits.length === 10) {
     return `+1${digits}`;
   }
@@ -51,7 +50,7 @@ const normalizeUSPhone = (input: string): string | null => {
 };
 
 export default function EnrollMFAScreen() {
-  const [phoneInput, setPhoneInput] = useState(""); // Raw user input
+  const [phoneInput, setPhoneInput] = useState("");
   const [normalizedPhone, setNormalizedPhone] = useState<string | null>(null);
   const [inputError, setInputError] = useState(false);
   const [code, setCode] = useState("");
@@ -66,14 +65,14 @@ export default function EnrollMFAScreen() {
   const verifierRef = useRef<RecaptchaVerifier | null>(null);
   const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // === Real-time phone validation ===
+  // Real-time phone validation
   useEffect(() => {
     const normalized = normalizeUSPhone(phoneInput);
     setNormalizedPhone(normalized);
     setInputError(phoneInput.trim() !== "" && normalized === null);
   }, [phoneInput]);
 
-  // === Safe reCAPTCHA Management (unchanged from previous hardened version) ===
+  // Safe reCAPTCHA Management
   const setupRecaptcha = useCallback(async () => {
     if (!containerRef.current) return;
 
@@ -122,7 +121,7 @@ export default function EnrollMFAScreen() {
     return clearRecaptcha;
   }, [setupRecaptcha, clearRecaptcha]);
 
-  // === Send SMS Code ===
+  // Send SMS Code
   const sendCode = async () => {
     setError("");
     setMessage("");
@@ -179,7 +178,7 @@ export default function EnrollMFAScreen() {
     }
   };
 
-  // === Verify Code & Enroll (unchanged) ===
+  // Verify Code & Enroll
   const verifyCode = async () => {
     if (code.length !== 6) return;
 
@@ -200,17 +199,17 @@ export default function EnrollMFAScreen() {
       await multiFactor(currentUser).enroll(assertion, "Mobile Phone");
 
       setStage("success");
-      setMessage("Two-factor authentication enabled!");
+      setMessage("Two-factor authentication successfully enabled!");
 
       redirectTimeoutRef.current = setTimeout(() => {
-        navigate("/reports", { replace: true });
-      }, 1500);
+        navigate("/dashboard", { replace: true });
+      }, 2000);
     } catch (err: any) {
       console.error("MFA enrollment failed:", err);
       setError(
         err.code === "auth/invalid-verification-code"
-          ? "Invalid code. Try again."
-          : "Enrollment failed"
+          ? "Invalid code. Please try again."
+          : "Enrollment failed. Please try again."
       );
     } finally {
       setLoading(false);
@@ -229,152 +228,174 @@ export default function EnrollMFAScreen() {
 
   return (
     <Box
-      maxWidth={460}
-      mx="auto"
-      mt={8}
-      p={4}
-      bgcolor="white"
-      borderRadius={2}
-      boxShadow={4}
-      textAlign="center"
+      sx={{
+        minHeight: "100vh",
+        bgcolor: "background.default",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        p: 2,
+      }}
     >
-      <Typography variant="h5" color="#d32f2f" mb={2}>
-        Security Setup Required
-      </Typography>
-      <Typography variant="body1" color="text.secondary" mb={4}>
-        Add your phone for two-factor authentication
-      </Typography>
-
+      {/* Hidden reCAPTCHA container */}
       <div ref={containerRef} style={{ display: "none" }} />
 
-      {stage === "phone" && (
-        <>
-          <TextField
-            label="Phone Number"
-            placeholder="5551234567 or (555) 123-4567"
-            fullWidth
-            value={phoneInput}
-            onChange={(e) => setPhoneInput(e.target.value)}
-            margin="normal"
-            disabled={loading}
-            error={inputError}
-            helperText={
-              inputError
-                ? "Use a valid US number"
-                : "We'll add +1 automatically"
-            }
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <Tooltip
-                    title="Enter your 10-digit US phone number. We'll automatically format it as +1XXXXXXXXXX"
-                    placement="top"
-                    arrow
-                  >
-                    <IconButton size="small">
-                      <InfoIcon fontSize="small" color="action" />
-                    </IconButton>
-                  </Tooltip>
-                </InputAdornment>
-              ),
-            }}
-          />
-
-          {error && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {error}
-            </Alert>
-          )}
-          {message && (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              {message}
-            </Alert>
-          )}
-
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={sendCode}
-            disabled={loading || !normalizedPhone}
-            sx={{
-              mt: 3,
-              bgcolor: "#d32f2f",
-              "&:hover": { bgcolor: "#b71c1c" },
-            }}
-          >
-            {loading ? (
-              <CircularProgress size={24} color="inherit" />
-            ) : (
-              "Send Code"
-            )}
-          </Button>
-        </>
-      )}
-
-      {stage === "code" && (
-        <>
-          <TextField
-            label="6-Digit Code"
-            fullWidth
-            value={code}
-            onChange={(e) =>
-              setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-            }
-            inputProps={{ maxLength: 6 }}
-            autoFocus
-            disabled={loading}
-            sx={{ mt: 2 }}
-          />
-
-          {message && (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              {message}
-            </Alert>
-          )}
-          {error && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={verifyCode}
-            disabled={loading || code.length !== 6}
-            sx={{
-              mt: 3,
-              bgcolor: "#d32f2f",
-              "&:hover": { bgcolor: "#b71c1c" },
-            }}
-          >
-            {loading ? (
-              <>
-                <CircularProgress size={20} sx={{ mr: 1 }} />
-                Completing...
-              </>
-            ) : (
-              "Complete Setup"
-            )}
-          </Button>
-        </>
-      )}
-
-      {stage === "success" && (
-        <Alert severity="success" sx={{ mt: 2 }}>
-          {message}
-        </Alert>
-      )}
-
-      <Button
-        variant="outlined"
-        color="error"
-        fullWidth
-        onClick={safeSignOut}
-        sx={{ mt: 4 }}
+      <Box
+        sx={{
+          width: { xs: "100%", sm: 460 },
+          maxWidth: 460,
+          p: { xs: 4, sm: 6 },
+          bgcolor: "background.paper",
+          borderRadius: 4,
+          boxShadow: 6,
+          textAlign: "center",
+        }}
       >
-        Log Out
-      </Button>
+        <Stack spacing={4}>
+          <Typography variant="h5" fontWeight="bold" color="primary">
+            Security Setup Required
+          </Typography>
+
+          <Typography variant="body1" color="text.secondary">
+            Add your phone number for two-factor authentication to keep your
+            account secure.
+          </Typography>
+
+          {/* Phone Entry Stage */}
+          {stage === "phone" && (
+            <>
+              <TextField
+                label="Phone Number"
+                placeholder="(555) 123-4567"
+                fullWidth
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                disabled={loading}
+                error={inputError}
+                helperText={
+                  inputError
+                    ? "Please enter a valid 10-digit US number"
+                    : "We'll automatically add +1"
+                }
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Tooltip
+                        title="Enter your 10-digit US phone number. We'll format it as +1XXXXXXXXXX automatically."
+                        placement="top"
+                        arrow
+                      >
+                        <IconButton size="small">
+                          <InfoIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              {message && <Alert severity="info">{message}</Alert>}
+              {error && (
+                <Alert severity="error" onClose={() => setError("")}>
+                  {error}
+                </Alert>
+              )}
+
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                onClick={sendCode}
+                disabled={loading || !normalizedPhone}
+                sx={{
+                  py: 2,
+                  fontSize: "1.1rem",
+                  fontWeight: "bold",
+                }}
+              >
+                {loading ? (
+                  <CircularProgress size={28} color="inherit" />
+                ) : (
+                  "Send Verification Code"
+                )}
+              </Button>
+            </>
+          )}
+
+          {/* Code Entry Stage */}
+          {stage === "code" && (
+            <>
+              <TextField
+                label="6-Digit Code"
+                fullWidth
+                value={code}
+                onChange={(e) =>
+                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                inputProps={{ maxLength: 6, inputMode: "numeric" }}
+                autoFocus
+                disabled={loading}
+                sx={{
+                  letterSpacing: "0.5rem",
+                  "& input": {
+                    textAlign: "center",
+                    fontSize: "1.8rem",
+                  },
+                }}
+              />
+
+              {message && <Alert severity="info">{message}</Alert>}
+              {error && (
+                <Alert severity="error" onClose={() => setError("")}>
+                  {error}
+                </Alert>
+              )}
+
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                onClick={verifyCode}
+                disabled={loading || code.length !== 6}
+                sx={{
+                  py: 2,
+                  fontSize: "1.1rem",
+                  fontWeight: "bold",
+                }}
+              >
+                {loading ? (
+                  <CircularProgress size={28} color="inherit" />
+                ) : (
+                  "Complete Setup"
+                )}
+              </Button>
+            </>
+          )}
+
+          {/* Success Stage */}
+          {stage === "success" && (
+            <Alert severity="success" sx={{ py: 3 }}>
+              <Typography variant="h6" fontWeight="bold">
+                {message}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Redirecting you to the dashboard...
+              </Typography>
+            </Alert>
+          )}
+
+          {/* Always show Log Out option */}
+          <Button
+            variant="text"
+            color="error"
+            fullWidth
+            onClick={safeSignOut}
+            sx={{ mt: 2, textTransform: "none" }}
+          >
+            Log Out
+          </Button>
+        </Stack>
+      </Box>
     </Box>
   );
 }

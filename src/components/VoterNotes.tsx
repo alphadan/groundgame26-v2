@@ -1,8 +1,8 @@
+// src/components/VoterNotes.tsx
 import React, { useState } from "react";
 import {
   Box,
   Typography,
-  Chip,
   IconButton,
   Dialog,
   DialogTitle,
@@ -16,10 +16,20 @@ import {
   ListItemAvatar,
   Avatar,
   CircularProgress,
+  Stack,
+  Divider,
+  Alert,
+  Chip,
 } from "@mui/material";
-import { AddComment, Comment } from "@mui/icons-material";
+import { Comment } from "@mui/icons-material";
 import { useCollectionData } from "react-firebase-hooks/firestore";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../lib/firebase";
@@ -30,12 +40,17 @@ interface VoterNotesProps {
   address: string;
 }
 
-export const VoterNotes: React.FC<VoterNotesProps> = ({ voterId, fullName, address }) => {
+export const VoterNotes: React.FC<VoterNotesProps> = ({
+  voterId,
+  fullName,
+  address,
+}) => {
   const [open, setOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Load existing notes for this voter
+  // Properly typed query for notes
   const notesQuery = voterId
     ? query(
         collection(db, "voter_notes"),
@@ -44,13 +59,16 @@ export const VoterNotes: React.FC<VoterNotesProps> = ({ voterId, fullName, addre
       )
     : null;
 
-  const [notes, loadingNotes] = useCollectionData(notesQuery);
+  const [notes, loadingNotes, error] = useCollectionData(notesQuery);
 
   const addVoterNote = httpsCallable(functions, "addVoterNote");
 
   const handleSave = async () => {
-    if (!noteText.trim()) return;
+    if (!noteText.trim() || !voterId) return;
+
     setSaving(true);
+    setSaveSuccess(false);
+
     try {
       await addVoterNote({
         voter_id: voterId,
@@ -58,76 +76,157 @@ export const VoterNotes: React.FC<VoterNotesProps> = ({ voterId, fullName, addre
         address: address,
         note: noteText.trim(),
       });
+
       setNoteText("");
-      setOpen(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
-      alert("Failed to save note");
+      console.error("Failed to save note:", err);
+      alert("Failed to save note — please try again");
     } finally {
       setSaving(false);
     }
   };
 
+  const noteCount = notes?.length || 0;
+
   return (
     <>
+      {/* Trigger Button */}
       <IconButton color="primary" onClick={() => setOpen(true)} size="small">
         <Comment />
-        {notes && notes.length > 0 && (
+        {noteCount > 0 && (
           <Chip
-            label={notes.length}
+            label={noteCount}
             size="small"
             color="primary"
-            sx={{ ml: 0.5, height: 18, fontSize: 10 }}
+            sx={{
+              ml: 0.5,
+              height: 18,
+              fontSize: 10,
+              fontWeight: "bold",
+            }}
           />
         )}
       </IconButton>
 
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Notes for {fullName}</DialogTitle>
-        <DialogContent>
-          {loadingNotes ? (
-            <CircularProgress size={20} />
-          ) : notes && notes.length > 0 ? (
-            <List>
-              {notes.map((note: any, i: number) => (
-                <ListItem key={i}>
-                  <ListItemAvatar>
-                    <Avatar sx={{ width: 32, height: 32 }}>
-                      {note.created_by_name?.[0] || "?"}
-                    </Avatar>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={note.note}
-                    secondary={
-                      <>
-                        {note.created_by_name} •{" "}
-                        {note.created_at?.toDate?.().toLocaleDateString() ||
-                          new Date(note.created_at).toLocaleDateString()}
-                      </>
-                    }
-                  />
-                </ListItem>
-              ))}
-            </List>
-          ) : (
-            <Typography color="text.secondary">No notes yet</Typography>
-          )}
+      {/* Notes Dialog */}
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight="bold">
+            Notes for {fullName}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {address}
+          </Typography>
+        </DialogTitle>
 
-          <TextField
-            multiline
-            rows={3}
-            fullWidth
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Add a new note..."
-            sx={{ mt: 2 }}
-          />
+        <DialogContent dividers>
+          <Stack spacing={3}>
+            {/* Loading / Error / Empty States */}
+            {loadingNotes ? (
+              <Box sx={{ textAlign: "center", py: 4 }}>
+                <CircularProgress size={32} />
+                <Typography variant="body2" color="text.secondary" mt={2}>
+                  Loading notes...
+                </Typography>
+              </Box>
+            ) : error ? (
+              <Alert severity="error">Failed to load notes</Alert>
+            ) : notes && notes.length > 0 ? (
+              <List>
+                {notes.map((note: any, index: number) => {
+                  const createdAt = note.created_at;
+                  const dateStr = createdAt?.toDate?.()
+                    ? createdAt.toDate().toLocaleString()
+                    : createdAt instanceof Timestamp
+                    ? createdAt.toDate().toLocaleString()
+                    : "Unknown date";
+
+                  return (
+                    <React.Fragment key={index}>
+                      <ListItem alignItems="flex-start">
+                        <ListItemAvatar>
+                          <Avatar sx={{ bgcolor: "primary.main" }}>
+                            {note.created_by_name?.[0]?.toUpperCase() || "?"}
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={
+                            <Typography variant="body1">{note.note}</Typography>
+                          }
+                          secondary={
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                            >
+                              {note.created_by_name || "Unknown"} • {dateStr}
+                            </Typography>
+                          }
+                        />
+                      </ListItem>
+                      {index < notes.length - 1 && (
+                        <Divider variant="inset" component="li" />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </List>
+            ) : (
+              <Typography
+                variant="body1"
+                color="text.secondary"
+                textAlign="center"
+                py={4}
+              >
+                No notes yet — be the first to add one!
+              </Typography>
+            )}
+
+            <Divider />
+
+            {/* New Note Input */}
+            <Box>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Add New Note
+              </Typography>
+              <TextField
+                multiline
+                rows={4}
+                fullWidth
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="e.g. Strong supporter • Requested yard sign • Prefers evening visits"
+                variant="outlined"
+                disabled={saving}
+              />
+
+              {saveSuccess && (
+                <Alert severity="success" sx={{ mt: 2 }}>
+                  Note saved successfully!
+                </Alert>
+              )}
+            </Box>
+          </Stack>
         </DialogContent>
+
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={() => setOpen(false)} disabled={saving}>
+            Cancel
+          </Button>
           <Button
             onClick={handleSave}
-            disabled={saving || !noteText.trim()}
             variant="contained"
+            color="primary"
+            disabled={saving || !noteText.trim()}
+            startIcon={
+              saving ? <CircularProgress size={20} color="inherit" /> : null
+            }
           >
             {saving ? "Saving..." : "Save Note"}
           </Button>
