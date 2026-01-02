@@ -277,6 +277,12 @@ export default function EnrollMFAScreen() {
                     ? "Please enter a valid 10-digit US number"
                     : "We'll automatically add +1"
                 }
+                inputProps={{
+                  inputMode: "tel",
+                  pattern: "[0-9]*",
+                  autoComplete: "tel",
+                  maxLength: 14,
+                }}
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
@@ -292,6 +298,7 @@ export default function EnrollMFAScreen() {
                     </InputAdornment>
                   ),
                 }}
+                type="tel"
               />
 
               {message && <Alert severity="info">{message}</Alert>}
@@ -332,7 +339,13 @@ export default function EnrollMFAScreen() {
                 onChange={(e) =>
                   setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
                 }
-                inputProps={{ maxLength: 6, inputMode: "numeric" }}
+                inputProps={{
+                  maxLength: 6,
+                  inputMode: "numeric",
+                  pattern: "[0-9]*",
+                  type: "tel",
+                  autoComplete: "one-time-code",
+                }}
                 autoFocus
                 disabled={loading}
                 sx={{

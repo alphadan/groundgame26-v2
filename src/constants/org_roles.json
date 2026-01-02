@@ -6,7 +6,7 @@
     "county_code": "PA-C-15",
     "area_district": "PA15-A-15",
     "precinct_code": "PA15-P-235",
-    "is_vacant": false,
+    "is_vacant": false
   },
   {
     "uid": "",
@@ -15,7 +15,7 @@
     "county_code": "PA-C-15",
     "area_district": "PA15-A-01",
     "precinct_code": "PA15-P-220",
-    "is_vacant": false,
+    "is_vacant": false
   },
   {
     "uid": "",

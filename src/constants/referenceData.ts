@@ -473,7 +473,7 @@ export const areas = [
 
 export const org_roles = [
   {
-    uid: "OWlZ68Qw3ebG3NWVxeQU1iTNhA22",
+    uid: "",
     role: "state_admin",
     org_id: "PA15-O-01",
     county_code: "PA-C-15",

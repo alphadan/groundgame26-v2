@@ -1486,7 +1486,7 @@
   {
     "county_code": "15",
     "precinct_code": "405",
-    "name": "East Nottingham East",
+    "name": "East Nottingham E",
     "area_district": "19",
     "congressional_district": "6",
     "senate_district": "19",
@@ -1500,7 +1500,7 @@
   {
     "county_code": "15",
     "precinct_code": "406",
-    "name": "East Nottingham West",
+    "name": "East Nottingham W",
     "area_district": "19",
     "congressional_district": "6",
     "senate_district": "19",
@@ -1529,7 +1529,7 @@
     "county_code": "15",
     "precinct_code": "415",
     "name": "Oxford East",
-    "area_district": "",
+    "area_district": "19",
     "congressional_district": "6",
     "senate_district": "19",
     "house_district": "13",

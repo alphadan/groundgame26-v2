@@ -424,6 +424,127 @@ export const queryVotersDynamic = onCall(
   }
 );
 
+export const queryVotersDynamicRNC = onCall(
+  {
+    cors: [/localhost:\d+$/, /127\.0\.0\.1:\d+$/, "https://groundgame26.com"],
+    region: "us-central1",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const filters = request.data || {};
+    console.log("Received filters:", filters); // Debug log
+
+    const table = `groundgame26-v2.groundgame26_voters.chester_county_rnc_master_202512`;
+
+    let sql = `
+      SELECT 
+        statevoterid, firstname, lastname, fullname, gender, age, agegroup, officialparty, precinctname,
+        precinctnumber, primaryaddress1, primarycity, mobile, landline, officialparty,
+        calculatedparty, generalregularity, primaryregularity, registrationdate, moved, primaryzip, VBM_AppReturnedDate
+      FROM \`${table}\`
+      WHERE 1=1
+    `;
+
+    const params = {};
+
+    // === Precinct ===
+    if (filters.precinct && filters.precinct.trim() !== "") {
+      const normalized = filters.precinct.trim().replace(/^0+/, "") || "0";
+
+      console.log("Params precinct:", normalized);
+      logger.log("Params: precinct", normalized);
+
+      sql += ` AND PrecinctNumber = @precinct`;
+
+      // Convert the string to a Number so BigQuery sees it as an INT64
+      params.precinct = Number(normalized);
+    }
+
+    // === Name ===
+    if (filters.name && filters.name.trim() !== "") {
+      sql += ` AND LOWER(FullName) LIKE @name`;
+      params.name = `%${filters.name.trim().toLowerCase()}%`;
+    }
+
+    // === Street ===
+    if (filters.street && filters.street.trim() !== "") {
+      sql += ` AND LOWER(primaryaddress1) LIKE @street`;
+      params.street = `%${filters.street.trim().toLowerCase()}%`;
+    }
+
+    // === Modeled Party ===
+    if (filters.modeledParty && filters.modeledParty.trim() !== "") {
+      sql += ` AND calculatedparty = @modeledParty`;
+      params.modeledParty = filters.modeledParty.trim();
+    }
+
+    // === Party ===
+    if (filters.party && filters.party.trim() !== "") {
+      sql += ` AND officialparty = @party`;
+      params.party = filters.party.trim();
+    }
+
+    // === Turnout Score ===
+    if (filters.turnout && filters.turnout.trim() !== "") {
+      const score = parseInt(filters.turnout.trim());
+      if (!isNaN(score)) {
+        sql += ` AND generalregularity = @turnout`;
+        params.turnout = score;
+      }
+    }
+
+    // === Age Group ===
+    if (filters.ageGroup && filters.ageGroup.trim() !== "") {
+      sql += ` AND AgeGroup = @ageGroup`;
+      params.ageGroup = filters.ageGroup.trim();
+    }
+
+    // === Mail Ballot ===
+    if (filters.mailBallot && filters.mailBallot.trim() !== "") {
+      if (filters.mailBallot === "true") {
+        sql += ` AND VBM_AppReturnedDate = !null`;
+      } else if (filters.mailBallot === "false") {
+        sql += ` AND VBM_AppReturnedDate = null`;
+      }
+    }
+
+    // === Zip Code ===
+    if (filters.zipCode && filters.zipCode.trim() !== "") {
+      const zip = filters.zipCode.trim();
+      if (/^\d{5}$/.test(zip)) {
+        sql += ` AND PrimaryZip = @zipCode`;
+        params.zipCode = parseInt(zip);
+      }
+    }
+
+    sql += ` ORDER BY fullname LIMIT 2000`;
+
+    console.log("Final SQL:", sql);
+    logger.log("Final SQL:", sql);
+    console.log("Params:", params);
+    logger.log("Params:", params);
+
+    try {
+      const [rows] = await bigquery.query({
+        query: sql,
+        params,
+        location: "US",
+      });
+
+      console.log(`Dynamic query returned ${rows.length} voters`);
+      return { voters: rows };
+    } catch (error) {
+      console.error("Dynamic query failed:", error);
+      throw new HttpsError("internal", "Query failed — check server logs");
+    }
+  }
+);
+
 // ================================================================
 // GET MESSAGE IDEAS
 // ================================================================
@@ -803,5 +924,415 @@ export const getVoterNotes = onCall(async (request) => {
   } catch (error) {
     console.error("Failed to fetch voter notes:", error);
     throw new Error("Failed to load notes");
+  }
+});
+
+// ================================================================
+//  CREATE INDIVIDUAL AREA
+// ================================================================
+
+export const adminCreateArea = onCall(async (request) => {
+  // 1. Check authentication first
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const data = request.data;
+
+  try {
+    // 2. Correct way to get user info in 2nd Gen
+    const authUser = await getAuth().getUser(request.auth.uid);
+
+    await db
+      .collection("areas")
+      .doc(data.id)
+      .set({
+        id: data.id || null,
+        org_id: data.org_id || null,
+        area_district: data.area_district || "Unknown",
+        name: data.name || "Unknown",
+        chair_uid: data.chair_uid || null,
+        vice_chair_uid: data.vice_chair_uid || null,
+        chair_email: data.chair_email || "Unknown",
+        active: true,
+        created_at: Date.now(),
+        last_updated: Date.now(),
+      });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Admin Create Area failed:", error);
+    // 3. Throw a proper HttpsError for the frontend
+    throw new HttpsError("internal", "Failed to create area record.");
+  }
+});
+
+// ================================================================
+//  CREATE INDIVIDUAL PRECINCT
+// ================================================================
+
+export const adminCreatePrecinct = onCall(async (request) => {
+  // 1. Check authentication first
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const data = request.data;
+
+  try {
+    // 2. Correct way to get user info in 2nd Gen
+    const authUser = await getAuth().getUser(request.auth.uid);
+
+    await db
+      .collection("precincts")
+      .doc(data.id)
+      .set({
+        id: data.id || null,
+        county_code: data.county_code || null,
+        precinct_code: data.precinct_code || "Unknown",
+        name: data.name || "Unknown",
+        area_district: data.area_district || null,
+        congressional_district: data.congressional_district || null,
+        senate_district: data.senate_district || "Unknown",
+        house_district: data.house_district || null,
+        county_district: data.county_district || null,
+        party_rep_district: data.party_rep_district || null,
+        active: true,
+        created_at: Date.now(),
+        last_updated: Date.now(),
+      });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Admin Create Precint failed:", error);
+    // 3. Throw a proper HttpsError for the frontend
+    throw new HttpsError("internal", "Failed to create precinct record.");
+  }
+});
+
+// ================================================================
+//  CREATE INDIVIDUAL USER
+// ================================================================
+
+export const adminCreateUser = onCall(async (request) => {
+  // 1. Check authentication first
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const data = request.data;
+
+  try {
+    // 2. Correct way to get user info in 2nd Gen
+    const authUser = await getAuth().getUser(request.auth.uid);
+
+    await db
+      .collection("users")
+      .doc(data.uid)
+      .set({
+        uid: data.uid || null,
+        display_name: data.display_name || null,
+        org_id: data.org_id || "Unknown",
+        name: data.name || "Unknown",
+        email: data.email || null,
+        login_count: data.login_count || null,
+        phone: data.phone || "Unknown",
+        photo_url: data.photo_url || null,
+        preferred_name: data.preferred_name || null,
+        notifications_enabled: data.notifications_enabled || null,
+        role: data.role || null,
+        active: true,
+        created_at: Date.now(),
+        last_updated: Date.now(),
+      });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Admin Create User failed:", error);
+    // 3. Throw a proper HttpsError for the frontend
+    throw new HttpsError("internal", "Failed to create user record.");
+  }
+});
+
+// ================================================================
+//  CREATE ORGNIZATON ROLE
+// ================================================================
+
+export const adminCreateOrgRole = onCall(async (request) => {
+  // 1. Check authentication first
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const data = request.data;
+
+  try {
+    // 2. Correct way to get user info in 2nd Gen
+    const authUser = await getAuth().getUser(request.auth.uid);
+
+    await db
+      .collection("org_roles")
+      .doc(data.id)
+      .set({
+        id: data.id || null,
+        uid: is_vacant ? null : uid,
+        area_district: data.area_district || null,
+        county_code: data.county_code || "Unknown",
+        is_vacant: data.is_vacant || "Unknown",
+        org_id: data.org_id || null,
+        precint_code: data.precint_code || null,
+        role: data.role || "Unknown",
+        active: true,
+        created_at: Date.now(),
+        last_updated: Date.now(),
+      });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Admin Create Org_Role failed:", error);
+    // 3. Throw a proper HttpsError for the frontend
+    throw new HttpsError("internal", "Failed to create org_role record.");
+  }
+});
+
+// ================================================================
+// IMPORT BULK ORGNIZATON ROLE
+// ================================================================
+
+export const adminImportOrgRoles = onCall(async (request) => {
+  // 1. Check authentication first
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const roles = request.data.roles;
+
+  // Safety check to ensure it's actually an array
+  if (!Array.isArray(roles)) {
+    console.error("Received data is not an array:");
+    throw new HttpsError("invalid-argument", "Expected an array of roles.");
+  }
+
+  const authUser = await getAuth().getUser(request.auth.uid);
+
+  const batch = db.batch();
+  let successCount = 0;
+
+  for (const role of roles) {
+    const {
+      id,
+      uid = null,
+      role: roleName,
+      org_id,
+      county_code = null,
+      area_district = null,
+      precinct_code,
+      is_vacant = false,
+      active = true,
+    } = role;
+
+    const docRef = db.collection("org_roles").doc(id);
+
+    batch.set(docRef, {
+      id,
+      uid: is_vacant ? null : uid,
+      role: roleName,
+      org_id,
+      county_code,
+      area_district,
+      precinct_code,
+      is_vacant,
+      active,
+      created_at: Date.now(),
+      last_updated: Date.now(),
+    });
+
+    successCount++;
+  }
+
+  try {
+    await batch.commit();
+    return { success: successCount, total: roles.length };
+  } catch (error) {
+    functions.logger.error("Batch import failed:", error);
+    throw new functions.https.HttpsError("internal", "Batch write failed");
+  }
+});
+
+// ================================================================
+// IMPORT BULK PRECINCTS
+// ================================================================
+
+export const adminImportPrecincts = onCall(async (request) => {
+  // 1. Check authentication first
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const precincts = request.data.data;
+
+  // Safety check to ensure it's actually an array
+  if (!Array.isArray(precincts)) {
+    throw new HttpsError("invalid-argument", "Expected an array of roles.");
+  }
+
+  const authUser = await getAuth().getUser(request.auth.uid);
+
+  const batch = db.batch();
+  let successCount = 0;
+
+  for (const precinct of precincts) {
+    const {
+      id,
+      name,
+      precinct_code,
+      area_district,
+      county_code,
+      congressional_district,
+      senate_district,
+      house_district,
+      county_district,
+      party_rep_district,
+      active = true,
+    } = precinct;
+
+    const docRef = db.collection("precincts").doc(id);
+
+    batch.set(docRef, {
+      id,
+      name,
+      precinct_code,
+      area_district,
+      county_code,
+      congressional_district,
+      senate_district,
+      house_district,
+      county_district,
+      party_rep_district,
+      active,
+      created_at: Date.now(),
+      last_updated: Date.now(),
+    });
+
+    successCount++;
+  }
+
+  try {
+    await batch.commit();
+    return { success: successCount, total: precincts.length };
+  } catch (error) {
+    functions.logger.error("Batch import failed:", error);
+    throw new functions.https.HttpsError("internal", "Batch write failed");
+  }
+});
+
+// ================================================================
+// IMPORT BULK Areas
+// ================================================================
+
+export const adminImportAreas = onCall(async (request) => {
+  // 1. Check authentication first
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const areas = request.data.data;
+
+  // Safety check to ensure it's actually an array
+  if (!Array.isArray(areas)) {
+    throw new HttpsError("invalid-argument", "Expected an array of areas.");
+  }
+
+  const authUser = await getAuth().getUser(request.auth.uid);
+
+  const batch = db.batch();
+  let successCount = 0;
+
+  for (const area of areas) {
+    const {
+      id,
+      name,
+      org_id,
+      area_district,
+      chair_email,
+      chair_uid,
+      last_updated,
+      vice_chair_uid,
+      active = true,
+    } = area;
+
+    const docRef = db.collection("areas").doc(id);
+
+    batch.set(docRef, {
+      id,
+      name,
+      org_id,
+      area_district,
+      chair_email,
+      chair_uid,
+      last_updated,
+      vice_chair_uid,
+      active,
+      created_at: Date.now(),
+      last_updated: Date.now(),
+    });
+
+    successCount++;
+  }
+
+  try {
+    await batch.commit();
+    return { success: successCount, total: areas.length };
+  } catch (error) {
+    functions.logger.error("Batch import failed:", error);
+    throw new functions.https.HttpsError("internal", "Batch write failed");
+  }
+});
+
+// ================================================================
+//  CREATE INDIVIDUAL MESSAGE TEMPLATES
+// ================================================================
+
+export const adminCreateMessageTemplate = onCall(async (request) => {
+  // 1. Check authentication first
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const data = request.data;
+
+  try {
+    // 2. Correct way to get user info in 2nd Gen
+    const authUser = await getAuth().getUser(request.auth.uid);
+
+    await db
+      .collection("message_templates")
+      .doc(data.id)
+      .set({
+        id: data.id || null,
+        age_group: data.age_group || null,
+        body: data.body || "Unknown",
+        category: data.category || "Unknown",
+        length: data.length || null,
+        mail_ballot: data.mail_ballot || null,
+        modeled_party: data.modeled_party || "Unknown",
+        tags: data.tags || null,
+        title: data.title || null,
+        tone: data.tone || null,
+        turnout_score_general: data.turnout_score_general || null,
+        usage_count: null,
+        active: true,
+        created_at: Date.now(),
+        last_updated: Date.now(),
+      });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Admin Create Message Template failed:", error);
+    // 3. Throw a proper HttpsError for the frontend
+    throw new HttpsError(
+      "internal",
+      "Failed to create message template record."
+    );
   }
 });

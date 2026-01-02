@@ -6,9 +6,9 @@
 // --- Base Interface ---
 export interface BaseMetadata {
   id: string; // Maps to Firestore Document ID
-  created_at: number; // Unix epoch milliseconds
-  last_updated: number; // Unix epoch milliseconds (Renamed for consistency)
-  active: boolean;
+  created_at: number | null; // Unix epoch milliseconds
+  last_updated: number | null; // Unix epoch milliseconds (Renamed for consistency)
+  active: boolean | null;
 }
 
 // --- Domain Models ---
@@ -38,14 +38,12 @@ export interface County extends BaseMetadata {
 }
 
 export interface Area extends BaseMetadata {
-  // Compound Key in DB: [org_id+area_district]
-  id: string;
-  org_id: string;
+  org_id?: string;
   area_district: string;
   name: string;
-  chair_uid: string | null;
-  vice_chair_uid: string | null;
-  chair_email: string | null;
+  chair_uid?: string | null;
+  vice_chair_uid?: string | null;
+  chair_email?: string | null;
 }
 
 export interface Precinct extends BaseMetadata {
@@ -96,6 +94,7 @@ export interface OrgRole {
   area_district: string;
   precinct_code: string;
   is_vacant: boolean;
+  active: boolean;
 }
 
 // --- App Metadata & Sync ---

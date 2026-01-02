@@ -165,11 +165,11 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
                     <MenuItem value="">
                       <em>All Levels</em>
                     </MenuItem>
-                    <MenuItem value="4">4 – Very High (Most Active)</MenuItem>
-                    <MenuItem value="3">3 – Frequent Voter</MenuItem>
-                    <MenuItem value="2">2 – Moderate Voter</MenuItem>
-                    <MenuItem value="1">1 – Low Turnout</MenuItem>
-                    <MenuItem value="0">0 – Inactive</MenuItem>
+                    <MenuItem value="4">4 - Very High (Most Active)</MenuItem>
+                    <MenuItem value="3">3 - Frequent Voter</MenuItem>
+                    <MenuItem value="2">2 - Moderate Voter</MenuItem>
+                    <MenuItem value="1">1 - Low Turnout</MenuItem>
+                    <MenuItem value="0">0 - Inactive</MenuItem>
                   </Select>
                 </FormControl>
               )}
@@ -190,9 +190,9 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
                     <MenuItem value="">
                       <em>All Ages</em>
                     </MenuItem>
-                    <MenuItem value="18-25">18–25</MenuItem>
-                    <MenuItem value="26-40">26–40</MenuItem>
-                    <MenuItem value="41-70">41–70</MenuItem>
+                    <MenuItem value="18-25">18-25</MenuItem>
+                    <MenuItem value="26-40">26-40</MenuItem>
+                    <MenuItem value="41-70">41-70</MenuItem>
                     <MenuItem value="71+">71+</MenuItem>
                   </Select>
                 </FormControl>
