@@ -64,19 +64,16 @@ export default function FirebaseManagementPage() {
   // === Message Template ===
   const [messageTemplateForm, setMessageTemplateForm] = useState({
     id: "",
-    title: "",
+    subject_line: "",
     body: "",
     category: "",
     tone: "",
     age_group: "",
     modeled_party: "",
-    mail_ballot: "",
     turnout_score_general: "",
-    length: "",
-    tags: "", // comma-separated string for input
+    has_mail_ballot: "",
+    tags: "",
     active: true,
-    usage_count: 0,
-    created_by: "",
   });
   const [creatingMessageTemplate, setCreatingMessageTemplate] = useState(false);
   const [messageTemplateResult, setMessageTemplateResult] = useState<{
@@ -479,12 +476,12 @@ export default function FirebaseManagementPage() {
 
       if (
         !messageTemplateForm.id ||
-        !messageTemplateForm.title ||
+        !messageTemplateForm.subject_line ||
         !messageTemplateForm.body
       ) {
         setMessageTemplateResult({
           success: false,
-          message: "Document ID, Title, and Body are required",
+          message: "Document ID, Subject, and Body are required",
         });
         return;
       }
@@ -495,23 +492,20 @@ export default function FirebaseManagementPage() {
       try {
         await callFunction("adminCreateMessageTemplate", {
           id: messageTemplateForm.id.trim(),
-          title: messageTemplateForm.title.trim(),
+          subject_line: messageTemplateForm.subject_line.trim() || null,
           body: messageTemplateForm.body.trim(),
-          category: messageTemplateForm.category.trim() || null,
-          tone: messageTemplateForm.tone.trim() || null,
+          category: messageTemplateForm.category,
+          tone: messageTemplateForm.tone,
           age_group: messageTemplateForm.age_group.trim() || null,
-          modeled_party: messageTemplateForm.modeled_party.trim() || null,
-          mail_ballot: messageTemplateForm.mail_ballot.trim() || null,
+          modeled_party: messageTemplateForm.modeled_party || null,
           turnout_score_general:
-            messageTemplateForm.turnout_score_general.trim() || null,
-          length: messageTemplateForm.length.trim() || null,
+            messageTemplateForm.turnout_score_general || null,
+          has_mail_ballot: messageTemplateForm.has_mail_ballot || null,
           tags: messageTemplateForm.tags
             .split(",")
             .map((t) => t.trim())
             .filter((t) => t),
           active: messageTemplateForm.active,
-          usage_count: Number(messageTemplateForm.usage_count) || 0,
-          created_by: messageTemplateForm.created_by.trim() || null,
         });
 
         setMessageTemplateResult({
@@ -522,19 +516,16 @@ export default function FirebaseManagementPage() {
         // Reset form
         setMessageTemplateForm({
           id: "",
-          title: "",
+          subject_line: "",
           body: "",
           category: "",
           tone: "",
           age_group: "",
           modeled_party: "",
-          mail_ballot: "",
+          has_mail_ballot: "",
           turnout_score_general: "",
-          length: "",
           tags: "",
           active: true,
-          usage_count: 0,
-          created_by: "",
         });
       } catch (err: any) {
         setMessageTemplateResult({
@@ -1521,6 +1512,7 @@ export default function FirebaseManagementPage() {
             sx={{ mt: 3 }}
           >
             <Grid container spacing={3}>
+              {/* Document ID */}
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   label="Document ID *"
@@ -1534,32 +1526,34 @@ export default function FirebaseManagementPage() {
                   }
                   required
                   disabled={creatingMessageTemplate}
-                  helperText="Unique ID, e.g. welcome-2026-r"
+                  helperText="Unique ID, e.g. afford-crime-friendly-r-high-mail"
                 />
               </Grid>
 
+              {/* Subject Line */}
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
-                  label="Title *"
+                  label="Subject Line"
                   fullWidth
-                  value={messageTemplateForm.title}
+                  value={messageTemplateForm.subject_line}
                   onChange={(e) =>
                     setMessageTemplateForm((prev) => ({
                       ...prev,
-                      title: e.target.value,
+                      subject_line: e.target.value,
                     }))
                   }
-                  required
                   disabled={creatingMessageTemplate}
+                  helperText="Optional email subject line"
                 />
               </Grid>
 
+              {/* Body */}
               <Grid size={12}>
                 <TextField
                   label="Body *"
                   fullWidth
                   multiline
-                  rows={6}
+                  rows={8}
                   value={messageTemplateForm.body}
                   onChange={(e) =>
                     setMessageTemplateForm((prev) => ({
@@ -1569,13 +1563,15 @@ export default function FirebaseManagementPage() {
                   }
                   required
                   disabled={creatingMessageTemplate}
-                  helperText="Full message text"
+                  helperText="Main message content"
                 />
               </Grid>
 
+              {/* Category - Select with fixed values */}
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
-                  label="Category"
+                  select
+                  label="Category *"
                   fullWidth
                   value={messageTemplateForm.category}
                   onChange={(e) =>
@@ -1584,14 +1580,25 @@ export default function FirebaseManagementPage() {
                       category: e.target.value,
                     }))
                   }
+                  required
                   disabled={creatingMessageTemplate}
-                  helperText="e.g. welcome, reminder, turnout"
-                />
+                  SelectProps={{ native: true }}
+                >
+                  <option value=""></option>
+                  <option value="Affordability">Affordability</option>
+                  <option value="Crime & Drugs">Crime & Drugs</option>
+                  <option value="Energy & Utilities">Energy & Utilities</option>
+                  <option value="Healthcare">Healthcare</option>
+                  <option value="Housing">Housing</option>
+                  <option value="Local">Local</option>
+                </TextField>
               </Grid>
 
+              {/* Tone - Select */}
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
-                  label="Tone"
+                  select
+                  label="Tone *"
                   fullWidth
                   value={messageTemplateForm.tone}
                   onChange={(e) =>
@@ -1600,13 +1607,27 @@ export default function FirebaseManagementPage() {
                       tone: e.target.value,
                     }))
                   }
+                  required
                   disabled={creatingMessageTemplate}
-                  helperText="e.g. friendly, urgent, enthusiastic"
-                />
+                  SelectProps={{ native: true }}
+                >
+                  <option value=""></option>
+                  <option value="warm">Warm</option>
+                  <option value="compassionate">Compassionate</option>
+                  <option value="direct">Direct</option>
+                  <option value="excited">Excited</option>
+                  <option value="friendly">Friendly</option>
+                  <option value="optimistic">Optimistic</option>
+                  <option value="pessimistic">Pessimistic</option>
+                  <option value="pleading">Pleading</option>
+                  <option value="respectful">Respectful</option>
+                </TextField>
               </Grid>
 
+              {/* Age Group */}
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
+                  select
                   label="Age Group"
                   fullWidth
                   value={messageTemplateForm.age_group}
@@ -1617,12 +1638,20 @@ export default function FirebaseManagementPage() {
                     }))
                   }
                   disabled={creatingMessageTemplate}
-                  helperText="e.g. 18-35, 65+, all"
-                />
+                  SelectProps={{ native: true }}
+                >
+                  <option value=""></option>
+                  <option value="18-25">18-25</option>
+                  <option value="26-40">26-40</option>
+                  <option value="41-70">41-70</option>
+                  <option value="71+">71+</option>
+                </TextField>
               </Grid>
 
+              {/* Modeled Party */}
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
+                  select
                   label="Modeled Party"
                   fullWidth
                   value={messageTemplateForm.modeled_party}
@@ -1633,28 +1662,19 @@ export default function FirebaseManagementPage() {
                     }))
                   }
                   disabled={creatingMessageTemplate}
-                  helperText="e.g. R, D, I"
-                />
+                  SelectProps={{ native: true }}
+                >
+                  <option value=""></option>
+                  <option value="Republican">Republican</option>
+                  <option value="Democrat">Democrat</option>
+                  <option value="Independent">Independent</option>
+                </TextField>
               </Grid>
 
+              {/* Turnout Score */}
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
-                  label="Mail Ballot"
-                  fullWidth
-                  value={messageTemplateForm.mail_ballot}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      mail_ballot: e.target.value,
-                    }))
-                  }
-                  disabled={creatingMessageTemplate}
-                  helperText="e.g. yes, no, unknown"
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
+                  select
                   label="Turnout Score General"
                   fullWidth
                   value={messageTemplateForm.turnout_score_general}
@@ -1665,26 +1685,44 @@ export default function FirebaseManagementPage() {
                     }))
                   }
                   disabled={creatingMessageTemplate}
-                  helperText="e.g. high, medium, low"
-                />
+                  SelectProps={{ native: true }}
+                >
+                  <option value=""></option>
+                  <option value="4 - Very High (Most Active)">
+                    4 - Very High (Most Active)
+                  </option>
+                  <option value="3 - Frequent Voter">3 - Frequent Voter</option>
+                  <option value="2 - Moderate Voter">2 - Moderate Voter</option>
+                  <option value="1 - Low Turnout">1 - Low Turnout</option>
+                  <option value="0 - Inactive">0 - Inactive</option>
+                </TextField>
               </Grid>
 
+              {/* Has Mail Ballot */}
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
-                  label="Length"
+                  select
+                  label="Has Mail Ballot"
                   fullWidth
-                  value={messageTemplateForm.length}
+                  value={messageTemplateForm.has_mail_ballot}
                   onChange={(e) =>
                     setMessageTemplateForm((prev) => ({
                       ...prev,
-                      length: e.target.value,
+                      has_mail_ballot: e.target.value,
                     }))
                   }
                   disabled={creatingMessageTemplate}
-                  helperText="e.g. short, medium, long"
-                />
+                  SelectProps={{ native: true }}
+                >
+                  <option value=""></option>
+                  <option value="Has Mail Ballot">Has Mail Ballot</option>
+                  <option value="Does Not Have Mail Ballot">
+                    Does Not Have Mail Ballot
+                  </option>
+                </TextField>
               </Grid>
 
+              {/* Tags */}
               <Grid size={{ xs: 12, md: 6 }}>
                 <TextField
                   label="Tags"
@@ -1697,43 +1735,11 @@ export default function FirebaseManagementPage() {
                     }))
                   }
                   disabled={creatingMessageTemplate}
-                  helperText="Comma-separated, e.g. welcome, 2026, republican"
+                  helperText="Comma-separated, e.g. affordability, crime, 2026"
                 />
               </Grid>
 
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Usage Count"
-                  type="number"
-                  fullWidth
-                  value={messageTemplateForm.usage_count}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      usage_count: Number(e.target.value) || 0,
-                    }))
-                  }
-                  disabled={creatingMessageTemplate}
-                  inputProps={{ min: 0 }}
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Created By (UID)"
-                  fullWidth
-                  value={messageTemplateForm.created_by}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      created_by: e.target.value,
-                    }))
-                  }
-                  disabled={creatingMessageTemplate}
-                  helperText="Firebase UID of creator"
-                />
-              </Grid>
-
+              {/* Active Switch */}
               <Grid size={12}>
                 <FormControlLabel
                   control={

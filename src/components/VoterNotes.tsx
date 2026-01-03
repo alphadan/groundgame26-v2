@@ -1,5 +1,5 @@
 // src/components/VoterNotes.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -13,8 +13,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemAvatar,
-  Avatar,
   CircularProgress,
   Stack,
   Divider,
@@ -22,22 +20,19 @@ import {
   Chip,
 } from "@mui/material";
 import { Comment } from "@mui/icons-material";
-import { useCollectionData } from "react-firebase-hooks/firestore";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "../lib/firebase";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../lib/firebase";
+import { VoterNotesProps } from "../types";
 
-interface VoterNotesProps {
-  voterId: string | null;
-  fullName: string;
-  address: string;
+const getVoterNotes = httpsCallable(functions, "getVoterNotes");
+const addVoterNote = httpsCallable(functions, "addVoterNote");
+
+interface VoterNote {
+  id: string;
+  voter_id: string;
+  note: string;
+  created_by_name?: string;
+  created_at: any;
 }
 
 export const VoterNotes: React.FC<VoterNotesProps> = ({
@@ -50,18 +45,58 @@ export const VoterNotes: React.FC<VoterNotesProps> = ({
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Properly typed query for notes
-  const notesQuery = voterId
-    ? query(
-        collection(db, "voter_notes"),
-        where("voter_id", "==", voterId),
-        orderBy("created_at", "desc")
-      )
-    : null;
+  const [notes, setNotes] = useState<VoterNote[]>([]);
+  const [noteCount, setNoteCount] = useState(0); // For badge on icon
+  const [loadingNotes, setLoadingNotes] = useState(false);
+  const [notesError, setNotesError] = useState<string | null>(null);
 
-  const [notes, loadingNotes, error] = useCollectionData(notesQuery);
+  // Fetch note count on mount (lightweight)
+  useEffect(() => {
+    if (!voterId) {
+      setNoteCount(0);
+      return;
+    }
 
-  const addVoterNote = httpsCallable(functions, "addVoterNote");
+    const fetchCount = async () => {
+      try {
+        const result = await getVoterNotes({ voterIds: [voterId] });
+        const fetchedNotes = (result.data as any).notes || [];
+        setNoteCount(fetchedNotes.length);
+      } catch (err) {
+        console.error("Failed to fetch note count:", err);
+        setNoteCount(0);
+      }
+    };
+
+    fetchCount();
+  }, [voterId]);
+
+  // Fetch full notes when dialog opens
+  useEffect(() => {
+    if (!open || !voterId) {
+      setNotes([]);
+      return;
+    }
+
+    const fetchNotes = async () => {
+      setLoadingNotes(true);
+      setNotesError(null);
+
+      try {
+        const result = await getVoterNotes({ voterIds: [voterId] });
+        const fetchedNotes = (result.data as any).notes || [];
+        setNotes(fetchedNotes);
+      } catch (err: any) {
+        console.error("Failed to load notes:", err);
+        setNotesError("Failed to load notes");
+        setNotes([]);
+      } finally {
+        setLoadingNotes(false);
+      }
+    };
+
+    fetchNotes();
+  }, [open, voterId]);
 
   const handleSave = async () => {
     if (!noteText.trim() || !voterId) return;
@@ -80,6 +115,12 @@ export const VoterNotes: React.FC<VoterNotesProps> = ({
       setNoteText("");
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
+
+      // Refresh both count and full notes
+      const result = await getVoterNotes({ voterIds: [voterId] });
+      const fetchedNotes = (result.data as any).notes || [];
+      setNotes(fetchedNotes);
+      setNoteCount(fetchedNotes.length);
     } catch (err) {
       console.error("Failed to save note:", err);
       alert("Failed to save note — please try again");
@@ -88,18 +129,33 @@ export const VoterNotes: React.FC<VoterNotesProps> = ({
     }
   };
 
-  const noteCount = notes?.length || 0;
+  // Robust date formatting
+  const formatDate = (created_at: any): string => {
+    if (!created_at) return "Unknown date";
+
+    if (typeof created_at === "object" && created_at._seconds != null) {
+      const date = new Date(
+        created_at._seconds * 1000 + created_at._nanoseconds / 1000000
+      );
+      return date.toLocaleString();
+    }
+
+    const date = new Date(created_at);
+    if (isNaN(date.getTime())) return "Unknown date";
+
+    return date.toLocaleString();
+  };
 
   return (
     <>
-      {/* Trigger Button */}
+      {/* Trigger Button with Count Badge */}
       <IconButton color="primary" onClick={() => setOpen(true)} size="small">
         <Comment />
         {noteCount > 0 && (
           <Chip
             label={noteCount}
             size="small"
-            color="primary"
+            color="info"
             sx={{
               ml: 0.5,
               height: 18,
@@ -128,7 +184,6 @@ export const VoterNotes: React.FC<VoterNotesProps> = ({
 
         <DialogContent dividers>
           <Stack spacing={3}>
-            {/* Loading / Error / Empty States */}
             {loadingNotes ? (
               <Box sx={{ textAlign: "center", py: 4 }}>
                 <CircularProgress size={32} />
@@ -136,46 +191,30 @@ export const VoterNotes: React.FC<VoterNotesProps> = ({
                   Loading notes...
                 </Typography>
               </Box>
-            ) : error ? (
-              <Alert severity="error">Failed to load notes</Alert>
-            ) : notes && notes.length > 0 ? (
+            ) : notesError ? (
+              <Alert severity="error">{notesError}</Alert>
+            ) : notes.length > 0 ? (
               <List>
-                {notes.map((note: any, index: number) => {
-                  const createdAt = note.created_at;
-                  const dateStr = createdAt?.toDate?.()
-                    ? createdAt.toDate().toLocaleString()
-                    : createdAt instanceof Timestamp
-                    ? createdAt.toDate().toLocaleString()
-                    : "Unknown date";
-
-                  return (
-                    <React.Fragment key={index}>
-                      <ListItem alignItems="flex-start">
-                        <ListItemAvatar>
-                          <Avatar sx={{ bgcolor: "primary.main" }}>
-                            {note.created_by_name?.[0]?.toUpperCase() || "?"}
-                          </Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={
-                            <Typography variant="body1">{note.note}</Typography>
-                          }
-                          secondary={
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                            >
-                              {note.created_by_name || "Unknown"} • {dateStr}
-                            </Typography>
-                          }
-                        />
-                      </ListItem>
-                      {index < notes.length - 1 && (
-                        <Divider variant="inset" component="li" />
-                      )}
-                    </React.Fragment>
-                  );
-                })}
+                {notes.map((note, index) => (
+                  <React.Fragment key={note.id}>
+                    <ListItem alignItems="flex-start">
+                      <ListItemText
+                        primary={
+                          <Typography variant="body1">{note.note}</Typography>
+                        }
+                        secondary={
+                          <Typography variant="caption" color="text.secondary">
+                            {note.created_by_name || "Unknown"} •{" "}
+                            {formatDate(note.created_at)}
+                          </Typography>
+                        }
+                      />
+                    </ListItem>
+                    {index < notes.length - 1 && (
+                      <Divider variant="inset" component="li" />
+                    )}
+                  </React.Fragment>
+                ))}
               </List>
             ) : (
               <Typography
@@ -190,7 +229,6 @@ export const VoterNotes: React.FC<VoterNotesProps> = ({
 
             <Divider />
 
-            {/* New Note Input */}
             <Box>
               <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                 Add New Note

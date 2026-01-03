@@ -64,7 +64,14 @@ export default function Dashboard() {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
+    <Box
+      sx={{
+        width: "100%",
+        maxWidth: "100vw",
+        p: { xs: 2, sm: 3, md: 4 },
+        mx: "auto",
+      }}
+    >
       <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
         Dashboard
       </Typography>
@@ -103,7 +110,7 @@ export default function Dashboard() {
       </Paper>
 
       {/* Charts */}
-      <Grid container spacing={3}>
+      <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: { xs: 3, sm: 4 }, borderRadius: 3 }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
@@ -227,7 +234,6 @@ export default function Dashboard() {
         </Grid>
       </Grid>
 
-      {/* AI Analysis */}
       {/* AI-Driven Analysis – More Narrative & Visually Engaging */}
       <Paper elevation={3} sx={{ mt: 5, p: { xs: 3, sm: 4 }, borderRadius: 3 }}>
         <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">

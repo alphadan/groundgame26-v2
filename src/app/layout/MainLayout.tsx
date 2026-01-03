@@ -139,11 +139,28 @@ export default function MainLayout({ children }: MainLayoutProps) {
 
   // === Earned Badges with SVG icons and tooltips ===
   const earnedBadges = [
-    { id: 1, icon: BadgeTrophy, tooltip: "100 Doors Knocked" },
-    { id: 2, icon: BadgeFirstTimer, tooltip: "First-Time User" },
-    { id: 3, icon: BadgeTeamLeader, tooltip: "Team Leader" },
-    { id: 4, icon: BadgeMailMaster, tooltip: "Mail Ballot Master" },
-    { id: 5, icon: BadgeTopRecruiter, tooltip: "Top Recruiter" },
+    {
+      id: 1,
+      name: "100 Doors Knocked",
+      icon: "🏆",
+      points: 100,
+      redeemed: true,
+    },
+    {
+      id: 2,
+      name: "Mail Ballot Master",
+      icon: "📬",
+      points: 150,
+      redeemed: false,
+    },
+    { id: 3, name: "Top Recruiter", icon: "🎯", points: 200, redeemed: false },
+    {
+      id: 4,
+      name: "Platinum Committeeperson",
+      icon: "💎",
+      points: 500,
+      redeemed: false,
+    },
   ];
 
   const drawer = (
@@ -170,12 +187,10 @@ export default function MainLayout({ children }: MainLayoutProps) {
                   if (!isDesktop) setMobileOpen(false);
                 }}
                 sx={{
-                  // Subtle primary tint instead of full color
                   bgcolor: isActive ? "primary.50" : "transparent",
                   "&:hover": {
                     bgcolor: isActive ? "primary.100" : "action.hover",
                   },
-                  // No border radius
                   borderRadius: 0,
                 }}
               >
@@ -217,6 +232,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
         display: "flex",
         minHeight: "100vh",
         bgcolor: "background.default",
+        overflowX: "hidden", // Prevent any horizontal scroll
       }}
     >
       {/* Drawer */}
@@ -243,7 +259,14 @@ export default function MainLayout({ children }: MainLayoutProps) {
       {/* Main Content */}
       <Box
         component="main"
-        sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}
+        sx={{
+          flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
+          width: "100%",
+          ml: { xs: 0 },
+          overflowX: "hidden",
+        }}
       >
         {/* Mobile Top Bar */}
         {!isDesktop && (
@@ -275,10 +298,12 @@ export default function MainLayout({ children }: MainLayoutProps) {
             position: "sticky",
             top: 0,
             zIndex: 1100,
-            ...(isMobile && { pt: "56px" }),
+            ...(isMobile && { pt: "56px" }), // Account for mobile AppBar
           }}
         >
-          <Toolbar sx={{ justifyContent: "space-between" }}>
+          <Toolbar
+            sx={{ justifyContent: "space-between", px: { xs: 2, sm: 3 } }}
+          >
             {/* Left: Breadcrumbs */}
             <Breadcrumbs aria-label="breadcrumb">
               <IconButton size="small" onClick={() => navigate("/dashboard")}>
@@ -296,27 +321,32 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 alignItems="center"
                 sx={{ display: "inline-flex", pr: 4 }}
               >
-                {/* Badges with SVG icons and tooltips */}
+                {/* Badges */}
                 {earnedBadges.map((badge) => (
-                  <Tooltip key={badge.id} title={badge.tooltip} arrow>
+                  <Tooltip key={badge.id} title={badge.name} arrow>
                     <Box
-                      component="img"
-                      src={badge.icon}
-                      alt={badge.tooltip}
-                      sx={{ width: 24, height: 24, flexShrink: 0 }}
-                    />
+                      sx={{
+                        fontSize: "1rem", // Size of the emoji
+                        lineHeight: 1,
+                        cursor: "default",
+                        // Optional subtle hover effect
+                        transition: "transform 0.2s",
+                        "&:hover": {
+                          transform: "scale(1.2)",
+                        },
+                      }}
+                    >
+                      {badge.icon}
+                    </Box>
                   </Tooltip>
                 ))}
 
-                {/* Placeholder if no badges */}
                 {earnedBadges.length === 0 && (
                   <Typography variant="body2" color="text.secondary">
                     Earn badges by completing goals!
                   </Typography>
                 )}
               </Stack>
-
-              {/* Right: Badges already above, now Role, Org, Settings, Avatar */}
 
               {/* Role Icon */}
               {userRole && ROLE_ICONS[userRole] && (
@@ -363,8 +393,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
                     sx={{
                       width: 40,
                       height: 40,
-                      bgcolor: user?.photoURL ? "transparent" : "gold.main", // Gold background if no photo
-                      color: "gold.contrastText", // White text for contrast
+                      bgcolor: user?.photoURL ? "transparent" : "gold.main",
+                      color: "gold.contrastText",
                       fontWeight: "bold",
                       fontSize: "1.1rem",
                     }}
@@ -402,26 +432,16 @@ export default function MainLayout({ children }: MainLayoutProps) {
                   Log Out
                 </MenuItem>
 
-                {/* Version & Database Info – caption style */}
                 <Divider sx={{ my: 1 }} />
 
                 <MenuItem
                   disableRipple
                   disabled
-                  sx={{
-                    opacity: 0.7,
-                    cursor: "default",
-                    py: 0.2,
-                    fontWeight: 500,
-                  }}
+                  sx={{ opacity: 0.7, cursor: "default", py: 0.2 }}
                 >
                   <Typography
                     variant="caption"
-                    sx={{
-                      width: "100%",
-                      textAlign: "left",
-                      fontWeight: 500,
-                    }}
+                    sx={{ width: "100%", textAlign: "left", fontWeight: 500 }}
                   >
                     Version: {appControl?.current_app_version || "—"}
                   </Typography>
@@ -430,12 +450,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 <MenuItem
                   disableRipple
                   disabled
-                  sx={{
-                    opacity: 0.7,
-                    cursor: "default",
-                    py: 0.2,
-                    fontWeight: 500,
-                  }}
+                  sx={{ opacity: 0.7, cursor: "default", py: 0.2 }}
                 >
                   <Typography
                     variant="caption"
@@ -450,7 +465,13 @@ export default function MainLayout({ children }: MainLayoutProps) {
         </Box>
 
         {/* Page Content */}
-        <Box sx={{ flexGrow: 1, p: { xs: 2, sm: 3, md: 4 } }}>
+        <Box
+          sx={{
+            flexGrow: 1,
+            p: { xs: 2, sm: 3, md: 4 },
+            maxWidth: "100%",
+          }}
+        >
           {children || <Outlet />}
         </Box>
       </Box>

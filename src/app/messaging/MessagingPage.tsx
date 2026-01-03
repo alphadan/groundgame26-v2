@@ -198,7 +198,7 @@ export default function MessagingPage() {
                 >
                   <CardContent sx={{ flexGrow: 1, pb: 1 }}>
                     <Typography variant="h6" gutterBottom fontWeight="bold">
-                      {msg.title || "Untitled Message"}
+                      {msg.subject_line || "Untitled Message"}
                     </Typography>
 
                     {msg.tags && msg.tags.length > 0 && (
@@ -238,7 +238,7 @@ export default function MessagingPage() {
                     <Button
                       startIcon={<ContentCopyIcon />}
                       onClick={() =>
-                        copyToClipboard(msg.body, msg.title || "Message")
+                        copyToClipboard(msg.body, msg.subject_line || "Message")
                       }
                       size="medium"
                       color="primary"
@@ -250,7 +250,7 @@ export default function MessagingPage() {
                     <Tooltip title="Copy full message">
                       <IconButton
                         onClick={() =>
-                          copyToClipboard(msg.body, msg.title || "Message")
+                          copyToClipboard(msg.body, msg.subject_line || "Message")
                         }
                         color="primary"
                       >

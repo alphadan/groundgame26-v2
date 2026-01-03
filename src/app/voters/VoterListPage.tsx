@@ -29,6 +29,7 @@ import {
   Message,
   AddComment,
   Download as DownloadIcon,
+  MailOutline,
 } from "@mui/icons-material";
 import { addDoc, collection } from "firebase/firestore";
 import { db } from "../../lib/firebase";
@@ -49,6 +50,7 @@ interface Voter {
   precinct?: string;
   phone_mobile?: string;
   phone_home?: string;
+  email?: string;
 }
 
 function CustomToolbar() {
@@ -75,9 +77,8 @@ export default function VoterListPage() {
   const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
   const [noteText, setNoteText] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
-  const [showReturnHint, setShowReturnHint] = useState<boolean>(false);
 
-  // Feedback
+  // Snackbar for feedback (call/text hints + notes)
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
@@ -93,32 +94,36 @@ export default function VoterListPage() {
     setFilters(submittedFilters);
   }, []);
 
-  // Device capabilities - only allow call/text on mobile
   const canCall = isMobile;
   const canText = isMobile;
 
+  // Updated handleCall with Snackbar
   const handleCall = useCallback(
     (phone?: string) => {
-      setShowReturnHint(true);
       if (!phone || !canCall) return;
+
       const cleaned = phone.replace(/\D/g, "");
       const normalized =
         cleaned.length === 11 && cleaned.startsWith("1")
           ? cleaned
           : "1" + cleaned;
+
+      setSnackbarMessage(
+        "Opens your Phone app — from the left swipe right to return back here."
+      );
+      setSnackbarOpen(true);
+
       setTimeout(() => {
         window.location.href = `tel:${normalized}`;
-      }, 1500);
-      setShowReturnHint(false);
+      }, 2000);
     },
     [canCall]
   );
 
+  // Updated handleText with Snackbar
   const handleText = useCallback(
     async (phone?: string) => {
       if (!phone || !canText) return;
-
-      setShowReturnHint(true);
 
       const cleaned = phone.replace(/\D/g, "");
       const normalized =
@@ -129,23 +134,24 @@ export default function VoterListPage() {
       let messageBody = "";
 
       try {
-        // Try to read from clipboard
         const clipboardText = await navigator.clipboard.readText();
         if (clipboardText.trim()) {
           messageBody = clipboardText.trim();
         }
       } catch (err) {
-        console.log("Clipboard access denied or empty — using default message");
+        console.log("Clipboard access denied or empty");
       }
 
-      // Open SMS with the message
+      setSnackbarMessage(
+        "Opens your Messages app — from the left swipe right to return back here."
+      );
+      setSnackbarOpen(true);
+
       setTimeout(() => {
         window.location.href = `sms:${normalized}?body=${encodeURIComponent(
           messageBody
         )}`;
-      }, 1500);
-
-      setShowReturnHint(false);
+      }, 2000);
     },
     [canText]
   );
@@ -194,6 +200,7 @@ export default function VoterListPage() {
       "Zip Code",
       "Phone Mobile",
       "Phone Home",
+      "Email",
       "Precinct",
       "Modeled Party",
       "Turnout Score",
@@ -209,6 +216,7 @@ export default function VoterListPage() {
       voter.zip_code || "",
       voter.phone_mobile || "",
       voter.phone_home || "",
+      voter.email || "",
       voter.precinct || "",
       voter.modeled_party || "",
       voter.turnout_score_general || "",
@@ -295,22 +303,16 @@ export default function VoterListPage() {
     {
       field: "contact",
       headerName: "Contact",
-      width: 160,
+      width: 220,
       align: "right",
       sortable: false,
       filterable: false,
       disableColumnMenu: true,
       renderCell: ({ row }) => (
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-          {/* Show phone number on desktop */}
-          {!isMobile && (row.phone_mobile || row.phone_home) && (
-            <Typography variant="body2" color="text.secondary">
-              {row.phone_mobile || row.phone_home || "-"}
-            </Typography>
-          )}
-          {/* Show icons only on mobile */}
-          {isMobile && (row.phone_mobile || row.phone_home) && (
-            <Tooltip title="Opens Phone app — tap back arrow in top-left to return">
+          {/* Phone Call */}
+          {(row.phone_mobile || row.phone_home) && isMobile && (
+            <Tooltip title="Call">
               <IconButton
                 size="small"
                 color="success"
@@ -320,14 +322,32 @@ export default function VoterListPage() {
               </IconButton>
             </Tooltip>
           )}
-          {isMobile && row.phone_mobile && (
-            <Tooltip title="Opens Messages app — tap back arrow in top-left to return">
+
+          {/* Text Message */}
+          {row.phone_mobile && isMobile && (
+            <Tooltip title="Text">
               <IconButton
                 size="small"
                 color="info"
                 onClick={() => handleText(row.phone_mobile)}
               >
                 <Message fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          {/* Email Icon */}
+          {row.email && (
+            <Tooltip title={`Email: ${row.email}`}>
+              <IconButton
+                size="small"
+                color="primary"
+                component="a"
+                href={`mailto:${row.email}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <MailOutline fontSize="small" />
               </IconButton>
             </Tooltip>
           )}
@@ -343,17 +363,11 @@ export default function VoterListPage() {
       filterable: false,
       disableColumnMenu: true,
       renderCell: ({ row }) => (
-        <Tooltip title="Add Note">
-          <IconButton
-            size="small"
-            onClick={() => {
-              setSelectedVoter(row);
-              setOpenNote(true);
-            }}
-          >
-            <AddComment fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        <VoterNotes
+          voterId={row.voter_id}
+          fullName={row.full_name}
+          address={row.address}
+        />
       ),
     },
   ];
@@ -395,24 +409,6 @@ export default function VoterListPage() {
         <Alert severity="error" sx={{ mt: 3 }}>
           Failed to load voters. Please try again.
         </Alert>
-      )}
-
-      {showReturnHint && (
-        <Box
-          sx={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bgcolor: "primary.main",
-            color: "white",
-            p: 2,
-            textAlign: "center",
-            zIndex: 9999,
-          }}
-        >
-          Opening Messages... Tap back when finished!
-        </Box>
       )}
 
       {filters && !isLoading && voters.length === 0 && (
@@ -477,45 +473,7 @@ export default function VoterListPage() {
         </Box>
       )}
 
-      {/* Note Dialog */}
-      <Dialog
-        open={openNote}
-        onClose={() => setOpenNote(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          Add Note for {selectedVoter?.full_name || "Voter"}
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Note"
-            placeholder="e.g. Strong supporter, requested yard sign"
-            fullWidth
-            multiline
-            rows={5}
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            variant="outlined"
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenNote(false)}>Cancel</Button>
-          <Button
-            onClick={handleAddNote}
-            disabled={noteSaving || !noteText.trim()}
-            variant="contained"
-            color="primary"
-          >
-            {noteSaving ? "Saving..." : "Save Note"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Snackbar */}
+      {/* Snackbar for call/text hints and notes */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={4000}
@@ -524,8 +482,9 @@ export default function VoterListPage() {
       >
         <Alert
           onClose={() => setSnackbarOpen(false)}
-          severity="success"
+          severity="info"
           variant="filled"
+          sx={{ width: "100%" }}
         >
           {snackbarMessage}
         </Alert>

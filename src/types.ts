@@ -151,18 +151,20 @@ export interface FilterValues {
 
 export interface MessageTemplate {
   id: string;
-  title?: string;
+  subject_line?: string;
   body: string;
+  category: string;
+  tone: string;
   age_group?: string;
   modeled_party?: string;
   turnout_score_general?: string;
-  mail_ballot?: string;
+  has_mail_ballot?: string;
   tags?: string[];
   active: boolean;
 }
 
 export interface VoterNotesProps {
   voterId: string | null;
-  fullName: string;
-  address: string;
+  fullName?: string;
+  address?: string;
 }

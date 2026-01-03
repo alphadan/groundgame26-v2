@@ -321,7 +321,7 @@ export const queryVotersDynamic = onCall(
     let sql = `
       SELECT 
         voter_id, full_name, gender, age, party, precinct, area_district,
-        address, city, phone_mobile, phone_home, has_mail_ballot,
+        address, city, email, phone_mobile, phone_home, has_mail_ballot,
         modeled_party, turnout_score_general, date_registered, likely_mover, zip_code
       FROM \`${table}\`
       WHERE 1=1
@@ -877,7 +877,6 @@ export const addVoterNote = onCall(async (request) => {
 
     await db.collection("voter_notes").add({
       voter_id: voter_id || null,
-      precinct: precinct || null,
       full_name: full_name || "Unknown",
       address: address || "Unknown",
       note: note.trim(),
@@ -888,7 +887,7 @@ export const addVoterNote = onCall(async (request) => {
 
     return { success: true };
   } catch (error) {
-    console.error("Failed to save voter note:", error);
+    console.error("Failed to save voter note:");
     throw new Error("Failed to save note");
   }
 });
@@ -1301,6 +1300,16 @@ export const adminCreateMessageTemplate = onCall(async (request) => {
 
   const data = request.data;
 
+  if (!data.id || !data.body || !data.category || !data.tone) {
+    throw new HttpsError(
+      "invalid-argument",
+      "id, body, category, and tone are required."
+    );
+  }
+
+  const toNullIfAny = (value) =>
+    value === "Any" || value === "" ? null : value;
+
   try {
     // 2. Correct way to get user info in 2nd Gen
     const authUser = await getAuth().getUser(request.auth.uid);
@@ -1309,26 +1318,29 @@ export const adminCreateMessageTemplate = onCall(async (request) => {
       .collection("message_templates")
       .doc(data.id)
       .set({
-        id: data.id || null,
-        age_group: data.age_group || null,
-        body: data.body || "Unknown",
-        category: data.category || "Unknown",
-        length: data.length || null,
-        mail_ballot: data.mail_ballot || null,
-        modeled_party: data.modeled_party || "Unknown",
-        tags: data.tags || null,
-        title: data.title || null,
-        tone: data.tone || null,
-        turnout_score_general: data.turnout_score_general || null,
-        usage_count: null,
-        active: true,
+        id: data.id.trim(),
+        subject_line: data.subject_line?.trim() || null,
+        body: data.body.trim(),
+        category: data.category,
+        tone: data.tone,
+        age_group: data.age_group?.trim() || null,
+        modeled_party: toNullIfAny(data.modeled_party),
+        turnout_score_general: toNullIfAny(data.turnout_score_general),
+        has_mail_ballot: toNullIfAny(data.has_mail_ballot),
+        tags: Array.isArray(data.tags)
+          ? data.tags
+          : data.tags
+              ?.split(",")
+              .map((t) => t.trim())
+              .filter((t) => t.length > 0) || [],
+        active: data.active ?? true,
         created_at: Date.now(),
         last_updated: Date.now(),
       });
 
     return { success: true };
   } catch (error) {
-    console.error("Admin Create Message Template failed:", error);
+    console.error("Admin Create Message Template failed:");
     // 3. Throw a proper HttpsError for the frontend
     throw new HttpsError(
       "internal",
