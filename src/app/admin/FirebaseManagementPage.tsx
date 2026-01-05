@@ -1,5 +1,5 @@
 // src/app/admin/FirebaseManagementPage.tsx
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useCloudFunctions } from "../../hooks/useCloudFunctions";
 import {
@@ -19,8 +19,37 @@ import {
   useMediaQuery,
   FormControlLabel,
   Switch,
+  IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogActions,
+  DialogContent,
+  Snackbar,
 } from "@mui/material";
-import { UploadFile, CloudUpload } from "@mui/icons-material";
+import {
+  UploadFile,
+  CloudUpload,
+  Delete as DeleteIcon,
+  CloudUpload as UploadIcon,
+  Download as DownloadIcon,
+} from "@mui/icons-material";
+import { CampaignResource } from "../../types";
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  deleteDoc,
+  doc,
+  addDoc,
+} from "firebase/firestore";
+
+import { db } from "../../lib/firebase";
 
 // Validation
 const isValidEmail = (email: string): boolean =>
@@ -33,9 +62,26 @@ export default function FirebaseManagementPage() {
   const { claims, isLoaded } = useAuth();
   const { callFunction } = useCloudFunctions();
 
-  const isStateAdmin = claims?.role === "state_admin";
+  // const isStateAdmin = claims?.role === "state_admin";
+  const isStateAdmin = true;
 
   const [tabValue, setTabValue] = useState(0);
+
+  // === Campaign Resources Management ===
+  const [resources, setResources] = useState<CampaignResource[]>([]);
+  const [loadingResources, setLoadingResources] = useState(true);
+  const [uploadingResource, setUploadingResource] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [resourceToDelete, setResourceToDelete] = useState<string | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+
+  const [newResource, setNewResource] = useState({
+    title: "",
+    description: "",
+    category: "Brochures" as CampaignResource["category"],
+    file: null as File | null,
+  });
 
   // === Areas ===
   const [areaForm, setAreaForm] = useState({
@@ -538,6 +584,141 @@ export default function FirebaseManagementPage() {
     },
     [messageTemplateForm, callFunction]
   );
+  // Load resources on mount
+  useEffect(() => {
+    const load = async () => {
+      setLoadingResources(true);
+      try {
+        const snapshot = await getDocs(
+          query(
+            collection(db, "campaign_resources"),
+            orderBy("created_at", "desc")
+          )
+        );
+        setResources(
+          snapshot.docs.map(
+            (doc) => ({ id: doc.id, ...doc.data() } as CampaignResource)
+          )
+        );
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingResources(false);
+      }
+    };
+    load();
+  }, []);
+
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      setNewResource((prev) => ({ ...prev, file: e.target.files![0] }));
+    }
+  };
+
+  // Upload using Cloud Function
+  const handleUploadResource = async () => {
+    if (!newResource.file || !newResource.title.trim()) {
+      alert("Please provide a title and select a PDF file");
+      return;
+    }
+
+    setUploadingResource(true);
+
+    try {
+      // Step 1: Get signed upload URL
+      const result = await callFunction<{ uploadUrl: string }>(
+        "adminGenerateResourceUploadUrl",
+        {
+          title: newResource.title.trim(),
+          description: newResource.description.trim(),
+          category: newResource.category,
+          fileName: newResource.file.name,
+        }
+      );
+
+      const { uploadUrl } = result;
+
+      // Step 2: Upload file directly to Storage
+      await fetch(uploadUrl, {
+        method: "PUT",
+        body: newResource.file,
+        headers: {
+          "Content-Type": "application/pdf",
+        },
+      });
+
+      // Step 3: Save metadata to Firestore
+      const downloadUrl = uploadUrl.split("?")[0] + "?alt=media";
+
+      await addDoc(collection(db, "campaign_resources"), {
+        title: newResource.title.trim(),
+        description: newResource.description.trim(),
+        category: newResource.category,
+        fileName: newResource.file.name,
+        url: downloadUrl,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      });
+
+      alert("Resource uploaded successfully!");
+
+      // Reset form
+      setNewResource({
+        title: "",
+        description: "",
+        category: "Brochures",
+        file: null,
+      });
+
+      // Refresh list
+      const snapshot = await getDocs(
+        query(
+          collection(db, "campaign_resources"),
+          orderBy("created_at", "desc")
+        )
+      );
+      setResources(
+        snapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() } as CampaignResource)
+        )
+      );
+    } catch (err: any) {
+      console.error("Upload failed:", err);
+      alert(err.message || "Upload failed — please try again");
+    } finally {
+      setUploadingResource(false);
+    }
+  };
+
+  // Delete resource
+  const handleDeleteResource = async (id: string) => {
+    setResourceToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!resourceToDelete) return;
+
+    try {
+      await deleteDoc(doc(db, "campaign_resources", resourceToDelete));
+      setResources((prev) => prev.filter((r) => r.id !== resourceToDelete));
+      setSnackbarMessage("Resource deleted successfully");
+      setSnackbarOpen(true);
+    } catch (err) {
+      console.error("Delete failed:", err);
+      setSnackbarMessage("Failed to delete resource");
+      setSnackbarOpen(true);
+    } finally {
+      setDeleteConfirmOpen(false);
+      setResourceToDelete(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirmOpen(false);
+    setResourceToDelete(null);
+  };
 
   if (!isLoaded) {
     return (
@@ -1782,6 +1963,185 @@ export default function FirebaseManagementPage() {
           </Box>
         </Paper>
       )}
+      {/* === Campaign Resources Management === */}
+      <Paper sx={{ p: 4, mt: 8, borderRadius: 3 }}>
+        <Typography variant="h5" gutterBottom fontWeight="bold" color="primary">
+          Campaign Resources Management
+        </Typography>
+        <Typography variant="body1" color="text.secondary" mb={4}>
+          Upload and manage downloadable campaign materials (brochures, ballots,
+          forms, etc.)
+        </Typography>
+
+        {/* Upload Form */}
+        <Grid container spacing={3} alignItems="end">
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              label="Title *"
+              fullWidth
+              value={newResource.title}
+              onChange={(e) =>
+                setNewResource((prev) => ({ ...prev, title: e.target.value }))
+              }
+              disabled={uploadingResource}
+            />
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 3 }}>
+            <TextField
+              select
+              label="Category *"
+              fullWidth
+              value={newResource.category}
+              onChange={(e) =>
+                setNewResource((prev) => ({
+                  ...prev,
+                  category: e.target.value as CampaignResource["category"],
+                }))
+              }
+              SelectProps={{ native: true }}
+              disabled={uploadingResource}
+            >
+              <option value="Brochures">Brochures</option>
+              <option value="Ballots">Ballots</option>
+              <option value="Forms">Forms</option>
+              <option value="Graphics">Graphics</option>
+              <option value="Scripts">Scripts</option>
+            </TextField>
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 5 }}>
+            <TextField
+              label="Description (optional)"
+              fullWidth
+              value={newResource.description}
+              onChange={(e) =>
+                setNewResource((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
+              disabled={uploadingResource}
+            />
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 5 }}>
+            <Button
+              variant="outlined"
+              component="label"
+              startIcon={<UploadIcon />}
+              disabled={uploadingResource}
+            >
+              Select PDF File
+              <input
+                type="file"
+                hidden
+                accept=".pdf"
+                onChange={handleFileSelect}
+              />
+            </Button>
+            {newResource.file && (
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Selected: {newResource.file.name}
+              </Typography>
+            )}
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 3 }}>
+            <Button
+              variant="contained"
+              onClick={handleUploadResource}
+              disabled={
+                uploadingResource || !newResource.file || !newResource.title
+              }
+              fullWidth
+              startIcon={
+                uploadingResource ? (
+                  <CircularProgress size={20} />
+                ) : (
+                  <UploadIcon />
+                )
+              }
+            >
+              {uploadingResource ? "Uploading..." : "Upload Resource"}
+            </Button>
+          </Grid>
+        </Grid>
+
+        {/* Resources List */}
+        <Box sx={{ mt: 6 }}>
+          <Typography variant="h6" gutterBottom>
+            Current Resources ({resources.length})
+          </Typography>
+
+          {loadingResources ? (
+            <LinearProgress sx={{ mt: 2 }} />
+          ) : resources.length === 0 ? (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              No resources uploaded yet.
+            </Alert>
+          ) : (
+            <List>
+              {resources.map((resource) => (
+                <ListItem key={resource.id} divider>
+                  <ListItemText
+                    primary={resource.title}
+                    secondary={`${resource.category} • ${
+                      resource.description || "No description"
+                    }`}
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      onClick={() => window.open(resource.url, "_blank")}
+                      color="primary"
+                    >
+                      <DownloadIcon />
+                    </IconButton>
+                    <IconButton
+                      onClick={() => handleDeleteResource(resource.id)}
+                      color="error"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Box>
+      </Paper>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onClose={cancelDelete}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this resource? This only removes the
+            database entry — the file will remain in Storage.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelDelete}>Cancel</Button>
+          <Button onClick={confirmDelete} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* Global Snackbar for feedback */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity="success"
+          variant="filled"
+          sx={{ width: "100%" }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

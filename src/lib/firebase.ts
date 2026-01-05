@@ -31,7 +31,7 @@ const firebaseConfig = {
   storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  // Optional but recommended
+  serviceAccountId: process.env.REACT_APP_SERVICE_ACCOUNT_ID,
   recaptchaSiteKey: process.env.REACT_APP_RECAPTCHA_SITE_KEY?.trim(),
 };
 

@@ -5,11 +5,14 @@ import { BigQuery } from "@google-cloud/bigquery";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import axios from "axios";
+import { getStorage } from "firebase-admin/storage";
 
 initializeApp();
 
 const db = getFirestore();
+const auth = getAuth();
+const storage = getStorage();
+const bucket = storage.bucket("groundgame26-v2.firebasestorage.app");
 const bigquery = new BigQuery();
 
 // ================================================================
@@ -639,8 +642,10 @@ export const createUserProfile = functions.auth
         email,
         phone: user.phoneNumber || null,
         photo_url: user.photoURL || null,
-        role: "base", // Default starting role
-        org_id: "pending", // Placeholder until syncOrgRolesToClaims runs
+        primary_county: "15",
+        primary_precinct: "",
+        role: "base",
+        org_id: "pending",
         notifications_enabled: true,
         login_count: 1,
         last_ip: "auth-trigger",
@@ -690,7 +695,7 @@ const getPermissionsForRole = (role) => {
       };
 
     case "area_chair":
-    case "area chairman":
+    case "area_chairman":
       return {
         ...base,
         can_export_csv: true,
@@ -717,8 +722,6 @@ const getPermissionsForRole = (role) => {
       };
 
     case "committeeperson":
-    case "committeeman":
-    case "committeewoman":
       return {
         ...base,
         can_export_csv: true,
@@ -733,6 +736,7 @@ const getPermissionsForRole = (role) => {
 
 // ================================================================
 //  SYNC ORG ROLES — CENTRALIZED & CLEAN
+//  CLOUD TRIGGERED FUNCTION ONLY
 // ================================================================
 
 export const syncOrgRolesToClaims = functions.firestore
@@ -758,7 +762,7 @@ export const syncOrgRolesToClaims = functions.firestore
       .get();
 
     if (snap.empty) {
-      await getAuth().setCustomUserClaims(uid, { role: "admin" });
+      await getAuth().setCustomUserClaims(uid, { role: "base" });
       logger.info("[syncOrgRolesToClaims]setCustomUserClaims:uid :", uid);
       return;
     }
@@ -780,8 +784,20 @@ export const syncOrgRolesToClaims = functions.firestore
 
     logger.info("[syncOrgRolesToClaims]roles :", roles);
 
-    const primaryRole = [...roles][0] || "base";
-    logger.info("[syncOrgRolesToClaims]primaryRole :", primaryRole);
+    // 3. Hierarchy Logic: Find the highest priority role
+    const priority = [
+      "state_admin",
+      "state_rep_district",
+      "county_chair",
+      "area_chair",
+      "committeeperson",
+    ];
+
+    // This finds the first role in the priority list that exists in the user's roles
+    const primaryRole = priority.find((r) => roles.has(r)) || "base";
+
+    logger.info(`[Sync] Calculated Primary Role: ${primaryRole}`);
+
     const permissions = getPermissionsForRole(primaryRole);
 
     const claims = {
@@ -1346,5 +1362,65 @@ export const adminCreateMessageTemplate = onCall(async (request) => {
       "internal",
       "Failed to create message template record."
     );
+  }
+});
+
+// ================================================================
+//  CREATE INDIVIDUAL MESSAGE TEMPLATES
+// ================================================================
+
+export const adminGenerateResourceUploadUrl = onCall(async (request) => {
+  logger.info("adminGenerateResourceUploadUrl called", {
+    uid: request.auth?.uid,
+  });
+
+  if (!request.auth?.uid) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const { title, description = "", category, fileName } = request.data || {};
+
+  if (!title || !category || !fileName) {
+    throw new HttpsError(
+      "invalid-argument",
+      "title, category, and fileName are required"
+    );
+  }
+
+  const validCategories = [
+    "Brochures",
+    "Ballots",
+    "Forms",
+    "Graphics",
+    "Scripts",
+  ];
+  if (!validCategories.includes(category)) {
+    throw new HttpsError("invalid-argument", "Invalid category");
+  }
+
+  const safeFileName = `${Date.now()}-${fileName.replace(
+    /[^a-zA-Z0-9.-]/g,
+    "_"
+  )}`;
+  const folder = category.toLowerCase().replace(/\s+/g, "-");
+  const filePath = `resources/${folder}/${safeFileName}`;
+
+  logger.info("Generating signed URL", { filePath, title, category });
+
+  const file = bucket.file(filePath);
+
+  try {
+    const [url] = await file.getSignedUrl({
+      action: "write",
+      expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+      contentType: "application/pdf",
+    });
+
+    logger.info("Signed URL generated successfully", { filePath });
+
+    return { uploadUrl: url, filePath, fileName: safeFileName };
+  } catch (error) {
+    logger.error("Failed to generate signed URL", { error: error.message });
+    throw new HttpsError("internal", "Failed to generate upload URL");
   }
 });

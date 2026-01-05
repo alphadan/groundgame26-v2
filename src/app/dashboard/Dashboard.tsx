@@ -35,8 +35,8 @@ export default function Dashboard() {
   // ... (keep your useEffect for profile caching)
 
   const profile = useLiveQuery(
-    () => (claims?.user_id ? indexedDb.users.get(claims.user_id) : undefined),
-    [claims?.user_id]
+    () => (user?.uid ? indexedDb.users.get(user.uid) : undefined),
+    [user?.uid]
   );
 
   const preferredName =

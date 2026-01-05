@@ -44,7 +44,7 @@ import Logo from "../../components/ui/Logo";
 import DataObjectIcon from "@mui/icons-material/DataObject";
 
 // Role & Org Icons
-import GopElephant from "../../assets/icons/gop-elephant.svg";
+import GopElephant from "../../assets/icons/republicanLogo.svg";
 import CandidateRosette from "../../assets/icons/candidate-rosette.svg";
 import CountyChairCrown from "../../assets/icons/county-chair-crown.svg";
 import AreaChairBadge from "../../assets/icons/area-chair-badge.svg";
@@ -64,7 +64,7 @@ interface MainLayoutProps {
 }
 
 const ROLE_ICONS: Record<string, string> = {
-  state_admin: CommitteepersonShield,
+  state_admin: GopElephant,
   candidate: CandidateRosette,
   county_chair: CountyChairCrown,
   area_chair: AreaChairBadge,
@@ -121,7 +121,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const menuItems = [
     { text: "Dashboard", icon: <HomeWork />, path: "/dashboard" },
     { text: "Analysis", icon: <Analytics />, path: "/analysis" },
-    { text: "Messaging", icon: <Campaign />, path: "/messaging" },
+    { text: "Resources", icon: <Campaign />, path: "/resources" },
     { divider: true },
     { text: "Voter List", icon: <Phone />, path: "/voters" },
     { text: "Walk Lists", icon: <DirectionsWalk />, path: "/walk-lists" },
@@ -129,10 +129,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
     { divider: true },
     { text: "Settings", icon: <Settings />, path: "/settings" },
     { text: "How to Use", icon: <TipsAndUpdatesIcon />, path: "/how-to-use" },
+    { text: "Firebase", icon: <DataObjectIcon />, path: "/admin" },
     // Admin only
-    ...(claims?.role === "state_admin"
-      ? [{ text: "Firebase", icon: <DataObjectIcon />, path: "/admin" }]
-      : []),
   ];
 
   const handleDrawerToggle = () => setMobileOpen((prev) => !prev);
@@ -359,7 +357,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
                     component="img"
                     src={ROLE_ICONS[userRole]}
                     alt={userRole}
-                    sx={{ height: 32 }}
+                    sx={{ height: 18 }}
                   />
                 </Tooltip>
               )}

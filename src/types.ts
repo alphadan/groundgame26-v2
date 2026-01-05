@@ -64,6 +64,7 @@ export interface Precinct extends BaseMetadata {
 export type UserRole =
   | "state_admin"
   | "county_chair"
+  | "state_rep_district"
   | "area_chair"
   | "candidate"
   | "ambassador"
@@ -74,7 +75,7 @@ export type UserRole =
 // --- UserProfile ---
 
 export interface UserProfile {
-  uid: string; // Primary Key
+  uid: string;
   display_name: string | null;
   email: string | null;
   role: UserRole | null;
@@ -82,6 +83,12 @@ export interface UserProfile {
   preferred_name: string | null;
   phone: string | null;
   photo_url: string | null;
+  access?: {
+    counties: string[];
+    areas: string[];
+    precincts: string[];
+  };
+  last_claims_sync?: number;
 }
 
 // --- Org_Role ---
@@ -119,22 +126,17 @@ export interface UserPermissions {
 }
 
 export interface CustomClaims {
-  role:
-    | "state_admin"
-    | "county_chair"
-    | "area_chair"
-    | "candidate"
-    | "ambassador"
-    | "committeeperson"
-    | "user"
-    | "base";
-  roles: string[];
+  role: UserRole;
   org_id: string;
   counties: string[];
   areas: string[];
   precincts: string[];
-  scope: string[];
-  permissions: UserPermissions;
+  user_id?: string;
+  uid?: string;
+  roles?: string[];
+  scope?: string[];
+  permissions?: UserPermissions;
+  [key: string]: any; // Safety net for dynamic Firebase properties
 }
 
 export interface FilterValues {
@@ -167,4 +169,21 @@ export interface VoterNotesProps {
   voterId: string | null;
   fullName?: string;
   address?: string;
+}
+
+export interface CampaignResource {
+  id: string;
+  title: string;
+  description: string;
+  category: "Brochures" | "Ballots" | "Forms" | "Graphics" | "Scripts";
+  url: string;
+  thumbnail?: string;
+}
+
+export interface UsefulLink {
+  name: string;
+  description: string;
+  phone?: string;
+  email?: string;
+  website: string;
 }

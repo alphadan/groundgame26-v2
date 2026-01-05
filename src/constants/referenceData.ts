@@ -482,6 +482,7 @@ export const org_roles = [
     is_vacant: false,
   },
   {
+    id: "PA15-RCP01-220",
     uid: "",
     role: "committeeperson",
     org_id: "PA15-O-01",

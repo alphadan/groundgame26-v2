@@ -18,7 +18,7 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
     currentUid.trim() === ""
   ) {
     console.warn(
-      "⚠️ syncReferenceData called with invalid UID – skipping sync"
+      "⚠️ syncReferenceData called with invalid UID - skipping sync"
     );
     return;
   }

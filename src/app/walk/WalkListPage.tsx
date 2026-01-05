@@ -311,7 +311,7 @@ export default function WalkListPage() {
             <Tooltip title={`Email: ${row.email}`}>
               <IconButton
                 size="small"
-                color="primary"
+                color="info"
                 component="a"
                 href={`mailto:${row.email}`}
                 target="_blank"
