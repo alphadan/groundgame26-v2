@@ -10,9 +10,7 @@ import {
   MenuItem,
   Grid,
   CircularProgress,
-  Box,
 } from "@mui/material";
-import { SelectChangeEvent } from "@mui/material/Select";
 import { Control, Controller, UseFormSetValue } from "react-hook-form";
 
 interface RestrictedFiltersProps {
@@ -27,6 +25,22 @@ interface RestrictedFiltersProps {
   onCountyCodeChange: (code: string) => void;
 }
 
+/**
+ * Normalization Helpers for BigQuery Matching
+ */
+// Converts "PA15-A-15" -> "15"
+const cleanAreaForBigQuery = (areaId: string): string => {
+  if (!areaId) return "";
+  return areaId.split("-").pop() || "";
+};
+
+// Converts "0240" -> "240" or "005" -> "5"
+const cleanPrecinctForBigQuery = (code: string): string => {
+  if (!code) return "";
+  const numeric = Number(code);
+  return isNaN(numeric) ? code : String(numeric);
+};
+
 export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
   control,
   setValue,
@@ -38,42 +52,38 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
   onAreaDistrictChange,
   onCountyCodeChange,
 }) => {
-  const { isLoaded: authLoaded, isAdmin } = useAuth();
+  const { isLoaded: authLoaded } = useAuth();
 
-  // 1. Load Counties - Simply get all from our filtered IndexedDB
+  // 1. Load Counties from IndexedDB
   const counties =
     useLiveQuery(async () => {
-      // If the sync worked, the table only contains allowed counties
       return await indexedDb.counties.toArray();
     }, []) ?? [];
 
-  // 2. Load Areas - Filtered by the selected County ID
+  // 2. Load Areas filtered by the selected County ID
   const areas =
     useLiveQuery(async () => {
       if (!selectedCounty) return [];
-
-      // We match the county_code (e.g. "15") extracted from the ID (e.g. "PA-C-15")
       const shortCode = selectedCounty.split("-").pop() || "";
-
       return await indexedDb.areas
         .where("county_code")
         .equals(shortCode)
         .toArray();
     }, [selectedCounty]) ?? [];
 
-  // 3. Load Precincts - Filtered by the selected Area District ID
+  // 3. Load Precincts filtered by the selected Area ID
   const precincts =
     useLiveQuery(async () => {
       if (!selectedArea) return [];
-
       return await indexedDb.precincts
         .where("area_district")
         .equals(selectedArea)
         .toArray();
     }, [selectedArea]) ?? [];
 
-  // --- AUTO-SELECTION LOGIC ---
+  // --- AUTO-SELECTION & NORMALIZATION LOGIC ---
 
+  // Auto-select County if only one exists
   useEffect(() => {
     if (counties.length === 1 && !selectedCounty) {
       const single = counties[0];
@@ -83,11 +93,14 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
     }
   }, [counties, selectedCounty, onCountyChange, onCountyCodeChange, setValue]);
 
+  // Auto-select Area if only one exists and clean it for BigQuery
   useEffect(() => {
     if (selectedCounty && areas.length === 1 && !selectedArea) {
       const single = areas[0];
+      const cleanArea = cleanAreaForBigQuery(single.id);
+
       onAreaChange(single.id);
-      onAreaDistrictChange(single.id); // The precinct table matches on the full Area ID
+      onAreaDistrictChange(cleanArea); // Sends "15" to BigQuery
       setValue("area", single.id);
     }
   }, [
@@ -99,11 +112,14 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
     setValue,
   ]);
 
+  // Auto-select Precinct if only one exists and clean it for BigQuery
   useEffect(() => {
     if (selectedArea && precincts.length === 1) {
       const single = precincts[0];
-      setValue("precinct", single.precinct_code);
-      onPrecinctChange(single.precinct_code);
+      const cleanPrecinct = cleanPrecinctForBigQuery(single.precinct_code);
+
+      setValue("precinct", cleanPrecinct);
+      onPrecinctChange(cleanPrecinct); // Sends "235" to BigQuery
     }
   }, [selectedArea, precincts, setValue, onPrecinctChange]);
 
@@ -111,6 +127,7 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
 
   return (
     <Grid container spacing={2}>
+      {/* County Filter */}
       <Grid size={{ xs: 12, md: 4 }}>
         <Controller
           name="county"
@@ -123,12 +140,15 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
                 label="County"
                 value={selectedCounty || ""}
                 onChange={(e) => {
-                  const val = e.target.value;
+                  const val = e.target.value as string;
                   field.onChange(val);
                   onCountyChange(val);
                   const obj = counties.find((c) => c.id === val);
                   onCountyCodeChange(obj?.code || "");
+
+                  // Reset descendants
                   onAreaChange("");
+                  onAreaDistrictChange("");
                   onPrecinctChange("");
                   setValue("area", "");
                   setValue("precinct", "");
@@ -150,6 +170,7 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
         />
       </Grid>
 
+      {/* Area Filter */}
       <Grid size={{ xs: 12, md: 4 }}>
         <Controller
           name="area"
@@ -162,10 +183,14 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
                 label="Area"
                 value={selectedArea || ""}
                 onChange={(e) => {
-                  const val = e.target.value;
+                  const val = e.target.value as string;
+                  const cleanArea = cleanAreaForBigQuery(val);
+
                   field.onChange(val);
                   onAreaChange(val);
-                  onAreaDistrictChange(val);
+                  onAreaDistrictChange(cleanArea); // Sends clean code to parent
+
+                  // Reset precinct
                   onPrecinctChange("");
                   setValue("precinct", "");
                 }}
@@ -186,6 +211,7 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
         />
       </Grid>
 
+      {/* Precinct Filter */}
       <Grid size={{ xs: 12, md: 4 }}>
         <Controller
           name="precinct"
@@ -198,9 +224,11 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
                 label="Precinct"
                 value={field.value || ""}
                 onChange={(e) => {
-                  const val = e.target.value;
-                  field.onChange(val);
-                  onPrecinctChange(val);
+                  const val = e.target.value as string;
+                  const cleanPrecinct = cleanPrecinctForBigQuery(val);
+
+                  field.onChange(cleanPrecinct);
+                  onPrecinctChange(cleanPrecinct); // Sends clean code (no leading zeros)
                 }}
               >
                 {precincts.length > 1 && (
