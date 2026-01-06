@@ -46,63 +46,44 @@ export const db = new GroundGame26DB();
 export async function ensureDBInitialized(): Promise<void> {
   const exists = await Dexie.exists(DB_NAME);
 
-  if (!exists) {
-    // First-time creation
+  // If DB exists, we MUST open it to check the version stored in app_control
+  if (exists) {
+    try {
+      // Add a timeout to the open call
+      await db.open();
+    } catch (err) {
+      console.error("Failed to open DB, force deleting...", err);
+      await Dexie.delete(DB_NAME);
+      await db.open();
+    }
+  } else {
     await db.open();
-    await db.transaction("rw", db.app_control, async () => {
-      await db.app_control.put({
-        id: "app_control",
-        current_app_version: APP_VERSION,
-        current_db_version: DB_VERSION,
-        last_updated: Date.now(),
-        sync_status: "idle",
-      });
-    });
-    console.log(
-      "IndexedDB created for the first time with version",
-      DB_VERSION
-    );
-    return;
   }
 
-  // DB exists — check version in app_control
   const control = await db.app_control.get("app_control");
 
+  // Logic: If version is lower OR record is missing, RESET
   if (!control || control.current_db_version < DB_VERSION) {
-    console.log(
-      control
-        ? `DB version mismatch: stored ${control.current_db_version} < env ${DB_VERSION} → resetting DB`
-        : "No app_control record found → resetting DB"
-    );
+    console.warn("🔄 [DB] Version Mismatch or Missing Control. Resetting...");
 
-    // Close and delete the old database
+    // 1. Close connections
     db.close();
+
+    // 2. Delete
     await Dexie.delete(DB_NAME);
 
-    // Re-open with new schema
+    // 3. Re-open and INITIALIZE the control record immediately
     await db.open();
-
-    // Insert fresh app_control record
-    await db.transaction("rw", db.app_control, async () => {
-      await db.app_control.put({
-        id: "app_control",
-        current_app_version: APP_VERSION,
-        current_db_version: DB_VERSION,
-        last_updated: Date.now(),
-        sync_status: "idle",
-      });
+    await db.app_control.put({
+      id: "app_control",
+      current_app_version: APP_VERSION,
+      current_db_version: DB_VERSION,
+      last_updated: Date.now(),
+      sync_status: "idle",
     });
 
-    console.log("IndexedDB reset and recreated with version", DB_VERSION);
-    return;
+    console.log("✅ [DB] Database recreated and control record saved.");
   }
-
-  // DB is up-to-date
-  console.log(
-    "IndexedDB already up-to-date (version",
-    control.current_db_version,
-    ")"
-  );
 }
 
 /**

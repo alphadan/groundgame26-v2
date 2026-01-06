@@ -109,7 +109,11 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
               render={({ field }) => (
                 <FormControl fullWidth>
                   <InputLabel>Modeled Party</InputLabel>
-                  <Select {...field} label="Modeled Party">
+                  <Select
+                    {...field}
+                    value={field.value || ""}
+                    label="Modeled Party"
+                  >
                     <MenuItem value="">
                       <em>All Parties</em>
                     </MenuItem>
@@ -138,7 +142,11 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
               render={({ field }) => (
                 <FormControl fullWidth>
                   <InputLabel>Party Affilliation</InputLabel>
-                  <Select {...field} label="Modeled Party">
+                  <Select
+                    {...field}
+                    value={field.value || ""}
+                    label="Modeled Party"
+                  >
                     <MenuItem value="">
                       <em>All Parties</em>
                     </MenuItem>
@@ -161,7 +169,11 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
               render={({ field }) => (
                 <FormControl fullWidth>
                   <InputLabel>Turnout Score</InputLabel>
-                  <Select {...field} label="Turnout Score">
+                  <Select
+                    {...field}
+                    value={field.value || ""}
+                    label="Turnout Score"
+                  >
                     <MenuItem value="">
                       <em>All Levels</em>
                     </MenuItem>
@@ -186,7 +198,11 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
               render={({ field }) => (
                 <FormControl fullWidth>
                   <InputLabel>Age Group</InputLabel>
-                  <Select {...field} label="Age Group">
+                  <Select
+                    {...field}
+                    value={field.value || ""}
+                    label="Age Group"
+                  >
                     <MenuItem value="">
                       <em>All Ages</em>
                     </MenuItem>
@@ -210,7 +226,11 @@ export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
               render={({ field }) => (
                 <FormControl fullWidth>
                   <InputLabel>Mail Ballot Status</InputLabel>
-                  <Select {...field} label="Mail Ballot Status">
+                  <Select
+                    {...field}
+                    value={field.value || ""}
+                    label="Mail Ballot Status"
+                  >
                     <MenuItem value="">
                       <em>All</em>
                     </MenuItem>

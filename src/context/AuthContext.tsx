@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { User, onIdTokenChanged } from "firebase/auth";
 import { auth } from "../lib/firebase";
-import { Box, Typography, Button, CircularProgress } from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
 
 export type ValidRole =
   | "state_admin"
@@ -36,8 +36,8 @@ interface AuthContextType {
   claims: CustomClaims | null;
   role: ValidRole;
   isAdmin: boolean;
-  isLoaded: boolean;
-  isLoading: boolean;
+  isLoaded: boolean; // True once we've checked auth at least once
+  isLoading: boolean; // Currently fetching
   error: Error | null;
 }
 
@@ -64,38 +64,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [claims, setClaims] = useState<CustomClaims | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onIdTokenChanged(
-      auth,
-      async (currentUser) => {
-        try {
-          setIsLoading(true);
-          setError(null);
+    console.log("🔥 AuthProvider: Setting up listener");
 
-          if (currentUser) {
-            const tokenResult = await currentUser.getIdTokenResult();
-            setClaims(tokenResult.claims as CustomClaims);
-          } else {
-            setClaims(null);
+    const unsubscribe = onIdTokenChanged(auth, async (currentUser) => {
+      try {
+        // 1. HARD GUARD: If the UID hasn't changed, do absolutely nothing.
+        // This stops background refreshes from causing a re-render.
+        if (currentUser?.uid === user?.uid && claims) {
+          return;
+        }
+
+        // 2. Only clear/set loading if the user actually changed (login/logout)
+        setIsLoading(true);
+        setError(null);
+
+        if (currentUser) {
+          let tokenResult = await currentUser.getIdTokenResult();
+
+          if (!tokenResult.claims.role) {
+            console.log("🔑 Missing role, refreshing...");
+            tokenResult = await currentUser.getIdTokenResult(true);
           }
+
+          // 3. Update state only once for the new user
           setUser(currentUser);
-        } catch (err) {
-          setError(err instanceof Error ? err : new Error("Auth error"));
+          setClaims(tokenResult.claims as CustomClaims);
+        } else {
           setUser(null);
           setClaims(null);
-        } finally {
-          setIsLoading(false);
         }
-      },
-      (authErr) => {
-        setError(authErr instanceof Error ? authErr : new Error("Auth error"));
+      } catch (err: any) {
+        console.error("❌ Auth Error:", err);
+        setError(err);
+      } finally {
         setIsLoading(false);
+        setIsLoaded(true);
       }
-    );
+    });
 
-    return unsubscribe;
+    return () => unsubscribe();
   }, []);
 
   const contextValue = useMemo<AuthContextType>(() => {
@@ -105,12 +116,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       claims: claims ?? null,
       role: safeRole,
       isAdmin: safeRole === "state_admin",
-      isLoaded: !isLoading && !error,
+      isLoaded,
       isLoading,
       error,
     };
-  }, [user, claims, isLoading, error]);
+  }, [user, claims, isLoaded, isLoading, error]);
 
+  // Handle fatal errors only here.
+  // We removed the isLoading spinner to let App.tsx manage the UI.
   if (error) {
     return (
       <Box
@@ -120,34 +133,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         alignItems="center"
         minHeight="100vh"
         p={3}
-        textAlign="center"
       >
         <Typography variant="h5" color="error" gutterBottom>
-          Authentication Error
+          Auth Error
         </Typography>
-        <Typography variant="body1" color="text.secondary">
-          {error.message || "Unknown error"}
-        </Typography>
+        <Typography variant="body1">{error.message}</Typography>
         <Button
           variant="contained"
           onClick={() => window.location.reload()}
           sx={{ mt: 3 }}
         >
-          Reload Page
+          Reload
         </Button>
-      </Box>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="100vh"
-      >
-        <CircularProgress sx={{ color: "#B22234" }} />
       </Box>
     );
   }

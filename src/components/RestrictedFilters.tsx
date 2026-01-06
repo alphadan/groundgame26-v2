@@ -11,14 +11,13 @@ import {
   Grid,
   CircularProgress,
   Box,
-  Stack,
 } from "@mui/material";
 import { SelectChangeEvent } from "@mui/material/Select";
-import { Control, Controller } from "react-hook-form";
-import { Area, County, Precinct } from "../types";
+import { Control, Controller, UseFormSetValue } from "react-hook-form";
 
 interface RestrictedFiltersProps {
   control: Control<any>;
+  setValue: UseFormSetValue<any>;
   selectedCounty: string;
   selectedArea: string;
   onCountyChange: (value: string) => void;
@@ -30,6 +29,7 @@ interface RestrictedFiltersProps {
 
 export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
   control,
+  setValue,
   selectedCounty,
   selectedArea,
   onCountyChange,
@@ -38,223 +38,186 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
   onAreaDistrictChange,
   onCountyCodeChange,
 }) => {
-  const { claims, isLoaded: authLoaded, isAdmin } = useAuth();
+  const { isLoaded: authLoaded, isAdmin } = useAuth();
 
-  // 1. Load Counties: Filtered by Claims
+  // 1. Load Counties - Simply get all from our filtered IndexedDB
   const counties =
     useLiveQuery(async () => {
-      if (!authLoaded || !claims) return [];
+      // If the sync worked, the table only contains allowed counties
+      return await indexedDb.counties.toArray();
+    }, []) ?? [];
 
-      const allCounties = await indexedDb.counties
-        .filter((c: County) => c.active === true)
-        .toArray();
-
-      if (isAdmin)
-        return allCounties.sort((a, b) => a.name.localeCompare(b.name));
-
-      const allowedCounties = claims.counties || [];
-      return allCounties
-        .filter((c) => allowedCounties.includes(c.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
-    }, [authLoaded, claims, isAdmin]) ?? [];
-
-  // 2. Load Areas
+  // 2. Load Areas - Filtered by the selected County ID
   const areas =
     useLiveQuery(async () => {
-      if (!authLoaded || !claims || !selectedCounty) return [];
+      if (!selectedCounty) return [];
 
-      // Use the index for performance
-      const countyAreas = await indexedDb.areas
+      // We match the county_code (e.g. "15") extracted from the ID (e.g. "PA-C-15")
+      const shortCode = selectedCounty.split("-").pop() || "";
+
+      return await indexedDb.areas
         .where("county_code")
-        .equals(selectedCounty) // selectedCounty is "PA-C-15"
+        .equals(shortCode)
         .toArray();
+    }, [selectedCounty]) ?? [];
 
-      const activeAreas = countyAreas.filter((a) => a.active === true);
-
-      if (isAdmin)
-        return activeAreas.sort((a, b) => a.name.localeCompare(b.name));
-
-      const allowedAreas = claims.areas || [];
-      return activeAreas
-        .filter((a) => allowedAreas.length === 0 || allowedAreas.includes(a.id))
-        .sort((a, b) => a.name.localeCompare(b.name));
-    }, [authLoaded, claims, isAdmin, selectedCounty]) ?? [];
-
-  // 3. Load Precincts
+  // 3. Load Precincts - Filtered by the selected Area District ID
   const precincts =
     useLiveQuery(async () => {
-      if (!authLoaded || !claims || !selectedArea) return [];
+      if (!selectedArea) return [];
 
-      // selectedArea is "PA15-A-15"
-      const areaPrecincts = await indexedDb.precincts
+      return await indexedDb.precincts
         .where("area_district")
         .equals(selectedArea)
         .toArray();
-
-      const activePrecincts = areaPrecincts.filter((p) => p.active === true);
-
-      if (isAdmin)
-        return activePrecincts.sort((a, b) => a.name.localeCompare(b.name));
-
-      const allowedPrecincts = claims.precincts || [];
-      return activePrecincts
-        .filter(
-          (p) =>
-            allowedPrecincts.length === 0 || allowedPrecincts.includes(p.id)
-        )
-        .sort((a, b) => a.name.localeCompare(b.name));
-    }, [authLoaded, claims, isAdmin, selectedArea]) ?? [];
+    }, [selectedArea]) ?? [];
 
   // --- AUTO-SELECTION LOGIC ---
 
-  // Auto-select County if only one is allowed
   useEffect(() => {
-    if (authLoaded && counties.length === 1 && !selectedCounty) {
+    if (counties.length === 1 && !selectedCounty) {
       const single = counties[0];
       onCountyChange(single.id);
       onCountyCodeChange(single.code || "");
+      setValue("county", single.id);
     }
-  }, [authLoaded, counties, selectedCounty]);
+  }, [counties, selectedCounty, onCountyChange, onCountyCodeChange, setValue]);
 
-  // Auto-select Area if only one is allowed within selected County
   useEffect(() => {
-    if (authLoaded && selectedCounty && areas.length === 1 && !selectedArea) {
+    if (selectedCounty && areas.length === 1 && !selectedArea) {
       const single = areas[0];
       onAreaChange(single.id);
-      onAreaDistrictChange(single.area_district || "");
+      onAreaDistrictChange(single.id); // The precinct table matches on the full Area ID
+      setValue("area", single.id);
     }
-  }, [authLoaded, selectedCounty, areas, selectedArea]);
+  }, [
+    selectedCounty,
+    areas,
+    selectedArea,
+    onAreaChange,
+    onAreaDistrictChange,
+    setValue,
+  ]);
 
-  // Note: Precinct auto-selection is usually handled by the user selecting an Area,
-  // but if there's only one precinct in an area, you could add a similar effect here.
+  useEffect(() => {
+    if (selectedArea && precincts.length === 1) {
+      const single = precincts[0];
+      setValue("precinct", single.precinct_code);
+      onPrecinctChange(single.precinct_code);
+    }
+  }, [selectedArea, precincts, setValue, onPrecinctChange]);
 
-  const isInitialLoading = !authLoaded || (isAdmin && counties.length === 0);
-
-  if (isInitialLoading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", my: 6 }}>
-        <CircularProgress color="primary" />
-      </Box>
-    );
-  }
+  if (!authLoaded) return <CircularProgress size={20} />;
 
   return (
-    <Stack spacing={3}>
-      <Grid container spacing={2}>
-        {/* County Selection */}
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Controller
-            name="county"
-            control={control}
-            render={({ field }) => (
-              <FormControl fullWidth>
-                <InputLabel id="county-label">County</InputLabel>
-                <Select
-                  {...field}
-                  labelId="county-label"
-                  label="County"
-                  value={selectedCounty || ""}
-                  onChange={(e: SelectChangeEvent<string>) => {
-                    const val = e.target.value;
-                    field.onChange(val);
-                    onCountyChange(val);
-                    const obj = counties.find((c) => c.id === val);
-                    onCountyCodeChange(obj?.code || "");
-                    // Reset children
-                    onAreaChange("");
-                    onPrecinctChange("");
-                  }}
-                >
-                  {/* Only show "All" for Admins or users with multiple counties */}
-                  {(isAdmin || counties.length > 1) && (
-                    <MenuItem value="">
-                      <em>All Counties</em>
-                    </MenuItem>
-                  )}
-                  {counties.map((c) => (
-                    <MenuItem key={c.id} value={c.id}>
-                      {c.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-          />
-        </Grid>
-
-        {/* Area Selection */}
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Controller
-            name="area"
-            control={control}
-            render={({ field }) => (
-              <FormControl fullWidth disabled={!selectedCounty}>
-                <InputLabel id="area-label">Area</InputLabel>
-                <Select
-                  {...field}
-                  labelId="area-label"
-                  label="Area"
-                  value={selectedArea || ""}
-                  onChange={(e: SelectChangeEvent<string>) => {
-                    const val = e.target.value;
-                    field.onChange(val);
-                    onAreaChange(val);
-                    const obj = areas.find((a) => a.id === val);
-                    onAreaDistrictChange(obj?.area_district || "");
-                    // Reset children
-                    onPrecinctChange("");
-                  }}
-                >
-                  {(isAdmin || areas.length > 1) && (
-                    <MenuItem value="">
-                      <em>All Areas</em>
-                    </MenuItem>
-                  )}
-                  {areas.map((a) => (
-                    <MenuItem key={a.id} value={a.id}>
-                      {a.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-          />
-        </Grid>
-
-        {/* Precinct Selection */}
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Controller
-            name="precinct"
-            control={control}
-            render={({ field }) => (
-              <FormControl fullWidth disabled={!selectedArea}>
-                <InputLabel id="precinct-label">Precinct</InputLabel>
-                <Select
-                  {...field}
-                  labelId="precinct-label"
-                  label="Precinct"
-                  value={field.value || ""}
-                  onChange={(e) => {
-                    field.onChange(e);
-                    onPrecinctChange(e.target.value as string);
-                  }}
-                >
-                  {(isAdmin || precincts.length > 1) && (
-                    <MenuItem value="">
-                      <em>All Precincts</em>
-                    </MenuItem>
-                  )}
-                  {precincts.map((p) => (
-                    <MenuItem key={p.id} value={p.precinct_code}>
-                      {p.name} ({p.precinct_code})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-          />
-        </Grid>
+    <Grid container spacing={2}>
+      <Grid size={{ xs: 12, md: 4 }}>
+        <Controller
+          name="county"
+          control={control}
+          render={({ field }) => (
+            <FormControl fullWidth size="small">
+              <InputLabel>County</InputLabel>
+              <Select
+                {...field}
+                label="County"
+                value={selectedCounty || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  field.onChange(val);
+                  onCountyChange(val);
+                  const obj = counties.find((c) => c.id === val);
+                  onCountyCodeChange(obj?.code || "");
+                  onAreaChange("");
+                  onPrecinctChange("");
+                  setValue("area", "");
+                  setValue("precinct", "");
+                }}
+              >
+                {counties.length > 1 && (
+                  <MenuItem value="">
+                    <em>All Counties</em>
+                  </MenuItem>
+                )}
+                {counties.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>
+                    {c.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+        />
       </Grid>
-    </Stack>
+
+      <Grid size={{ xs: 12, md: 4 }}>
+        <Controller
+          name="area"
+          control={control}
+          render={({ field }) => (
+            <FormControl fullWidth size="small" disabled={!selectedCounty}>
+              <InputLabel>Area</InputLabel>
+              <Select
+                {...field}
+                label="Area"
+                value={selectedArea || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  field.onChange(val);
+                  onAreaChange(val);
+                  onAreaDistrictChange(val);
+                  onPrecinctChange("");
+                  setValue("precinct", "");
+                }}
+              >
+                {areas.length > 1 && (
+                  <MenuItem value="">
+                    <em>All Areas</em>
+                  </MenuItem>
+                )}
+                {areas.map((a) => (
+                  <MenuItem key={a.id} value={a.id}>
+                    {a.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+        />
+      </Grid>
+
+      <Grid size={{ xs: 12, md: 4 }}>
+        <Controller
+          name="precinct"
+          control={control}
+          render={({ field }) => (
+            <FormControl fullWidth size="small" disabled={!selectedArea}>
+              <InputLabel>Precinct</InputLabel>
+              <Select
+                {...field}
+                label="Precinct"
+                value={field.value || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  field.onChange(val);
+                  onPrecinctChange(val);
+                }}
+              >
+                {precincts.length > 1 && (
+                  <MenuItem value="">
+                    <em>All Precincts</em>
+                  </MenuItem>
+                )}
+                {precincts.map((p) => (
+                  <MenuItem key={p.id} value={p.precinct_code}>
+                    {p.name} ({p.precinct_code})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+        />
+      </Grid>
+    </Grid>
   );
 };

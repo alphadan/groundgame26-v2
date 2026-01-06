@@ -2,6 +2,10 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useCloudFunctions } from "../../hooks/useCloudFunctions";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db as firestore } from "../../lib/firebase";
+import { db as indexedDb } from "../../lib/db";
+import { CampaignResource, UserPermissions } from "../../types";
 import {
   Box,
   Button,
@@ -38,7 +42,6 @@ import {
   CloudUpload as UploadIcon,
   Download as DownloadIcon,
 } from "@mui/icons-material";
-import { CampaignResource } from "../../types";
 import {
   collection,
   getDocs,
@@ -49,8 +52,6 @@ import {
   addDoc,
 } from "firebase/firestore";
 
-import { db } from "../../lib/firebase";
-
 // Validation
 const isValidEmail = (email: string): boolean =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -59,13 +60,51 @@ export default function FirebaseManagementPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const { claims, isLoaded } = useAuth();
+  const { user, isLoaded: authLoaded } = useAuth();
   const { callFunction } = useCloudFunctions();
 
-  // const isStateAdmin = claims?.role === "state_admin";
-  const isStateAdmin = true;
+  const localUser = useLiveQuery(async () => {
+    if (!user?.uid) return null;
+    return await indexedDb.users.get(user.uid);
+  }, [user?.uid]);
+
+  // 2. Derive specific permission flags
+  const permissions: UserPermissions = (localUser?.permissions || {
+    can_manage_resources: false,
+    can_upload_collections: false,
+    can_create_collections: false,
+    can_create_documents: false,
+  }) as UserPermissions;
+
+  // Dynamic Permission Checks
+  const canManageResources = !!permissions.can_manage_resources;
+  const canUpload = !!permissions.can_upload_collections;
+  const canCreate = !!permissions.can_create_documents;
+
+  // Global access check: Does the user have ANY admin permission?
+  const hasAccess = canManageResources || canUpload || canCreate;
 
   const [tabValue, setTabValue] = useState(0);
+
+  // === Tab Configuration ===
+  // We define which tabs correspond to which permissions
+  const availableTabs = [
+    { label: "Create Area", show: canCreate, id: 0 },
+    { label: "Import Areas", show: canUpload, id: 1 },
+    { label: "Create Precinct", show: canCreate, id: 2 },
+    { label: "Import Precincts", show: canUpload, id: 3 },
+    { label: "Create User", show: canCreate, id: 4 },
+    { label: "Create Org Role", show: canCreate, id: 5 },
+    { label: "Import Org Roles", show: canUpload, id: 6 },
+    { label: "Create Message Templates", show: canCreate, id: 7 },
+  ].filter((t) => t.show);
+
+  // Defensive: if tabValue is out of range after filtering, reset to 0
+  useEffect(() => {
+    if (tabValue >= availableTabs.length) {
+      setTabValue(0);
+    }
+  }, [availableTabs.length, tabValue]);
 
   // === Campaign Resources Management ===
   const [resources, setResources] = useState<CampaignResource[]>([]);
@@ -272,7 +311,7 @@ export default function FirebaseManagementPage() {
 
   // Import Areas
   const handleImportAreas = useCallback(async () => {
-    if (!isStateAdmin || areasPreview.length === 0) return;
+    if (!canUpload || areasPreview.length === 0) return;
 
     setImportingAreas(true);
     setAreasImportResult(null);
@@ -293,7 +332,7 @@ export default function FirebaseManagementPage() {
     } finally {
       setImportingAreas(false);
     }
-  }, [isStateAdmin, areasPreview, callFunction]);
+  }, [canUpload, areasPreview, callFunction]);
 
   // Create Precinct
   const handleCreatePrecinct = useCallback(
@@ -350,7 +389,7 @@ export default function FirebaseManagementPage() {
 
   // Import Precincts
   const handleImportPrecincts = useCallback(async () => {
-    if (!isStateAdmin || precinctsPreview.length === 0) return;
+    if (!hasAccess || precinctsPreview.length === 0) return;
 
     setImportingPrecincts(true);
     setPrecinctsImportResult(null);
@@ -371,7 +410,7 @@ export default function FirebaseManagementPage() {
     } finally {
       setImportingPrecincts(false);
     }
-  }, [isStateAdmin, precinctsPreview, callFunction]);
+  }, [hasAccess, precinctsPreview, callFunction]);
 
   // Create User
   const handleCreateUser = useCallback(
@@ -493,7 +532,7 @@ export default function FirebaseManagementPage() {
   );
 
   const handleImportOrgRoles = useCallback(async () => {
-    if (!isStateAdmin || orgRolesPreview.length === 0) return;
+    if (!hasAccess || orgRolesPreview.length === 0) return;
 
     setImportingOrgRoles(true);
     setOrgRolesImportResult(null);
@@ -514,7 +553,7 @@ export default function FirebaseManagementPage() {
     } finally {
       setImportingOrgRoles(false);
     }
-  }, [isStateAdmin, orgRolesPreview, callFunction]);
+  }, [hasAccess, orgRolesPreview, callFunction]);
 
   const handleCreateMessageTemplate = useCallback(
     async (e: React.FormEvent) => {
@@ -591,7 +630,7 @@ export default function FirebaseManagementPage() {
       try {
         const snapshot = await getDocs(
           query(
-            collection(db, "campaign_resources"),
+            collection(firestore, "campaign_resources"),
             orderBy("created_at", "desc")
           )
         );
@@ -651,7 +690,7 @@ export default function FirebaseManagementPage() {
       // Step 3: Save metadata to Firestore
       const downloadUrl = uploadUrl.split("?")[0] + "?alt=media";
 
-      await addDoc(collection(db, "campaign_resources"), {
+      await addDoc(collection(firestore, "campaign_resources"), {
         title: newResource.title.trim(),
         description: newResource.description.trim(),
         category: newResource.category,
@@ -674,7 +713,7 @@ export default function FirebaseManagementPage() {
       // Refresh list
       const snapshot = await getDocs(
         query(
-          collection(db, "campaign_resources"),
+          collection(firestore, "campaign_resources"),
           orderBy("created_at", "desc")
         )
       );
@@ -701,7 +740,7 @@ export default function FirebaseManagementPage() {
     if (!resourceToDelete) return;
 
     try {
-      await deleteDoc(doc(db, "campaign_resources", resourceToDelete));
+      await deleteDoc(doc(firestore, "campaign_resources", resourceToDelete));
       setResources((prev) => prev.filter((r) => r.id !== resourceToDelete));
       setSnackbarMessage("Resource deleted successfully");
       setSnackbarOpen(true);
@@ -720,7 +759,7 @@ export default function FirebaseManagementPage() {
     setResourceToDelete(null);
   };
 
-  if (!isLoaded) {
+  if (!authLoaded) {
     return (
       <Box
         sx={{
@@ -735,13 +774,14 @@ export default function FirebaseManagementPage() {
     );
   }
 
-  if (!isStateAdmin) {
+  if (authLoaded && !hasAccess) {
     return (
       <Box p={6} textAlign="center">
         <Alert severity="error" variant="filled">
           <Typography variant="h6">Access Denied</Typography>
           <Typography variant="body1" mt={1}>
-            This page is restricted to State Administrators only.
+            You do not have the necessary permissions to manage Firebase
+            resources.
           </Typography>
         </Alert>
       </Box>
@@ -757,1359 +797,1487 @@ export default function FirebaseManagementPage() {
         Securely create and import areas, precincts, and users
       </Typography>
 
-      <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)} sx={{ mb: 4 }}>
-        <Tab label="Create Area" />
-        <Tab label="Import Areas" />
-        <Tab label="Create Precinct" />
-        <Tab label="Import Precincts" />
-        <Tab label="Create User" />
-        <Tab label="Create Org Role" />
-        <Tab label="Import Org Roles" />
-        <Tab label="Create Message Templates" />
-      </Tabs>
-
-      {/* === Create Single Area === */}
-      {tabValue === 0 && (
-        <Paper sx={{ p: 4, borderRadius: 3 }}>
-          <Typography variant="h6" fontWeight="bold" gutterBottom>
-            Create Individual Area
-          </Typography>
-
-          <Box component="form" onSubmit={handleCreateArea} sx={{ mt: 3 }}>
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Document ID *"
-                  fullWidth
-                  value={areaForm.id}
-                  onChange={(e) =>
-                    setAreaForm((prev) => ({ ...prev, id: e.target.value }))
-                  }
-                  required
-                  disabled={creatingArea}
-                  helperText="e.g. PA15-A-14"
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Name *"
-                  fullWidth
-                  value={areaForm.name}
-                  onChange={(e) =>
-                    setAreaForm((prev) => ({ ...prev, name: e.target.value }))
-                  }
-                  required
-                  disabled={creatingArea}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Area District *"
-                  fullWidth
-                  value={areaForm.area_district}
-                  onChange={(e) =>
-                    setAreaForm((prev) => ({
-                      ...prev,
-                      area_district: e.target.value,
-                    }))
-                  }
-                  required
-                  disabled={creatingArea}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Org ID"
-                  fullWidth
-                  value={areaForm.org_id}
-                  onChange={(e) =>
-                    setAreaForm((prev) => ({ ...prev, org_id: e.target.value }))
-                  }
-                  disabled={creatingArea}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Chair UID"
-                  fullWidth
-                  value={areaForm.chair_uid}
-                  onChange={(e) =>
-                    setAreaForm((prev) => ({
-                      ...prev,
-                      chair_uid: e.target.value,
-                    }))
-                  }
-                  disabled={creatingArea}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Chair Email"
-                  type="email"
-                  fullWidth
-                  value={areaForm.chair_email}
-                  onChange={(e) =>
-                    setAreaForm((prev) => ({
-                      ...prev,
-                      chair_email: e.target.value,
-                    }))
-                  }
-                  disabled={creatingArea}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Vice Chair UID"
-                  fullWidth
-                  value={areaForm.vice_chair_uid}
-                  onChange={(e) =>
-                    setAreaForm((prev) => ({
-                      ...prev,
-                      vice_chair_uid: e.target.value,
-                    }))
-                  }
-                  disabled={creatingArea}
-                />
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={areaForm.active}
-                      onChange={(e) =>
-                        setAreaForm((prev) => ({
-                          ...prev,
-                          active: e.target.checked,
-                        }))
-                      }
-                      disabled={creatingArea}
-                    />
-                  }
-                  label="Active"
-                />
-              </Grid>
-            </Grid>
-
-            <Button
-              type="submit"
-              variant="contained"
-              size="large"
-              sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
-              disabled={creatingArea}
-            >
-              {creatingArea ? "Creating..." : "Create Area"}
-            </Button>
-
-            {areaResult && (
-              <Alert
-                severity={areaResult.success ? "success" : "error"}
-                sx={{ mt: 3 }}
-              >
-                {areaResult.message}
-              </Alert>
-            )}
-          </Box>
-        </Paper>
-      )}
-
-      {/* === Import Areas === */}
-      {tabValue === 1 && (
-        <Paper sx={{ p: 4, borderRadius: 3 }}>
-          <Typography variant="h6" fontWeight="bold" gutterBottom>
-            Bulk Import Areas
-          </Typography>
-
-          <Stack spacing={3}>
-            <Button
-              variant="outlined"
-              component="label"
-              startIcon={<UploadFile />}
-            >
-              Upload Areas JSON
-              <input
-                type="file"
-                hidden
-                accept=".json"
-                onChange={(e) =>
-                  handleFileUpload(e, setAreasJson, setAreasPreview)
-                }
-              />
-            </Button>
-
-            <TextField
-              multiline
-              rows={10}
-              fullWidth
-              label="Paste Areas JSON"
-              value={areasJson}
-              onChange={(e) =>
-                handleJsonInput(e.target.value, setAreasJson, setAreasPreview)
-              }
-              placeholder='[{"id": "PA15-A-14", "name": "Area 14", "area_district": "14", ...}]'
-            />
-
-            {areasPreview.length > 0 && (
-              <>
-                <Typography>Preview: {areasPreview.length} areas</Typography>
-
-                <Button
-                  variant="contained"
-                  onClick={handleImportAreas}
-                  disabled={importingAreas}
-                  startIcon={
-                    importingAreas ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      <CloudUpload />
-                    )
-                  }
-                >
-                  {importingAreas ? "Importing..." : "Import Areas"}
-                </Button>
-
-                {areasImportResult && (
-                  <Alert
-                    severity={
-                      areasImportResult.includes("Error") ? "error" : "success"
-                    }
-                  >
-                    {areasImportResult}
-                  </Alert>
-                )}
-              </>
-            )}
-          </Stack>
-        </Paper>
-      )}
-
-      {/* === Create Single Precinct === */}
-      {tabValue === 2 && (
-        <Paper sx={{ p: 4, borderRadius: 3 }}>
-          <Typography variant="h6" fontWeight="bold" gutterBottom>
-            Create Individual Precinct
-          </Typography>
-
-          <Box component="form" onSubmit={handleCreatePrecinct} sx={{ mt: 3 }}>
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Document ID *"
-                  fullWidth
-                  value={precinctForm.id}
-                  onChange={(e) =>
-                    setPrecinctForm((prev) => ({ ...prev, id: e.target.value }))
-                  }
-                  required
-                  disabled={creatingPrecinct}
-                  helperText="e.g. PA15-P-005"
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Name *"
-                  fullWidth
-                  value={precinctForm.name}
-                  onChange={(e) =>
-                    setPrecinctForm((prev) => ({
-                      ...prev,
-                      name: e.target.value,
-                    }))
-                  }
-                  required
-                  disabled={creatingPrecinct}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Precinct Code *"
-                  fullWidth
-                  value={precinctForm.precinct_code}
-                  onChange={(e) =>
-                    setPrecinctForm((prev) => ({
-                      ...prev,
-                      precinct_code: e.target.value,
-                    }))
-                  }
-                  required
-                  disabled={creatingPrecinct}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Area District"
-                  fullWidth
-                  value={precinctForm.area_district}
-                  onChange={(e) =>
-                    setPrecinctForm((prev) => ({
-                      ...prev,
-                      area_district: e.target.value,
-                    }))
-                  }
-                  disabled={creatingPrecinct}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="County Code"
-                  fullWidth
-                  value={precinctForm.county_code}
-                  onChange={(e) =>
-                    setPrecinctForm((prev) => ({
-                      ...prev,
-                      county_code: e.target.value,
-                    }))
-                  }
-                  disabled={creatingPrecinct}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Congressional District"
-                  fullWidth
-                  value={precinctForm.congressional_district}
-                  onChange={(e) =>
-                    setPrecinctForm((prev) => ({
-                      ...prev,
-                      congressional_district: e.target.value,
-                    }))
-                  }
-                  disabled={creatingPrecinct}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Senate District"
-                  fullWidth
-                  value={precinctForm.senate_district}
-                  onChange={(e) =>
-                    setPrecinctForm((prev) => ({
-                      ...prev,
-                      senate_district: e.target.value,
-                    }))
-                  }
-                  disabled={creatingPrecinct}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="House District"
-                  fullWidth
-                  value={precinctForm.house_district}
-                  onChange={(e) =>
-                    setPrecinctForm((prev) => ({
-                      ...prev,
-                      house_district: e.target.value,
-                    }))
-                  }
-                  disabled={creatingPrecinct}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="County District"
-                  fullWidth
-                  value={precinctForm.county_district}
-                  onChange={(e) =>
-                    setPrecinctForm((prev) => ({
-                      ...prev,
-                      county_district: e.target.value,
-                    }))
-                  }
-                  disabled={creatingPrecinct}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Party Rep District"
-                  fullWidth
-                  value={precinctForm.party_rep_district}
-                  onChange={(e) =>
-                    setPrecinctForm((prev) => ({
-                      ...prev,
-                      party_rep_district: e.target.value,
-                    }))
-                  }
-                  disabled={creatingPrecinct}
-                />
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={precinctForm.active}
-                      onChange={(e) =>
-                        setPrecinctForm((prev) => ({
-                          ...prev,
-                          active: e.target.checked,
-                        }))
-                      }
-                      disabled={creatingPrecinct}
-                    />
-                  }
-                  label="Active"
-                />
-              </Grid>
-            </Grid>
-
-            <Button
-              type="submit"
-              variant="contained"
-              size="large"
-              sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
-              disabled={creatingPrecinct}
-            >
-              {creatingPrecinct ? "Creating..." : "Create Precinct"}
-            </Button>
-
-            {precinctResult && (
-              <Alert
-                severity={precinctResult.success ? "success" : "error"}
-                sx={{ mt: 3 }}
-              >
-                {precinctResult.message}
-              </Alert>
-            )}
-          </Box>
-        </Paper>
-      )}
-
-      {/* === Import Precincts === */}
-      {tabValue === 3 && (
-        <Paper sx={{ p: 4, borderRadius: 3 }}>
-          <Typography variant="h6" fontWeight="bold" gutterBottom>
-            Bulk Import Precincts
-          </Typography>
-
-          <Stack spacing={3}>
-            <Button
-              variant="outlined"
-              component="label"
-              startIcon={<UploadFile />}
-            >
-              Upload Precincts JSON
-              <input
-                type="file"
-                hidden
-                accept=".json"
-                onChange={(e) =>
-                  handleFileUpload(e, setPrecinctsJson, setPrecinctsPreview)
-                }
-              />
-            </Button>
-
-            <TextField
-              multiline
-              rows={10}
-              fullWidth
-              label="Paste Precincts JSON"
-              value={precinctsJson}
-              onChange={(e) =>
-                handleJsonInput(
-                  e.target.value,
-                  setPrecinctsJson,
-                  setPrecinctsPreview
-                )
-              }
-              placeholder='[{"id": "PA15-P-005", "name": "Atglen", "precinct_code": "005", ...}]'
-            />
-
-            {precinctsPreview.length > 0 && (
-              <>
-                <Typography>
-                  Preview: {precinctsPreview.length} precincts
-                </Typography>
-
-                <Button
-                  variant="contained"
-                  onClick={handleImportPrecincts}
-                  disabled={importingPrecincts}
-                  startIcon={
-                    importingPrecincts ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      <CloudUpload />
-                    )
-                  }
-                >
-                  {importingPrecincts ? "Importing..." : "Import Precincts"}
-                </Button>
-
-                {precinctsImportResult && (
-                  <Alert
-                    severity={
-                      precinctsImportResult.includes("Error")
-                        ? "error"
-                        : "success"
-                    }
-                  >
-                    {precinctsImportResult}
-                  </Alert>
-                )}
-              </>
-            )}
-          </Stack>
-        </Paper>
-      )}
-
-      {/* === Create User === */}
-      {tabValue === 4 && (
-        <Paper sx={{ p: 4, borderRadius: 3 }}>
-          <Typography variant="h6" fontWeight="bold" gutterBottom>
-            Create Individual User
-          </Typography>
-
-          <Box component="form" onSubmit={handleCreateUser} sx={{ mt: 3 }}>
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Email *"
-                  type="email"
-                  fullWidth
-                  value={userForm.email}
-                  onChange={(e) =>
-                    setUserForm((prev) => ({ ...prev, email: e.target.value }))
-                  }
-                  required
-                  disabled={creatingUser}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Display Name *"
-                  fullWidth
-                  value={userForm.display_name}
-                  onChange={(e) =>
-                    setUserForm((prev) => ({
-                      ...prev,
-                      display_name: e.target.value,
-                    }))
-                  }
-                  required
-                  disabled={creatingUser}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Preferred Name"
-                  fullWidth
-                  value={userForm.preferred_name}
-                  onChange={(e) =>
-                    setUserForm((prev) => ({
-                      ...prev,
-                      preferred_name: e.target.value,
-                    }))
-                  }
-                  disabled={creatingUser}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Phone"
-                  fullWidth
-                  value={userForm.phone}
-                  onChange={(e) =>
-                    setUserForm((prev) => ({ ...prev, phone: e.target.value }))
-                  }
-                  disabled={creatingUser}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Photo URL"
-                  fullWidth
-                  value={userForm.photo_url}
-                  onChange={(e) =>
-                    setUserForm((prev) => ({
-                      ...prev,
-                      photo_url: e.target.value,
-                    }))
-                  }
-                  disabled={creatingUser}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Org ID"
-                  fullWidth
-                  value={userForm.org_id}
-                  onChange={(e) =>
-                    setUserForm((prev) => ({ ...prev, org_id: e.target.value }))
-                  }
-                  disabled={creatingUser}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Primary County"
-                  fullWidth
-                  value={userForm.primary_county}
-                  onChange={(e) =>
-                    setUserForm((prev) => ({
-                      ...prev,
-                      primary_county: e.target.value,
-                    }))
-                  }
-                  disabled={creatingUser}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Primary Precinct"
-                  fullWidth
-                  value={userForm.primary_precinct}
-                  onChange={(e) =>
-                    setUserForm((prev) => ({
-                      ...prev,
-                      primary_precinct: e.target.value,
-                    }))
-                  }
-                  disabled={creatingUser}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Role"
-                  fullWidth
-                  value={userForm.role}
-                  onChange={(e) =>
-                    setUserForm((prev) => ({ ...prev, role: e.target.value }))
-                  }
-                  disabled={creatingUser}
-                />
-              </Grid>
-            </Grid>
-
-            <Button
-              type="submit"
-              variant="contained"
-              size="large"
-              sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
-              disabled={creatingUser}
-            >
-              {creatingUser ? "Creating..." : "Create User"}
-            </Button>
-
-            {userResult && (
-              <Alert
-                severity={userResult.success ? "success" : "error"}
-                sx={{ mt: 3 }}
-              >
-                {userResult.message}
-              </Alert>
-            )}
-          </Box>
-        </Paper>
-      )}
-      {/* === Create Org Role === */}
-      {tabValue === 5 && (
-        <Paper sx={{ p: 4, borderRadius: 3 }}>
-          <Typography variant="h6" fontWeight="bold" gutterBottom>
-            Create Individual Org Role
-          </Typography>
-
-          <Box component="form" onSubmit={handleCreateOrgRole} sx={{ mt: 3 }}>
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Document ID *"
-                  fullWidth
-                  value={orgRoleForm.id}
-                  onChange={(e) =>
-                    setOrgRoleForm((prev) => ({ ...prev, id: e.target.value }))
-                  }
-                  required
-                  disabled={creatingOrgRole}
-                  helperText="e.g. PA15-R-committeeperson-220"
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="User UID"
-                  fullWidth
-                  value={orgRoleForm.uid}
-                  onChange={(e) =>
-                    setOrgRoleForm((prev) => ({
-                      ...prev,
-                      uid: e.target.value.trim(),
-                    }))
-                  }
-                  disabled={creatingOrgRole || orgRoleForm.is_vacant}
-                  helperText="Firebase Auth UID (required unless vacant)"
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Role *"
-                  fullWidth
-                  select
-                  SelectProps={{ native: true }}
-                  value={orgRoleForm.role}
-                  onChange={(e) =>
-                    setOrgRoleForm((prev) => ({
-                      ...prev,
-                      role: e.target.value,
-                    }))
-                  }
-                  required
-                  disabled={creatingOrgRole}
-                >
-                  <option value="committeeperson">committeeperson</option>
-                  <option value="area_chair">area_chair</option>
-                  <option value="area_vice_chair">area_vice_chair</option>
-                  <option value="county_chair">county_chair</option>
-                  <option value="state_admin">state_admin</option>
-                  {/* Add more as needed */}
-                </TextField>
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Org ID *"
-                  fullWidth
-                  value={orgRoleForm.org_id}
-                  onChange={(e) =>
-                    setOrgRoleForm((prev) => ({
-                      ...prev,
-                      org_id: e.target.value,
-                    }))
-                  }
-                  required
-                  disabled={creatingOrgRole}
-                  helperText="e.g. PA15-O-01"
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="County Code"
-                  fullWidth
-                  value={orgRoleForm.county_code}
-                  onChange={(e) =>
-                    setOrgRoleForm((prev) => ({
-                      ...prev,
-                      county_code: e.target.value,
-                    }))
-                  }
-                  disabled={creatingOrgRole}
-                  helperText="e.g. PA-C-15"
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Area District"
-                  fullWidth
-                  value={orgRoleForm.area_district}
-                  onChange={(e) =>
-                    setOrgRoleForm((prev) => ({
-                      ...prev,
-                      area_district: e.target.value,
-                    }))
-                  }
-                  disabled={creatingOrgRole}
-                  helperText="e.g. PA15-A-01"
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Precinct Code *"
-                  fullWidth
-                  value={orgRoleForm.precinct_code}
-                  onChange={(e) =>
-                    setOrgRoleForm((prev) => ({
-                      ...prev,
-                      precinct_code: e.target.value,
-                    }))
-                  }
-                  required
-                  disabled={creatingOrgRole}
-                  helperText="e.g. PA15-P-220"
-                />
-              </Grid>
-
-              <Grid size={12}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={orgRoleForm.is_vacant}
-                      onChange={(e) =>
-                        setOrgRoleForm((prev) => ({
-                          ...prev,
-                          is_vacant: e.target.checked,
-                          uid: e.target.checked ? "" : prev.uid, // clear UID if vacant
-                        }))
-                      }
-                      disabled={creatingOrgRole}
-                    />
-                  }
-                  label="Is Vacant (no user assigned)"
-                />
-              </Grid>
-              <Grid size={12}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={orgRoleForm.active}
-                      onChange={(e) =>
-                        setOrgRoleForm((prev) => ({
-                          ...prev,
-                          active: e.target.checked,
-                        }))
-                      }
-                      disabled={creatingOrgRole}
-                    />
-                  }
-                  label="Active"
-                />
-              </Grid>
-            </Grid>
-
-            <Button
-              type="submit"
-              variant="contained"
-              size="large"
-              sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
-              disabled={creatingOrgRole}
-            >
-              {creatingOrgRole ? "Creating..." : "Create Org Role"}
-            </Button>
-
-            {orgRoleResult && (
-              <Alert
-                severity={orgRoleResult.success ? "success" : "error"}
-                sx={{ mt: 3 }}
-              >
-                {orgRoleResult.message}
-              </Alert>
-            )}
-          </Box>
-        </Paper>
-      )}
-      {/* === Import Org Roles === */}
-      {tabValue === 6 && (
-        <Paper sx={{ p: 4, borderRadius: 3 }}>
-          <Typography variant="h6" fontWeight="bold" gutterBottom>
-            Bulk Import Org Roles
-          </Typography>
-
-          <Stack spacing={3}>
-            <Button
-              variant="outlined"
-              component="label"
-              startIcon={<UploadFile />}
-            >
-              Upload Org Roles JSON
-              <input
-                type="file"
-                hidden
-                accept=".json"
-                onChange={(e) =>
-                  handleFileUpload(e, setOrgRolesJson, setOrgRolesPreview)
-                }
-              />
-            </Button>
-
-            <TextField
-              multiline
-              rows={10}
-              fullWidth
-              label="Paste Org Roles JSON"
-              value={orgRolesJson}
-              onChange={(e) =>
-                handleJsonInput(
-                  e.target.value,
-                  setOrgRolesJson,
-                  setOrgRolesPreview
-                )
-              }
-              placeholder={[
-                "[",
-                "  {",
-                '    "id": "PA15-R-committeeperson-220",',
-                '    "uid": "userFirebaseUID123",',
-                '    "role": "committeeperson",',
-                '    "org_id": "PA15-O-01",',
-                '    "county_code": "PA-C-15",',
-                '    "area_district": "PA15-A-01",',
-                '    "precinct_code": "PA15-P-220",',
-                '    "is_vacant": false,',
-                '    "active": true',
-                "  }",
-                "  // ... more roles",
-                "]",
-              ].join("\n")}
-            />
-
-            {orgRolesPreview.length > 0 && (
-              <>
-                <Typography>
-                  Preview: {orgRolesPreview.length} org roles
-                </Typography>
-
-                <Button
-                  variant="contained"
-                  onClick={handleImportOrgRoles}
-                  disabled={importingOrgRoles}
-                  startIcon={
-                    importingOrgRoles ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      <CloudUpload />
-                    )
-                  }
-                >
-                  {importingOrgRoles ? "Importing..." : "Import Org Roles"}
-                </Button>
-
-                {orgRolesImportResult && (
-                  <Alert
-                    severity={
-                      orgRolesImportResult.includes("Error")
-                        ? "error"
-                        : "success"
-                    }
-                  >
-                    {orgRolesImportResult}
-                  </Alert>
-                )}
-              </>
-            )}
-          </Stack>
-        </Paper>
-      )}
-      {/* === Create Message Template === */}
-      {tabValue === 7 && (
-        <Paper sx={{ p: 4, borderRadius: 3 }}>
-          <Typography variant="h6" fontWeight="bold" gutterBottom>
-            Create Individual Message Template
-          </Typography>
-
-          <Box
-            component="form"
-            onSubmit={handleCreateMessageTemplate}
-            sx={{ mt: 3 }}
+      {/* Conditionally Render Tabs */}
+      {availableTabs.length > 0 && (
+        <>
+          <Tabs
+            value={tabValue}
+            onChange={(_, v) => setTabValue(v)}
+            sx={{ mb: 4 }}
+            variant="scrollable"
+            scrollButtons="auto"
           >
-            <Grid container spacing={3}>
-              {/* Document ID */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Document ID *"
-                  fullWidth
-                  value={messageTemplateForm.id}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      id: e.target.value,
-                    }))
-                  }
-                  required
-                  disabled={creatingMessageTemplate}
-                  helperText="Unique ID, e.g. afford-crime-friendly-r-high-mail"
-                />
-              </Grid>
+            {availableTabs.map((tab, index) => (
+              <Tab key={index} label={tab.label} />
+            ))}
+          </Tabs>
 
-              {/* Subject Line */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Subject Line"
-                  fullWidth
-                  value={messageTemplateForm.subject_line}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      subject_line: e.target.value,
-                    }))
-                  }
-                  disabled={creatingMessageTemplate}
-                  helperText="Optional email subject line"
-                />
-              </Grid>
+          <Divider sx={{ mb: 4 }} />
 
-              {/* Body */}
-              <Grid size={12}>
-                <TextField
-                  label="Body *"
-                  fullWidth
-                  multiline
-                  rows={8}
-                  value={messageTemplateForm.body}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      body: e.target.value,
-                    }))
-                  }
-                  required
-                  disabled={creatingMessageTemplate}
-                  helperText="Main message content"
-                />
-              </Grid>
+          {/* Render the content based on the label of the active tab */}
+          {availableTabs[tabValue]?.label === "Create Area" && (
+            <Box>
+              {
+                <Paper sx={{ p: 4, borderRadius: 3 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Create Individual Area
+                  </Typography>
 
-              {/* Category - Select with fixed values */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  select
-                  label="Category *"
-                  fullWidth
-                  value={messageTemplateForm.category}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      category: e.target.value,
-                    }))
-                  }
-                  required
-                  disabled={creatingMessageTemplate}
-                  SelectProps={{ native: true }}
-                >
-                  <option value=""></option>
-                  <option value="Affordability">Affordability</option>
-                  <option value="Crime & Drugs">Crime & Drugs</option>
-                  <option value="Energy & Utilities">Energy & Utilities</option>
-                  <option value="Healthcare">Healthcare</option>
-                  <option value="Housing">Housing</option>
-                  <option value="Local">Local</option>
-                </TextField>
-              </Grid>
+                  <Box
+                    component="form"
+                    onSubmit={handleCreateArea}
+                    sx={{ mt: 3 }}
+                  >
+                    <Grid container spacing={3}>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Document ID *"
+                          fullWidth
+                          value={areaForm.id}
+                          onChange={(e) =>
+                            setAreaForm((prev) => ({
+                              ...prev,
+                              id: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingArea}
+                          helperText="e.g. PA15-A-14"
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Name *"
+                          fullWidth
+                          value={areaForm.name}
+                          onChange={(e) =>
+                            setAreaForm((prev) => ({
+                              ...prev,
+                              name: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingArea}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Area District *"
+                          fullWidth
+                          value={areaForm.area_district}
+                          onChange={(e) =>
+                            setAreaForm((prev) => ({
+                              ...prev,
+                              area_district: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingArea}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Org ID"
+                          fullWidth
+                          value={areaForm.org_id}
+                          onChange={(e) =>
+                            setAreaForm((prev) => ({
+                              ...prev,
+                              org_id: e.target.value,
+                            }))
+                          }
+                          disabled={creatingArea}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Chair UID"
+                          fullWidth
+                          value={areaForm.chair_uid}
+                          onChange={(e) =>
+                            setAreaForm((prev) => ({
+                              ...prev,
+                              chair_uid: e.target.value,
+                            }))
+                          }
+                          disabled={creatingArea}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Chair Email"
+                          type="email"
+                          fullWidth
+                          value={areaForm.chair_email}
+                          onChange={(e) =>
+                            setAreaForm((prev) => ({
+                              ...prev,
+                              chair_email: e.target.value,
+                            }))
+                          }
+                          disabled={creatingArea}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Vice Chair UID"
+                          fullWidth
+                          value={areaForm.vice_chair_uid}
+                          onChange={(e) =>
+                            setAreaForm((prev) => ({
+                              ...prev,
+                              vice_chair_uid: e.target.value,
+                            }))
+                          }
+                          disabled={creatingArea}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12 }}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={areaForm.active}
+                              onChange={(e) =>
+                                setAreaForm((prev) => ({
+                                  ...prev,
+                                  active: e.target.checked,
+                                }))
+                              }
+                              disabled={creatingArea}
+                            />
+                          }
+                          label="Active"
+                        />
+                      </Grid>
+                    </Grid>
 
-              {/* Tone - Select */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  select
-                  label="Tone *"
-                  fullWidth
-                  value={messageTemplateForm.tone}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      tone: e.target.value,
-                    }))
-                  }
-                  required
-                  disabled={creatingMessageTemplate}
-                  SelectProps={{ native: true }}
-                >
-                  <option value=""></option>
-                  <option value="warm">Warm</option>
-                  <option value="compassionate">Compassionate</option>
-                  <option value="direct">Direct</option>
-                  <option value="excited">Excited</option>
-                  <option value="friendly">Friendly</option>
-                  <option value="optimistic">Optimistic</option>
-                  <option value="pessimistic">Pessimistic</option>
-                  <option value="pleading">Pleading</option>
-                  <option value="respectful">Respectful</option>
-                </TextField>
-              </Grid>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      size="large"
+                      sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
+                      disabled={creatingArea}
+                    >
+                      {creatingArea ? "Creating..." : "Create Area"}
+                    </Button>
 
-              {/* Age Group */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  select
-                  label="Age Group"
-                  fullWidth
-                  value={messageTemplateForm.age_group}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      age_group: e.target.value,
-                    }))
-                  }
-                  disabled={creatingMessageTemplate}
-                  SelectProps={{ native: true }}
-                >
-                  <option value=""></option>
-                  <option value="18-25">18-25</option>
-                  <option value="26-40">26-40</option>
-                  <option value="41-70">41-70</option>
-                  <option value="71+">71+</option>
-                </TextField>
-              </Grid>
+                    {areaResult && (
+                      <Alert
+                        severity={areaResult.success ? "success" : "error"}
+                        sx={{ mt: 3 }}
+                      >
+                        {areaResult.message}
+                      </Alert>
+                    )}
+                  </Box>
+                </Paper>
+              }
+            </Box>
+          )}
+          {/* Render the content based on the label of the active tab */}
+          {availableTabs[tabValue]?.label === "Import Area" && (
+            <Box>
+              {
+                <Paper sx={{ p: 4, borderRadius: 3 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Bulk Import Areas
+                  </Typography>
 
-              {/* Modeled Party */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  select
-                  label="Modeled Party"
-                  fullWidth
-                  value={messageTemplateForm.modeled_party}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      modeled_party: e.target.value,
-                    }))
-                  }
-                  disabled={creatingMessageTemplate}
-                  SelectProps={{ native: true }}
-                >
-                  <option value=""></option>
-                  <option value="Republican">Republican</option>
-                  <option value="Democrat">Democrat</option>
-                  <option value="Independent">Independent</option>
-                </TextField>
-              </Grid>
+                  <Stack spacing={3}>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      startIcon={<UploadFile />}
+                    >
+                      Upload Areas JSON
+                      <input
+                        type="file"
+                        hidden
+                        accept=".json"
+                        onChange={(e) =>
+                          handleFileUpload(e, setAreasJson, setAreasPreview)
+                        }
+                      />
+                    </Button>
 
-              {/* Turnout Score */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  select
-                  label="Turnout Score General"
-                  fullWidth
-                  value={messageTemplateForm.turnout_score_general}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      turnout_score_general: e.target.value,
-                    }))
-                  }
-                  disabled={creatingMessageTemplate}
-                  SelectProps={{ native: true }}
-                >
-                  <option value=""></option>
-                  <option value="4 - Very High (Most Active)">
-                    4 - Very High (Most Active)
-                  </option>
-                  <option value="3 - Frequent Voter">3 - Frequent Voter</option>
-                  <option value="2 - Moderate Voter">2 - Moderate Voter</option>
-                  <option value="1 - Low Turnout">1 - Low Turnout</option>
-                  <option value="0 - Inactive">0 - Inactive</option>
-                </TextField>
-              </Grid>
-
-              {/* Has Mail Ballot */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  select
-                  label="Has Mail Ballot"
-                  fullWidth
-                  value={messageTemplateForm.has_mail_ballot}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      has_mail_ballot: e.target.value,
-                    }))
-                  }
-                  disabled={creatingMessageTemplate}
-                  SelectProps={{ native: true }}
-                >
-                  <option value=""></option>
-                  <option value="Has Mail Ballot">Has Mail Ballot</option>
-                  <option value="Does Not Have Mail Ballot">
-                    Does Not Have Mail Ballot
-                  </option>
-                </TextField>
-              </Grid>
-
-              {/* Tags */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <TextField
-                  label="Tags"
-                  fullWidth
-                  value={messageTemplateForm.tags}
-                  onChange={(e) =>
-                    setMessageTemplateForm((prev) => ({
-                      ...prev,
-                      tags: e.target.value,
-                    }))
-                  }
-                  disabled={creatingMessageTemplate}
-                  helperText="Comma-separated, e.g. affordability, crime, 2026"
-                />
-              </Grid>
-
-              {/* Active Switch */}
-              <Grid size={12}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={messageTemplateForm.active}
+                    <TextField
+                      multiline
+                      rows={10}
+                      fullWidth
+                      label="Paste Areas JSON"
+                      value={areasJson}
                       onChange={(e) =>
-                        setMessageTemplateForm((prev) => ({
-                          ...prev,
-                          active: e.target.checked,
-                        }))
+                        handleJsonInput(
+                          e.target.value,
+                          setAreasJson,
+                          setAreasPreview
+                        )
                       }
-                      disabled={creatingMessageTemplate}
+                      placeholder='[{"id": "PA15-A-14", "name": "Area 14", "area_district": "14", ...}]'
                     />
-                  }
-                  label="Active"
-                />
-              </Grid>
-            </Grid>
 
-            <Button
-              type="submit"
-              variant="contained"
-              size="large"
-              sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
-              disabled={creatingMessageTemplate}
-            >
-              {creatingMessageTemplate
-                ? "Creating..."
-                : "Create Message Template"}
-            </Button>
+                    {areasPreview.length > 0 && (
+                      <>
+                        <Typography>
+                          Preview: {areasPreview.length} areas
+                        </Typography>
 
-            {messageTemplateResult && (
-              <Alert
-                severity={messageTemplateResult.success ? "success" : "error"}
-                sx={{ mt: 3 }}
-              >
-                {messageTemplateResult.message}
-              </Alert>
-            )}
-          </Box>
-        </Paper>
+                        <Button
+                          variant="contained"
+                          onClick={handleImportAreas}
+                          disabled={importingAreas}
+                          startIcon={
+                            importingAreas ? (
+                              <CircularProgress size={20} />
+                            ) : (
+                              <CloudUpload />
+                            )
+                          }
+                        >
+                          {importingAreas ? "Importing..." : "Import Areas"}
+                        </Button>
+
+                        {areasImportResult && (
+                          <Alert
+                            severity={
+                              areasImportResult.includes("Error")
+                                ? "error"
+                                : "success"
+                            }
+                          >
+                            {areasImportResult}
+                          </Alert>
+                        )}
+                      </>
+                    )}
+                  </Stack>
+                </Paper>
+              }
+            </Box>
+          )}
+          {/* Render the content based on the label of the active tab */}
+          {availableTabs[tabValue]?.label === "Create Precinct" && (
+            <Box>
+              {
+                <Paper sx={{ p: 4, borderRadius: 3 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Create Individual Precinct
+                  </Typography>
+
+                  <Box
+                    component="form"
+                    onSubmit={handleCreatePrecinct}
+                    sx={{ mt: 3 }}
+                  >
+                    <Grid container spacing={3}>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Document ID *"
+                          fullWidth
+                          value={precinctForm.id}
+                          onChange={(e) =>
+                            setPrecinctForm((prev) => ({
+                              ...prev,
+                              id: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingPrecinct}
+                          helperText="e.g. PA15-P-005"
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Name *"
+                          fullWidth
+                          value={precinctForm.name}
+                          onChange={(e) =>
+                            setPrecinctForm((prev) => ({
+                              ...prev,
+                              name: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingPrecinct}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Precinct Code *"
+                          fullWidth
+                          value={precinctForm.precinct_code}
+                          onChange={(e) =>
+                            setPrecinctForm((prev) => ({
+                              ...prev,
+                              precinct_code: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingPrecinct}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Area District"
+                          fullWidth
+                          value={precinctForm.area_district}
+                          onChange={(e) =>
+                            setPrecinctForm((prev) => ({
+                              ...prev,
+                              area_district: e.target.value,
+                            }))
+                          }
+                          disabled={creatingPrecinct}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="County Code"
+                          fullWidth
+                          value={precinctForm.county_code}
+                          onChange={(e) =>
+                            setPrecinctForm((prev) => ({
+                              ...prev,
+                              county_code: e.target.value,
+                            }))
+                          }
+                          disabled={creatingPrecinct}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Congressional District"
+                          fullWidth
+                          value={precinctForm.congressional_district}
+                          onChange={(e) =>
+                            setPrecinctForm((prev) => ({
+                              ...prev,
+                              congressional_district: e.target.value,
+                            }))
+                          }
+                          disabled={creatingPrecinct}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Senate District"
+                          fullWidth
+                          value={precinctForm.senate_district}
+                          onChange={(e) =>
+                            setPrecinctForm((prev) => ({
+                              ...prev,
+                              senate_district: e.target.value,
+                            }))
+                          }
+                          disabled={creatingPrecinct}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="House District"
+                          fullWidth
+                          value={precinctForm.house_district}
+                          onChange={(e) =>
+                            setPrecinctForm((prev) => ({
+                              ...prev,
+                              house_district: e.target.value,
+                            }))
+                          }
+                          disabled={creatingPrecinct}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="County District"
+                          fullWidth
+                          value={precinctForm.county_district}
+                          onChange={(e) =>
+                            setPrecinctForm((prev) => ({
+                              ...prev,
+                              county_district: e.target.value,
+                            }))
+                          }
+                          disabled={creatingPrecinct}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Party Rep District"
+                          fullWidth
+                          value={precinctForm.party_rep_district}
+                          onChange={(e) =>
+                            setPrecinctForm((prev) => ({
+                              ...prev,
+                              party_rep_district: e.target.value,
+                            }))
+                          }
+                          disabled={creatingPrecinct}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12 }}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={precinctForm.active}
+                              onChange={(e) =>
+                                setPrecinctForm((prev) => ({
+                                  ...prev,
+                                  active: e.target.checked,
+                                }))
+                              }
+                              disabled={creatingPrecinct}
+                            />
+                          }
+                          label="Active"
+                        />
+                      </Grid>
+                    </Grid>
+
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      size="large"
+                      sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
+                      disabled={creatingPrecinct}
+                    >
+                      {creatingPrecinct ? "Creating..." : "Create Precinct"}
+                    </Button>
+
+                    {precinctResult && (
+                      <Alert
+                        severity={precinctResult.success ? "success" : "error"}
+                        sx={{ mt: 3 }}
+                      >
+                        {precinctResult.message}
+                      </Alert>
+                    )}
+                  </Box>
+                </Paper>
+              }
+            </Box>
+          )}
+          {/* Render the content based on the label of the active tab */}
+          {availableTabs[tabValue]?.label === "Import Precincts" && (
+            <Box>
+              {
+                <Paper sx={{ p: 4, borderRadius: 3 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Bulk Import Precincts
+                  </Typography>
+
+                  <Stack spacing={3}>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      startIcon={<UploadFile />}
+                    >
+                      Upload Precincts JSON
+                      <input
+                        type="file"
+                        hidden
+                        accept=".json"
+                        onChange={(e) =>
+                          handleFileUpload(
+                            e,
+                            setPrecinctsJson,
+                            setPrecinctsPreview
+                          )
+                        }
+                      />
+                    </Button>
+
+                    <TextField
+                      multiline
+                      rows={10}
+                      fullWidth
+                      label="Paste Precincts JSON"
+                      value={precinctsJson}
+                      onChange={(e) =>
+                        handleJsonInput(
+                          e.target.value,
+                          setPrecinctsJson,
+                          setPrecinctsPreview
+                        )
+                      }
+                      placeholder='[{"id": "PA15-P-005", "name": "Atglen", "precinct_code": "005", ...}]'
+                    />
+
+                    {precinctsPreview.length > 0 && (
+                      <>
+                        <Typography>
+                          Preview: {precinctsPreview.length} precincts
+                        </Typography>
+
+                        <Button
+                          variant="contained"
+                          onClick={handleImportPrecincts}
+                          disabled={importingPrecincts}
+                          startIcon={
+                            importingPrecincts ? (
+                              <CircularProgress size={20} />
+                            ) : (
+                              <CloudUpload />
+                            )
+                          }
+                        >
+                          {importingPrecincts
+                            ? "Importing..."
+                            : "Import Precincts"}
+                        </Button>
+
+                        {precinctsImportResult && (
+                          <Alert
+                            severity={
+                              precinctsImportResult.includes("Error")
+                                ? "error"
+                                : "success"
+                            }
+                          >
+                            {precinctsImportResult}
+                          </Alert>
+                        )}
+                      </>
+                    )}
+                  </Stack>
+                </Paper>
+              }
+            </Box>
+          )}
+          {/* Render the content based on the label of the active tab */}
+          {availableTabs[tabValue]?.label === "Create User" && (
+            <Box>
+              {
+                <Paper sx={{ p: 4, borderRadius: 3 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Create Individual User
+                  </Typography>
+
+                  <Box
+                    component="form"
+                    onSubmit={handleCreateUser}
+                    sx={{ mt: 3 }}
+                  >
+                    <Grid container spacing={3}>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Email *"
+                          type="email"
+                          fullWidth
+                          value={userForm.email}
+                          onChange={(e) =>
+                            setUserForm((prev) => ({
+                              ...prev,
+                              email: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingUser}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Display Name *"
+                          fullWidth
+                          value={userForm.display_name}
+                          onChange={(e) =>
+                            setUserForm((prev) => ({
+                              ...prev,
+                              display_name: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingUser}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Preferred Name"
+                          fullWidth
+                          value={userForm.preferred_name}
+                          onChange={(e) =>
+                            setUserForm((prev) => ({
+                              ...prev,
+                              preferred_name: e.target.value,
+                            }))
+                          }
+                          disabled={creatingUser}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Phone"
+                          fullWidth
+                          value={userForm.phone}
+                          onChange={(e) =>
+                            setUserForm((prev) => ({
+                              ...prev,
+                              phone: e.target.value,
+                            }))
+                          }
+                          disabled={creatingUser}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Photo URL"
+                          fullWidth
+                          value={userForm.photo_url}
+                          onChange={(e) =>
+                            setUserForm((prev) => ({
+                              ...prev,
+                              photo_url: e.target.value,
+                            }))
+                          }
+                          disabled={creatingUser}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Org ID"
+                          fullWidth
+                          value={userForm.org_id}
+                          onChange={(e) =>
+                            setUserForm((prev) => ({
+                              ...prev,
+                              org_id: e.target.value,
+                            }))
+                          }
+                          disabled={creatingUser}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Primary County"
+                          fullWidth
+                          value={userForm.primary_county}
+                          onChange={(e) =>
+                            setUserForm((prev) => ({
+                              ...prev,
+                              primary_county: e.target.value,
+                            }))
+                          }
+                          disabled={creatingUser}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Primary Precinct"
+                          fullWidth
+                          value={userForm.primary_precinct}
+                          onChange={(e) =>
+                            setUserForm((prev) => ({
+                              ...prev,
+                              primary_precinct: e.target.value,
+                            }))
+                          }
+                          disabled={creatingUser}
+                        />
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Role"
+                          fullWidth
+                          value={userForm.role}
+                          onChange={(e) =>
+                            setUserForm((prev) => ({
+                              ...prev,
+                              role: e.target.value,
+                            }))
+                          }
+                          disabled={creatingUser}
+                        />
+                      </Grid>
+                    </Grid>
+
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      size="large"
+                      sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
+                      disabled={creatingUser}
+                    >
+                      {creatingUser ? "Creating..." : "Create User"}
+                    </Button>
+
+                    {userResult && (
+                      <Alert
+                        severity={userResult.success ? "success" : "error"}
+                        sx={{ mt: 3 }}
+                      >
+                        {userResult.message}
+                      </Alert>
+                    )}
+                  </Box>
+                </Paper>
+              }
+            </Box>
+          )}
+          {/* Render the content based on the label of the active tab */}
+          {availableTabs[tabValue]?.label === "Create Org Roles" && (
+            <Box>
+              {
+                <Paper sx={{ p: 4, borderRadius: 3 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Create Individual Org Role
+                  </Typography>
+
+                  <Box
+                    component="form"
+                    onSubmit={handleCreateOrgRole}
+                    sx={{ mt: 3 }}
+                  >
+                    <Grid container spacing={3}>
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Document ID *"
+                          fullWidth
+                          value={orgRoleForm.id}
+                          onChange={(e) =>
+                            setOrgRoleForm((prev) => ({
+                              ...prev,
+                              id: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingOrgRole}
+                          helperText="e.g. PA15-R-committeeperson-220"
+                        />
+                      </Grid>
+
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="User UID"
+                          fullWidth
+                          value={orgRoleForm.uid}
+                          onChange={(e) =>
+                            setOrgRoleForm((prev) => ({
+                              ...prev,
+                              uid: e.target.value.trim(),
+                            }))
+                          }
+                          disabled={creatingOrgRole || orgRoleForm.is_vacant}
+                          helperText="Firebase Auth UID (required unless vacant)"
+                        />
+                      </Grid>
+
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Role *"
+                          fullWidth
+                          select
+                          SelectProps={{ native: true }}
+                          value={orgRoleForm.role}
+                          onChange={(e) =>
+                            setOrgRoleForm((prev) => ({
+                              ...prev,
+                              role: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingOrgRole}
+                        >
+                          <option value="committeeperson">
+                            committeeperson
+                          </option>
+                          <option value="area_chair">area_chair</option>
+                          <option value="area_vice_chair">
+                            area_vice_chair
+                          </option>
+                          <option value="county_chair">county_chair</option>
+                          <option value="state_admin">state_admin</option>
+                          {/* Add more as needed */}
+                        </TextField>
+                      </Grid>
+
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Org ID *"
+                          fullWidth
+                          value={orgRoleForm.org_id}
+                          onChange={(e) =>
+                            setOrgRoleForm((prev) => ({
+                              ...prev,
+                              org_id: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingOrgRole}
+                          helperText="e.g. PA15-O-01"
+                        />
+                      </Grid>
+
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="County Code"
+                          fullWidth
+                          value={orgRoleForm.county_code}
+                          onChange={(e) =>
+                            setOrgRoleForm((prev) => ({
+                              ...prev,
+                              county_code: e.target.value,
+                            }))
+                          }
+                          disabled={creatingOrgRole}
+                          helperText="e.g. PA-C-15"
+                        />
+                      </Grid>
+
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Area District"
+                          fullWidth
+                          value={orgRoleForm.area_district}
+                          onChange={(e) =>
+                            setOrgRoleForm((prev) => ({
+                              ...prev,
+                              area_district: e.target.value,
+                            }))
+                          }
+                          disabled={creatingOrgRole}
+                          helperText="e.g. PA15-A-01"
+                        />
+                      </Grid>
+
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Precinct Code *"
+                          fullWidth
+                          value={orgRoleForm.precinct_code}
+                          onChange={(e) =>
+                            setOrgRoleForm((prev) => ({
+                              ...prev,
+                              precinct_code: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingOrgRole}
+                          helperText="e.g. PA15-P-220"
+                        />
+                      </Grid>
+
+                      <Grid size={12}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={orgRoleForm.is_vacant}
+                              onChange={(e) =>
+                                setOrgRoleForm((prev) => ({
+                                  ...prev,
+                                  is_vacant: e.target.checked,
+                                  uid: e.target.checked ? "" : prev.uid, // clear UID if vacant
+                                }))
+                              }
+                              disabled={creatingOrgRole}
+                            />
+                          }
+                          label="Is Vacant (no user assigned)"
+                        />
+                      </Grid>
+                      <Grid size={12}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={orgRoleForm.active}
+                              onChange={(e) =>
+                                setOrgRoleForm((prev) => ({
+                                  ...prev,
+                                  active: e.target.checked,
+                                }))
+                              }
+                              disabled={creatingOrgRole}
+                            />
+                          }
+                          label="Active"
+                        />
+                      </Grid>
+                    </Grid>
+
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      size="large"
+                      sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
+                      disabled={creatingOrgRole}
+                    >
+                      {creatingOrgRole ? "Creating..." : "Create Org Role"}
+                    </Button>
+
+                    {orgRoleResult && (
+                      <Alert
+                        severity={orgRoleResult.success ? "success" : "error"}
+                        sx={{ mt: 3 }}
+                      >
+                        {orgRoleResult.message}
+                      </Alert>
+                    )}
+                  </Box>
+                </Paper>
+              }
+            </Box>
+          )}
+          {/* Render the content based on the label of the active tab */}
+          {availableTabs[tabValue]?.label === "Import Roles" && (
+            <Box>
+              {
+                <Paper sx={{ p: 4, borderRadius: 3 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Bulk Import Org Roles
+                  </Typography>
+
+                  <Stack spacing={3}>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      startIcon={<UploadFile />}
+                    >
+                      Upload Org Roles JSON
+                      <input
+                        type="file"
+                        hidden
+                        accept=".json"
+                        onChange={(e) =>
+                          handleFileUpload(
+                            e,
+                            setOrgRolesJson,
+                            setOrgRolesPreview
+                          )
+                        }
+                      />
+                    </Button>
+
+                    <TextField
+                      multiline
+                      rows={10}
+                      fullWidth
+                      label="Paste Org Roles JSON"
+                      value={orgRolesJson}
+                      onChange={(e) =>
+                        handleJsonInput(
+                          e.target.value,
+                          setOrgRolesJson,
+                          setOrgRolesPreview
+                        )
+                      }
+                      placeholder={[
+                        "[",
+                        "  {",
+                        '    "id": "PA15-R-committeeperson-220",',
+                        '    "uid": "userFirebaseUID123",',
+                        '    "role": "committeeperson",',
+                        '    "org_id": "PA15-O-01",',
+                        '    "county_code": "PA-C-15",',
+                        '    "area_district": "PA15-A-01",',
+                        '    "precinct_code": "PA15-P-220",',
+                        '    "is_vacant": false,',
+                        '    "active": true',
+                        "  }",
+                        "  // ... more roles",
+                        "]",
+                      ].join("\n")}
+                    />
+
+                    {orgRolesPreview.length > 0 && (
+                      <>
+                        <Typography>
+                          Preview: {orgRolesPreview.length} org roles
+                        </Typography>
+
+                        <Button
+                          variant="contained"
+                          onClick={handleImportOrgRoles}
+                          disabled={importingOrgRoles}
+                          startIcon={
+                            importingOrgRoles ? (
+                              <CircularProgress size={20} />
+                            ) : (
+                              <CloudUpload />
+                            )
+                          }
+                        >
+                          {importingOrgRoles
+                            ? "Importing..."
+                            : "Import Org Roles"}
+                        </Button>
+
+                        {orgRolesImportResult && (
+                          <Alert
+                            severity={
+                              orgRolesImportResult.includes("Error")
+                                ? "error"
+                                : "success"
+                            }
+                          >
+                            {orgRolesImportResult}
+                          </Alert>
+                        )}
+                      </>
+                    )}
+                  </Stack>
+                </Paper>
+              }
+            </Box>
+          )}
+          {/* Render the content based on the label of the active tab */}
+          {availableTabs[tabValue]?.label === "Message Templates" && (
+            <Box>
+              {
+                <Paper sx={{ p: 4, borderRadius: 3 }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Create Individual Message Template
+                  </Typography>
+
+                  <Box
+                    component="form"
+                    onSubmit={handleCreateMessageTemplate}
+                    sx={{ mt: 3 }}
+                  >
+                    <Grid container spacing={3}>
+                      {/* Document ID */}
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Document ID *"
+                          fullWidth
+                          value={messageTemplateForm.id}
+                          onChange={(e) =>
+                            setMessageTemplateForm((prev) => ({
+                              ...prev,
+                              id: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingMessageTemplate}
+                          helperText="Unique ID, e.g. afford-crime-friendly-r-high-mail"
+                        />
+                      </Grid>
+
+                      {/* Subject Line */}
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Subject Line"
+                          fullWidth
+                          value={messageTemplateForm.subject_line}
+                          onChange={(e) =>
+                            setMessageTemplateForm((prev) => ({
+                              ...prev,
+                              subject_line: e.target.value,
+                            }))
+                          }
+                          disabled={creatingMessageTemplate}
+                          helperText="Optional email subject line"
+                        />
+                      </Grid>
+
+                      {/* Body */}
+                      <Grid size={12}>
+                        <TextField
+                          label="Body *"
+                          fullWidth
+                          multiline
+                          rows={8}
+                          value={messageTemplateForm.body}
+                          onChange={(e) =>
+                            setMessageTemplateForm((prev) => ({
+                              ...prev,
+                              body: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingMessageTemplate}
+                          helperText="Main message content"
+                        />
+                      </Grid>
+
+                      {/* Category - Select with fixed values */}
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          select
+                          label="Category *"
+                          fullWidth
+                          value={messageTemplateForm.category}
+                          onChange={(e) =>
+                            setMessageTemplateForm((prev) => ({
+                              ...prev,
+                              category: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingMessageTemplate}
+                          SelectProps={{ native: true }}
+                        >
+                          <option value=""></option>
+                          <option value="Affordability">Affordability</option>
+                          <option value="Crime & Drugs">Crime & Drugs</option>
+                          <option value="Energy & Utilities">
+                            Energy & Utilities
+                          </option>
+                          <option value="Healthcare">Healthcare</option>
+                          <option value="Housing">Housing</option>
+                          <option value="Local">Local</option>
+                        </TextField>
+                      </Grid>
+
+                      {/* Tone - Select */}
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          select
+                          label="Tone *"
+                          fullWidth
+                          value={messageTemplateForm.tone}
+                          onChange={(e) =>
+                            setMessageTemplateForm((prev) => ({
+                              ...prev,
+                              tone: e.target.value,
+                            }))
+                          }
+                          required
+                          disabled={creatingMessageTemplate}
+                          SelectProps={{ native: true }}
+                        >
+                          <option value=""></option>
+                          <option value="warm">Warm</option>
+                          <option value="compassionate">Compassionate</option>
+                          <option value="direct">Direct</option>
+                          <option value="excited">Excited</option>
+                          <option value="friendly">Friendly</option>
+                          <option value="optimistic">Optimistic</option>
+                          <option value="pessimistic">Pessimistic</option>
+                          <option value="pleading">Pleading</option>
+                          <option value="respectful">Respectful</option>
+                        </TextField>
+                      </Grid>
+
+                      {/* Age Group */}
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          select
+                          label="Age Group"
+                          fullWidth
+                          value={messageTemplateForm.age_group}
+                          onChange={(e) =>
+                            setMessageTemplateForm((prev) => ({
+                              ...prev,
+                              age_group: e.target.value,
+                            }))
+                          }
+                          disabled={creatingMessageTemplate}
+                          SelectProps={{ native: true }}
+                        >
+                          <option value=""></option>
+                          <option value="18-25">18-25</option>
+                          <option value="26-40">26-40</option>
+                          <option value="41-70">41-70</option>
+                          <option value="71+">71+</option>
+                        </TextField>
+                      </Grid>
+
+                      {/* Modeled Party */}
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          select
+                          label="Modeled Party"
+                          fullWidth
+                          value={messageTemplateForm.modeled_party}
+                          onChange={(e) =>
+                            setMessageTemplateForm((prev) => ({
+                              ...prev,
+                              modeled_party: e.target.value,
+                            }))
+                          }
+                          disabled={creatingMessageTemplate}
+                          SelectProps={{ native: true }}
+                        >
+                          <option value=""></option>
+                          <option value="Republican">Republican</option>
+                          <option value="Democrat">Democrat</option>
+                          <option value="Independent">Independent</option>
+                        </TextField>
+                      </Grid>
+
+                      {/* Turnout Score */}
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          select
+                          label="Turnout Score General"
+                          fullWidth
+                          value={messageTemplateForm.turnout_score_general}
+                          onChange={(e) =>
+                            setMessageTemplateForm((prev) => ({
+                              ...prev,
+                              turnout_score_general: e.target.value,
+                            }))
+                          }
+                          disabled={creatingMessageTemplate}
+                          SelectProps={{ native: true }}
+                        >
+                          <option value=""></option>
+                          <option value="4 - Very High (Most Active)">
+                            4 - Very High (Most Active)
+                          </option>
+                          <option value="3 - Frequent Voter">
+                            3 - Frequent Voter
+                          </option>
+                          <option value="2 - Moderate Voter">
+                            2 - Moderate Voter
+                          </option>
+                          <option value="1 - Low Turnout">
+                            1 - Low Turnout
+                          </option>
+                          <option value="0 - Inactive">0 - Inactive</option>
+                        </TextField>
+                      </Grid>
+
+                      {/* Has Mail Ballot */}
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          select
+                          label="Has Mail Ballot"
+                          fullWidth
+                          value={messageTemplateForm.has_mail_ballot}
+                          onChange={(e) =>
+                            setMessageTemplateForm((prev) => ({
+                              ...prev,
+                              has_mail_ballot: e.target.value,
+                            }))
+                          }
+                          disabled={creatingMessageTemplate}
+                          SelectProps={{ native: true }}
+                        >
+                          <option value=""></option>
+                          <option value="Has Mail Ballot">
+                            Has Mail Ballot
+                          </option>
+                          <option value="Does Not Have Mail Ballot">
+                            Does Not Have Mail Ballot
+                          </option>
+                        </TextField>
+                      </Grid>
+
+                      {/* Tags */}
+                      <Grid size={{ xs: 12, md: 6 }}>
+                        <TextField
+                          label="Tags"
+                          fullWidth
+                          value={messageTemplateForm.tags}
+                          onChange={(e) =>
+                            setMessageTemplateForm((prev) => ({
+                              ...prev,
+                              tags: e.target.value,
+                            }))
+                          }
+                          disabled={creatingMessageTemplate}
+                          helperText="Comma-separated, e.g. affordability, crime, 2026"
+                        />
+                      </Grid>
+
+                      {/* Active Switch */}
+                      <Grid size={12}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={messageTemplateForm.active}
+                              onChange={(e) =>
+                                setMessageTemplateForm((prev) => ({
+                                  ...prev,
+                                  active: e.target.checked,
+                                }))
+                              }
+                              disabled={creatingMessageTemplate}
+                            />
+                          }
+                          label="Active"
+                        />
+                      </Grid>
+                    </Grid>
+
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      size="large"
+                      sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
+                      disabled={creatingMessageTemplate}
+                    >
+                      {creatingMessageTemplate
+                        ? "Creating..."
+                        : "Create Message Template"}
+                    </Button>
+
+                    {messageTemplateResult && (
+                      <Alert
+                        severity={
+                          messageTemplateResult.success ? "success" : "error"
+                        }
+                        sx={{ mt: 3 }}
+                      >
+                        {messageTemplateResult.message}
+                      </Alert>
+                    )}
+                  </Box>
+                </Paper>
+              }
+            </Box>
+          )}
+        </>
       )}
       {/* === Campaign Resources Management === */}
-      <Paper sx={{ p: 4, mt: 8, borderRadius: 3 }}>
-        <Typography variant="h5" gutterBottom fontWeight="bold" color="primary">
-          Campaign Resources Management
-        </Typography>
-        <Typography variant="body1" color="text.secondary" mb={4}>
-          Upload and manage downloadable campaign materials (brochures, ballots,
-          forms, etc.)
-        </Typography>
-
-        {/* Upload Form */}
-        <Grid container spacing={3} alignItems="end">
-          <Grid size={{ xs: 12, md: 4 }}>
-            <TextField
-              label="Title *"
-              fullWidth
-              value={newResource.title}
-              onChange={(e) =>
-                setNewResource((prev) => ({ ...prev, title: e.target.value }))
-              }
-              disabled={uploadingResource}
-            />
-          </Grid>
-
-          <Grid size={{ xs: 12, md: 3 }}>
-            <TextField
-              select
-              label="Category *"
-              fullWidth
-              value={newResource.category}
-              onChange={(e) =>
-                setNewResource((prev) => ({
-                  ...prev,
-                  category: e.target.value as CampaignResource["category"],
-                }))
-              }
-              SelectProps={{ native: true }}
-              disabled={uploadingResource}
-            >
-              <option value="Brochures">Brochures</option>
-              <option value="Ballots">Ballots</option>
-              <option value="Forms">Forms</option>
-              <option value="Graphics">Graphics</option>
-              <option value="Scripts">Scripts</option>
-            </TextField>
-          </Grid>
-
-          <Grid size={{ xs: 12, md: 5 }}>
-            <TextField
-              label="Description (optional)"
-              fullWidth
-              value={newResource.description}
-              onChange={(e) =>
-                setNewResource((prev) => ({
-                  ...prev,
-                  description: e.target.value,
-                }))
-              }
-              disabled={uploadingResource}
-            />
-          </Grid>
-
-          <Grid size={{ xs: 12, md: 5 }}>
-            <Button
-              variant="outlined"
-              component="label"
-              startIcon={<UploadIcon />}
-              disabled={uploadingResource}
-            >
-              Select PDF File
-              <input
-                type="file"
-                hidden
-                accept=".pdf"
-                onChange={handleFileSelect}
-              />
-            </Button>
-            {newResource.file && (
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Selected: {newResource.file.name}
-              </Typography>
-            )}
-          </Grid>
-
-          <Grid size={{ xs: 12, md: 3 }}>
-            <Button
-              variant="contained"
-              onClick={handleUploadResource}
-              disabled={
-                uploadingResource || !newResource.file || !newResource.title
-              }
-              fullWidth
-              startIcon={
-                uploadingResource ? (
-                  <CircularProgress size={20} />
-                ) : (
-                  <UploadIcon />
-                )
-              }
-            >
-              {uploadingResource ? "Uploading..." : "Upload Resource"}
-            </Button>
-          </Grid>
-        </Grid>
-
-        {/* Resources List */}
-        <Box sx={{ mt: 6 }}>
-          <Typography variant="h6" gutterBottom>
-            Current Resources ({resources.length})
+      {canManageResources ? (
+        <Paper sx={{ p: 4, mt: 8, borderRadius: 3 }}>
+          <Typography
+            variant="h5"
+            gutterBottom
+            fontWeight="bold"
+            color="primary"
+          >
+            Campaign Resources Management
+          </Typography>
+          <Typography variant="body1" color="text.secondary" mb={4}>
+            Upload and manage downloadable campaign materials (brochures,
+            ballots, forms, etc.)
           </Typography>
 
-          {loadingResources ? (
-            <LinearProgress sx={{ mt: 2 }} />
-          ) : resources.length === 0 ? (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              No resources uploaded yet.
-            </Alert>
-          ) : (
-            <List>
-              {resources.map((resource) => (
-                <ListItem key={resource.id} divider>
-                  <ListItemText
-                    primary={resource.title}
-                    secondary={`${resource.category} • ${
-                      resource.description || "No description"
-                    }`}
-                  />
-                  <ListItemSecondaryAction>
-                    <IconButton
-                      onClick={() => window.open(resource.url, "_blank")}
-                      color="primary"
-                    >
-                      <DownloadIcon />
-                    </IconButton>
-                    <IconButton
-                      onClick={() => handleDeleteResource(resource.id)}
-                      color="error"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
-            </List>
-          )}
+          {/* Upload Form */}
+          <Grid container spacing={3} alignItems="end">
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="Title *"
+                fullWidth
+                value={newResource.title}
+                onChange={(e) =>
+                  setNewResource((prev) => ({ ...prev, title: e.target.value }))
+                }
+                disabled={uploadingResource}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 3 }}>
+              <TextField
+                select
+                label="Category *"
+                fullWidth
+                value={newResource.category}
+                onChange={(e) =>
+                  setNewResource((prev) => ({
+                    ...prev,
+                    category: e.target.value as CampaignResource["category"],
+                  }))
+                }
+                SelectProps={{ native: true }}
+                disabled={uploadingResource}
+              >
+                <option value="Brochures">Brochures</option>
+                <option value="Ballots">Ballots</option>
+                <option value="Forms">Forms</option>
+                <option value="Graphics">Graphics</option>
+                <option value="Scripts">Scripts</option>
+              </TextField>
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 5 }}>
+              <TextField
+                label="Description (optional)"
+                fullWidth
+                value={newResource.description}
+                onChange={(e) =>
+                  setNewResource((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
+                disabled={uploadingResource}
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 5 }}>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<UploadIcon />}
+                disabled={uploadingResource}
+              >
+                Select PDF File
+                <input
+                  type="file"
+                  hidden
+                  accept=".pdf"
+                  onChange={handleFileSelect}
+                />
+              </Button>
+              {newResource.file && (
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  Selected: {newResource.file.name}
+                </Typography>
+              )}
+            </Grid>
+
+            <Grid size={{ xs: 12, md: 3 }}>
+              <Button
+                variant="contained"
+                onClick={handleUploadResource}
+                disabled={
+                  uploadingResource || !newResource.file || !newResource.title
+                }
+                fullWidth
+                startIcon={
+                  uploadingResource ? (
+                    <CircularProgress size={20} />
+                  ) : (
+                    <UploadIcon />
+                  )
+                }
+              >
+                {uploadingResource ? "Uploading..." : "Upload Resource"}
+              </Button>
+            </Grid>
+          </Grid>
+
+          {/* Resources List */}
+          <Box sx={{ mt: 6 }}>
+            <Typography variant="h6" gutterBottom>
+              Current Resources ({resources.length})
+            </Typography>
+
+            {loadingResources ? (
+              <LinearProgress sx={{ mt: 2 }} />
+            ) : resources.length === 0 ? (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                No resources uploaded yet.
+              </Alert>
+            ) : (
+              <List>
+                {resources.map((resource) => (
+                  <ListItem key={resource.id} divider>
+                    <ListItemText
+                      primary={resource.title}
+                      secondary={`${resource.category} • ${
+                        resource.description || "No description"
+                      }`}
+                    />
+                    <ListItemSecondaryAction>
+                      <IconButton
+                        onClick={() => window.open(resource.url, "_blank")}
+                        color="primary"
+                      >
+                        <DownloadIcon />
+                      </IconButton>
+                      <IconButton
+                        onClick={() => handleDeleteResource(resource.id)}
+                        color="error"
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </Box>
+        </Paper>
+      ) : (
+        <Box mt={4}>
+          <Alert severity="info">
+            You do not have permission to manage campaign resources.
+          </Alert>
         </Box>
-      </Paper>
+      )}
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteConfirmOpen} onClose={cancelDelete}>
         <DialogTitle>Confirm Delete</DialogTitle>

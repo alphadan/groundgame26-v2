@@ -1,5 +1,4 @@
 // src/lib/firebase.ts
-
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import {
@@ -66,6 +65,21 @@ export const db: Firestore = initializeFirestore(app, {
 const RECAPTCHA_SITE_KEY = firebaseConfig.recaptchaSiteKey || "";
 
 if (typeof window !== "undefined") {
+  const isDev = process.env.NODE_ENV === "development";
+
+  if (!isDev && RECAPTCHA_SITE_KEY) {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_SITE_KEY),
+      isTokenAutoRefreshEnabled: true,
+    });
+    console.info("✅ App Check enabled (production)");
+  } else {
+    console.info(`🛠️ App Check disabled (${isDev ? "development" : "no key"})`);
+  }
+}
+/*
+
+if (typeof window !== "undefined") {
   const isLocal =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
@@ -125,3 +139,4 @@ if (typeof window !== "undefined") {
     console.info("✅ [Firebase] App Check initialized");
   }
 }
+*/

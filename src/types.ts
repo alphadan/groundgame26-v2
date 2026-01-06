@@ -40,6 +40,7 @@ export interface County extends BaseMetadata {
 export interface Area extends BaseMetadata {
   org_id?: string;
   area_district: string;
+  county_code?: string;
   name: string;
   chair_uid?: string | null;
   vice_chair_uid?: string | null;
@@ -72,6 +73,32 @@ export type UserRole =
   | "user"
   | "base";
 
+
+
+// --- Auth & Claims ---
+export interface UserPermissions {
+  can_manage_team: boolean;
+  can_manage_resources?: boolean;
+  can_upload_collections?: boolean;
+  can_create_collections?: boolean;
+  can_create_documents?: boolean;
+  [key: string]: any; // Allow for future expansion
+}
+
+export interface CustomClaims {
+  role: UserRole;
+  org_id: string;
+  counties: string[];
+  areas: string[];
+  precincts: string[];
+  user_id?: string;
+  uid?: string;
+  roles?: string[];
+  scope?: string[];
+  permissions?: UserPermissions;
+  [key: string]: any; // Safety net for dynamic Firebase properties
+}
+
 // --- UserProfile ---
 
 export interface UserProfile {
@@ -79,6 +106,7 @@ export interface UserProfile {
   display_name: string | null;
   email: string | null;
   role: UserRole | null;
+  permissions: UserPermissions;
   org_id: string | null;
   preferred_name: string | null;
   phone: string | null;
@@ -113,30 +141,6 @@ export interface AppControl {
   last_updated: number; // Timestamp of last successful sync
   last_sync_attempt?: number; // Optional: for retry logic
   sync_status?: "idle" | "syncing" | "error"; // Optional: useful for UI
-}
-
-// --- Auth & Claims ---
-
-export interface UserPermissions {
-  can_export_csv: boolean;
-  can_manage_team: boolean;
-  can_view_phone: boolean;
-  can_view_full_address: boolean;
-  can_cut_turf: boolean;
-}
-
-export interface CustomClaims {
-  role: UserRole;
-  org_id: string;
-  counties: string[];
-  areas: string[];
-  precincts: string[];
-  user_id?: string;
-  uid?: string;
-  roles?: string[];
-  scope?: string[];
-  permissions?: UserPermissions;
-  [key: string]: any; // Safety net for dynamic Firebase properties
 }
 
 export interface FilterValues {

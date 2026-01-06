@@ -42,8 +42,6 @@ interface FilterSelectorProps {
   isLoading?: boolean;
   disabled?: boolean;
   unrestrictedFilters?: FilterKey[];
-  onCountyCodeChange?: (code: string) => void;
-  onAreaDistrictChange?: (district: string) => void;
 }
 
 export const FilterSelector: React.FC<FilterSelectorProps> = ({
@@ -55,13 +53,15 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
 }) => {
   const theme = useTheme();
 
-  const { control, handleSubmit, watch, reset } = useForm<FilterValues>({
+  // FIX: Added setValue to the destructured useForm hook
+  const { control, handleSubmit, watch, setValue } = useForm<FilterValues>({
     defaultValues,
   });
 
   const selectedCounty = watch("county", "");
   const selectedArea = watch("area", "");
 
+  // These store the 'friendly' codes (like "15" or "01") used for BigQuery/API calls
   const [selectedAreaDistrict, setSelectedAreaDistrict] =
     React.useState<string>("");
   const [selectedCountyCode, setSelectedCountyCode] =
@@ -70,8 +70,9 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
   const onSubmitForm = (data: FilterValues) => {
     const filters: FilterValues = {
       ...data,
-      county: selectedCountyCode || "",
-      area: selectedAreaDistrict || "",
+      // Map the IDs back to the codes expected by the backend
+      county: selectedCountyCode || data.county,
+      area: selectedAreaDistrict || data.area,
     };
 
     onSubmit(filters);
@@ -102,35 +103,36 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
             </Typography>
             <RestrictedFilters
               control={control}
+              setValue={setValue as any}
               selectedCounty={selectedCounty}
               selectedArea={selectedArea}
-              onCountyChange={(value) =>
-                reset({ county: value, area: "", precinct: "" })
-              }
-              onAreaChange={(value) =>
-                reset({ ...watch(), area: value, precinct: "" })
-              }
-              onPrecinctChange={(value) =>
-                reset({ ...watch(), precinct: value })
-              }
+              onCountyChange={(value) => {
+                setValue("county", value);
+              }}
+              onAreaChange={(value) => {
+                setValue("area", value);
+              }}
+              onPrecinctChange={(value) => {
+                setValue("precinct", value);
+              }}
               onAreaDistrictChange={setSelectedAreaDistrict}
               onCountyCodeChange={setSelectedCountyCode}
             />
           </Box>
 
-          <Divider />
-
-          {/* Unrestricted Additional Filters */}
           {unrestrictedFilters.length > 0 && (
-            <Box>
-              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                Additional Criteria
-              </Typography>
-              <UnrestrictedFilters
-                control={control}
-                filtersToShow={unrestrictedFilters}
-              />
-            </Box>
+            <>
+              <Divider />
+              <Box>
+                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                  Additional Criteria
+                </Typography>
+                <UnrestrictedFilters
+                  control={control}
+                  filtersToShow={unrestrictedFilters}
+                />
+              </Box>
+            </>
           )}
 
           {/* Submit */}

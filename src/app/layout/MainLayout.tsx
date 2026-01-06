@@ -129,7 +129,6 @@ export default function MainLayout({ children }: MainLayoutProps) {
     { divider: true },
     { text: "Settings", icon: <Settings />, path: "/settings" },
     { text: "How to Use", icon: <TipsAndUpdatesIcon />, path: "/how-to-use" },
-    { text: "Firebase", icon: <DataObjectIcon />, path: "/admin" },
     // Admin only
   ];
 

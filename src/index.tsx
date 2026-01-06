@@ -6,8 +6,9 @@ import { CssBaseline } from "@mui/material";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import { CustomThemeProvider } from "./context/ThemeContext";
+import { AuthProvider } from "./context/AuthContext"; // Import added
 
-// === Global Error Boundary (Catches unhandled exceptions) ===
+// === Global Error Boundary ===
 class RootErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error?: Error }
@@ -23,7 +24,6 @@ class RootErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Uncaught error in root boundary:", error, errorInfo);
-    // Optional: send to error reporting service (Sentry, LogRocket, etc.)
   }
 
   render() {
@@ -58,12 +58,10 @@ class RootErrorBoundary extends React.Component<
         </div>
       );
     }
-
     return this.props.children;
   }
 }
 
-// === Query Client ===
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -74,17 +72,9 @@ const queryClient = new QueryClient({
   },
 });
 
-// === Safe Root Mounting ===
 const rootElement = document.getElementById("root");
-
 if (!rootElement) {
-  // This should never happen in correct setup, but we guard anyway
-  document.body.innerHTML = `
-    <div style="padding:40px;text-align:center;font-family:system-ui,sans-serif;">
-      <h1>Application Error</h1>
-      <p>Root element not found. Please check public/index.html contains &lt;div id="root"&gt;&lt;/div&gt;</p>
-    </div>
-  `;
+  document.body.innerHTML = `<div style="padding:40px;text-align:center;"><h1>Application Error</h1><p>Root element not found.</p></div>`;
   throw new Error("Root element #root not found in DOM");
 }
 
@@ -93,13 +83,17 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <RootErrorBoundary>
+      {/* 1. Theme must be high up for CSS variables */}
       <CustomThemeProvider>
-        <QueryClientProvider client={queryClient}>
-          <CssBaseline />
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
-        </QueryClientProvider>
+        {/* 2. AuthProvider MUST be here so useAuth() works in App.tsx */}
+        <AuthProvider>
+          <QueryClientProvider client={queryClient}>
+            <CssBaseline />
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </QueryClientProvider>
+        </AuthProvider>
       </CustomThemeProvider>
     </RootErrorBoundary>
   </React.StrictMode>

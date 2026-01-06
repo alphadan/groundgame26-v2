@@ -1,30 +1,20 @@
 // src/App.tsx
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { User, onIdTokenChanged, multiFactor } from "firebase/auth";
-import { auth } from "./lib/firebase";
+import { multiFactor } from "firebase/auth";
+import { Box, CircularProgress, Typography, Button } from "@mui/material";
 
-import {
-  Box,
-  CircularProgress,
-  Typography,
-  Button,
-  CssBaseline,
-} from "@mui/material";
-
-import { CustomThemeProvider } from "./context/ThemeContext";
-import "./themeAugmentations";
-import { AuthProvider } from "./context/AuthContext";
+// Context & Services
+import { useAuth } from "./context/AuthContext";
 import { syncReferenceData } from "./services/referenceDataSync";
 import MainLayout from "./app/layout/MainLayout";
 
+// Components
 import LoginPage from "./components/auth/LoginPage";
 import EnrollMFAScreen from "./components/auth/EnrollMFAScreen";
 
-import { useActivityLogger } from "./hooks/useActivityLogger";
-
+// Page Imports
 import Dashboard from "./app/dashboard/Dashboard";
-import ReportsPage from "./app/reports/ReportsAnalysisPage";
 import AnalysisPage from "./app/analysis/AnalysisPage";
 import MessagingPage from "./app/messaging/MessagingPage";
 import ResourcesPage from "./app/resources/ResourcesPage";
@@ -38,90 +28,66 @@ import BadgeRedemptionPage from "./app/rewards/BadgeRedemptionPage";
 import HowToUsePage from "./app/guide/HowToUsePage";
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [claims, setClaims] = useState<Record<string, any> | null>(null);
-  const [isReady, setIsReady] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
   const [syncError, setSyncError] = useState<Error | null>(null);
   const [isOffline, setIsOffline] = useState(false);
 
-  const { logSuccess } = useActivityLogger();
-  const hasSyncedRef = useRef(false);
-  const forceRefreshAttempted = useRef(false);
+  const hasSyncedRef = useRef<string | null>(null);
 
-  // === 1. Auth State Listener (defensive & safe cleanup) ===
-  useEffect(() => {
-    const unsubscribe = onIdTokenChanged(auth, async (currentUser) => {
-      try {
-        if (currentUser) {
-          let tokenResult = await currentUser.getIdTokenResult(false);
+  // 1. Correct Destructuring: Renaming isLoaded to authLoaded for clarity
+  const {
+    user,
+    role,
+    isLoaded: authLoaded,
+    isLoading: authLoading,
+  } = useAuth();
 
-          // Only force refresh once per session if role missing
-          if (!tokenResult.claims.role && !forceRefreshAttempted.current) {
-            console.log(
-              "⏳ Role missing — forcing ID token refresh (one-time)"
-            );
-            forceRefreshAttempted.current = true;
-            try {
-              tokenResult = await currentUser.getIdTokenResult(true);
-            } catch (refreshErr) {
-              console.warn("Force refresh failed:", refreshErr);
-              // Continue with original claims — role may be missing temporarily
-            }
-          }
-
-          setClaims(tokenResult.claims || {});
-          console.warn("Claims:", claims);
-        } else {
-          setClaims(null);
-          forceRefreshAttempted.current = false;
-        }
-
-        setUser(currentUser);
-      } catch (err) {
-        console.error("Error processing auth state:", err);
-        setUser(currentUser); // Still set user to allow login flow
-      } finally {
-        setIsReady(true);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // === 2. One-time Reference Data Sync (idempotent & resilient) ===
+  // 2. Defensive performSync Callback
   const performSync = useCallback(async () => {
-    if (!user || hasSyncedRef.current) return;
+    // 1. Exit if no user or we already successfully synced for THIS specific UID
+    if (!user?.uid || hasSyncedRef.current === user.uid) {
+      return;
+    }
 
-    hasSyncedRef.current = true;
-    console.log("[App] Starting one-time reference sync for UID:", user.uid);
+    // 2. Lock the sync immediately
+    hasSyncedRef.current = user.uid;
+    console.log("[App] 🚀 Starting strategic sync for UID:", user.uid);
 
     try {
-      await syncReferenceData(user.uid);
-      console.log("[App] SYNC SUCCESS");
-      setIsSynced(true);
-      logSuccess?.(); // Optional chain — safe if undefined
-    } catch (err: any) {
-      console.error("[App] Sync failed:", err);
+      setSyncError(null);
+      setIsOffline(false);
 
-      // Detect offline vs. other errors
-      if (err?.message?.includes("offline") || !navigator.onLine) {
+      // 3. The actual heavy lifting
+      await syncReferenceData(user.uid);
+
+      console.log("[App] ✅ SYNC COMPLETE");
+      setIsSynced(true);
+    } catch (err: any) {
+      console.error("[App] ❌ Sync failed:", err);
+
+      // 4. Reset the ref on error so the user can retry (or the next effect run can try)
+      hasSyncedRef.current = null;
+
+      if (!navigator.onLine || err?.code === "unavailable") {
         setIsOffline(true);
       }
 
       setSyncError(err instanceof Error ? err : new Error(String(err)));
-      setIsSynced(true); // Allow app to continue with cached data
+      setIsSynced(false);
     }
-  }, [user, logSuccess]);
+  }, [user?.uid]);
 
+  // 3. Trigger Sync when criteria are met
   useEffect(() => {
-    if (isReady && user && claims?.role && !hasSyncedRef.current) {
+    if (authLoaded && user?.uid) {
       performSync();
     }
-  }, [isReady, user, claims?.role, performSync]);
+  }, [authLoaded, user?.uid, performSync]);
 
-  // === 3. Loading States ===
-  if (!isReady) {
+  // === RENDER LOGIC ===
+
+  // A. Auth Loading State
+  if (authLoading || !authLoaded) {
     return (
       <Box
         display="flex"
@@ -132,12 +98,31 @@ export default function App() {
         gap={2}
       >
         <CircularProgress size={60} sx={{ color: "#B22234" }} />
-        <Typography variant="h6">Initializing GroundGame26...</Typography>
+        <Typography variant="h6">Initializing Auth...</Typography>
       </Box>
     );
   }
 
-  if (user && !isSynced) {
+  // B. Unauthenticated State
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  // C. MFA Enforcement
+  let enrolledFactors: any[] = [];
+  try {
+    const mfaUser = multiFactor(user);
+    enrolledFactors = mfaUser?.enrolledFactors ?? [];
+  } catch (mfaErr) {
+    console.warn("MFA check failed:", mfaErr);
+  }
+
+  if (enrolledFactors.length === 0) {
+    return <EnrollMFAScreen />;
+  }
+
+  // D. Data Sync Loading State
+  if (!isSynced && !syncError) {
     return (
       <Box
         display="flex"
@@ -149,16 +134,11 @@ export default function App() {
       >
         <CircularProgress size={60} sx={{ color: "#B22234" }} />
         <Typography variant="h6">Syncing reference data...</Typography>
-        {isOffline && (
-          <Typography color="warning.main">
-            You appear to be offline — using cached data
-          </Typography>
-        )}
       </Box>
     );
   }
 
-  // === 4. Sync Error with Retry ===
+  // E. Sync Error Boundary
   if (syncError) {
     return (
       <Box
@@ -170,22 +150,17 @@ export default function App() {
         gap={3}
         px={2}
       >
-        <Typography variant="h5" color="error" textAlign="center">
-          Failed to load reference data
+        <Typography variant="h5" color="error">
+          Reference Data Error
         </Typography>
         <Typography variant="body1" textAlign="center">
-          {isOffline ? "No internet connection" : syncError.message}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" textAlign="center">
-          The app may still work with cached data.
+          {isOffline ? "No internet connection detected." : syncError.message}
         </Typography>
         <Button
           variant="contained"
-          color="primary"
           onClick={() => {
-            hasSyncedRef.current = false;
-            setSyncError(null);
-            setIsSynced(false);
+            // FIX: Change false to null
+            hasSyncedRef.current = null;
             performSync();
           }}
         >
@@ -195,48 +170,25 @@ export default function App() {
     );
   }
 
-  // === 5. Unauthenticated ===
-  if (!user) {
-    return <LoginPage />;
-  }
-
-  // === 6. MFA Enforcement (safe multiFactor call) ===
-  let enrolledFactors: any[] = [];
-  try {
-    if (multiFactor && typeof multiFactor === "function") {
-      const mfaUser = multiFactor(user);
-      enrolledFactors = mfaUser?.enrolledFactors ?? [];
-    }
-  } catch (mfaErr) {
-    console.warn("MFA check failed (non-critical):", mfaErr);
-    // Continue — assume MFA not required if SDK fails
-  }
-
-  if (enrolledFactors.length === 0) {
-    return <EnrollMFAScreen />;
-  }
-
-  // === 7. Authenticated App ===
+  // F. Authenticated & Authorized Application UI
   return (
-    <AuthProvider>
-      <MainLayout>
-        <Routes>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/analysis" element={<AnalysisPage />} />
-          <Route path="/messaging" element={<MessagingPage />} />
-          <Route path="/resources" element={<ResourcesPage />} />
-          <Route path="/voters" element={<VoterListPage />} />
-          <Route path="/walk-lists" element={<WalkListPage />} />
-          <Route path="/name-search" element={<NameSearchPage />} />
-          <Route path="/manage-team" element={<ManageTeamPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/how-to-use" element={<HowToUsePage />} />
-          <Route path="/admin" element={<FirebasePage />} />
-          <Route path="/rewards" element={<BadgeRedemptionPage />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </MainLayout>
-    </AuthProvider>
+    <MainLayout>
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/analysis" element={<AnalysisPage />} />
+        <Route path="/messaging" element={<MessagingPage />} />
+        <Route path="/resources" element={<ResourcesPage />} />
+        <Route path="/voters" element={<VoterListPage />} />
+        <Route path="/walk-lists" element={<WalkListPage />} />
+        <Route path="/name-search" element={<NameSearchPage />} />
+        <Route path="/manage-team" element={<ManageTeamPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/how-to-use" element={<HowToUsePage />} />
+        <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/rewards" element={<BadgeRedemptionPage />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </MainLayout>
   );
 }

@@ -610,11 +610,24 @@ export const getUserProfile = onCall(
       const userDoc = await db.collection("users").doc(uid).get();
 
       if (!userDoc.exists) {
-        // Optional: return null or default profile
         return { profile: null };
       }
 
-      return { profile: { uid: userDoc.id, ...userDoc.data() } };
+      const data = userDoc.data();
+
+      // FIX: Clean up Firestore-specific types (Timestamps) so they can travel via JSON
+      const serializedData = JSON.parse(
+        JSON.stringify({
+          uid: userDoc.id,
+          ...data,
+          // Ensure updated_at is a number if it's a Timestamp
+          updated_at: data.updated_at?.toMillis
+            ? data.updated_at.toMillis()
+            : data.updated_at,
+        })
+      );
+
+      return { profile: serializedData };
     } catch (error) {
       console.error("Error fetching user profile:", error);
       throw new Error("Failed to fetch profile");
@@ -673,11 +686,12 @@ export const createUserProfile = functions.auth
 
 const getPermissionsForRole = (role) => {
   const base = {
-    can_export_csv: false,
     can_manage_team: false,
-    can_view_phone: false,
-    can_view_full_address: false,
-    can_cut_turf: false,
+    can_create_message_template: false,
+    can_manage_resources: false,
+    can_upload_collections: false,
+    can_create_collections: false,
+    can_create_documents: false,
   };
 
   switch (role?.toLowerCase()) {
@@ -687,46 +701,31 @@ const getPermissionsForRole = (role) => {
     case "state_rep":
       return {
         ...base,
-        can_export_csv: true,
         can_manage_team: true,
-        can_view_phone: true,
-        can_view_full_address: true,
-        can_cut_turf: true,
+        can_create_message_template: true,
       };
 
     case "area_chair":
     case "area_chairman":
       return {
         ...base,
-        can_export_csv: true,
         can_manage_team: true,
-        can_view_phone: true,
-        can_view_full_address: true,
-        can_cut_turf: true,
+        can_create_message_template: true,
       };
 
     case "candidate":
       return {
         ...base,
-        can_export_csv: true,
-        can_view_phone: true,
-        can_view_full_address: false,
       };
 
     case "ambassador":
       return {
         ...base,
-        can_export_csv: true,
-        can_view_phone: true,
-        can_view_full_address: false,
       };
 
     case "committeeperson":
       return {
         ...base,
-        can_export_csv: true,
-        can_view_phone: true,
-        can_view_full_address: false,
       };
 
     default:
@@ -745,16 +744,26 @@ export const syncOrgRolesToClaims = functions.firestore
     const before = change.before.exists ? change.before.data() : null;
     const after = change.after.exists ? change.after.data() : null;
 
+    // 1. If document is deleted, marked vacant, or missing a UID, reset to base
     if (!after || after.is_vacant || !after.uid) {
-      if (before?.uid)
-        await getAuth().setCustomUserClaims(before.uid, { role: "admin" });
+      if (before?.uid) {
+        await getAuth().setCustomUserClaims(before.uid, { role: "base" });
+        // Also clear access in Firestore
+        await db.doc(`users/${before.uid}`).set(
+          {
+            role: "base",
+            access: { counties: [], areas: [], precincts: [] },
+          },
+          { merge: true }
+        );
+      }
       return;
     }
 
     const uid = after.uid;
+    logger.info("[syncOrgRolesToClaims] Processing UID:", uid);
 
-    logger.info("[syncOrgRolesToClaims]uid :", uid);
-
+    // 2. Aggregate all active roles for this user
     const snap = await db
       .collection("org_roles")
       .where("uid", "==", uid)
@@ -763,7 +772,16 @@ export const syncOrgRolesToClaims = functions.firestore
 
     if (snap.empty) {
       await getAuth().setCustomUserClaims(uid, { role: "base" });
-      logger.info("[syncOrgRolesToClaims]setCustomUserClaims:uid :", uid);
+      await db.doc(`users/${uid}`).set(
+        {
+          role: "base",
+          access: { counties: [], areas: [], precincts: [] },
+        },
+        { merge: true }
+      );
+      logger.info(
+        "[syncOrgRolesToClaims] No active roles found, reset to base"
+      );
       return;
     }
 
@@ -775,14 +793,29 @@ export const syncOrgRolesToClaims = functions.firestore
 
     snap.forEach((doc) => {
       const d = doc.data();
-      roles.add(d.role);
+      if (d.role) roles.add(d.role);
       if (d.org_id) orgIds.add(d.org_id);
-      if (d.county_code) counties.add(d.county_code);
-      if (d.area_district) areas.add(d.area_district);
-      if (d.precinct_code) precincts.push(d.precinct_code);
-    });
 
-    logger.info("[syncOrgRolesToClaims]roles :", roles);
+      // Helper to handle both string and array types defensively
+      const processField = (fieldData, targetSetOrArray) => {
+        if (!fieldData) return;
+        if (Array.isArray(fieldData)) {
+          fieldData.forEach((item) => {
+            if (item) {
+              if (targetSetOrArray instanceof Set) targetSetOrArray.add(item);
+              else targetSetOrArray.push(item);
+            }
+          });
+        } else {
+          if (targetSetOrArray instanceof Set) targetSetOrArray.add(fieldData);
+          else targetSetOrArray.push(fieldData);
+        }
+      };
+
+      processField(d.county_code, counties);
+      processField(d.area_district, areas);
+      processField(d.precinct_code, precincts);
+    });
 
     // 3. Hierarchy Logic: Find the highest priority role
     const priority = [
@@ -793,39 +826,52 @@ export const syncOrgRolesToClaims = functions.firestore
       "committeeperson",
     ];
 
-    // This finds the first role in the priority list that exists in the user's roles
-    const primaryRole = priority.find((r) => roles.has(r)) || "base";
-
-    logger.info(`[Sync] Calculated Primary Role: ${primaryRole}`);
-
+    const primaryRole = priority.find((r) => roles.has(r)) || "user";
     const permissions = getPermissionsForRole(primaryRole);
+
+    // 4. Construct Claims and Access object
+    // Convert Sets to Arrays for JSON compatibility
+    const countyList = [...counties];
+    const areaList = [...areas];
 
     const claims = {
       role: primaryRole,
       roles: [...roles],
-      counties: [...counties],
-      areas: [...areas],
-      precincts,
+      counties: countyList,
+      areas: areaList,
+      precincts: precincts,
       org_id: [...orgIds][0] || null,
       permissions,
       scope: [
-        ...[...counties].map((c) => `county:${c}`),
-        ...[...areas].map((a) => `area:${a}`),
+        ...countyList.map((c) => `county:${c}`),
+        ...areaList.map((a) => `area:${a}`),
         ...precincts.map((p) => `precinct:${p}`),
         ...[...orgIds].map((o) => `org:${o}`),
       ],
     };
 
-    logger.info("[syncOrgRolesToClaims]claims :", claims);
+    logger.info(
+      `[Sync] Setting claims and profile for ${primaryRole}:`,
+      claims
+    );
 
+    // 5. Update Auth Custom Claims (The Key Card)
     await getAuth().setCustomUserClaims(uid, claims);
 
+    // 6. Update Firestore User Document (The Profile File)
+    // frontend syncReferenceData reads the 'access' object from here
     await db.doc(`users/${uid}`).set(
       {
-        primary_county: claims.counties[0] || null,
-        primary_precinct: precincts[0] || null,
         role: primaryRole,
         permissions,
+        access: {
+          counties: countyList,
+          areas: areaList,
+          precincts: precincts,
+        },
+        primary_county: countyList[0] || null,
+        primary_precinct: precincts[0] || null,
+        org_id: claims.org_id,
         updated_at: FieldValue.serverTimestamp(),
       },
       { merge: true }
