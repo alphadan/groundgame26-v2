@@ -64,10 +64,10 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
   const areas =
     useLiveQuery(async () => {
       if (!selectedCounty) return [];
-      const shortCode = selectedCounty.split("-").pop() || "";
+      // Use the full ID and the new field name
       return await indexedDb.areas
-        .where("county_code")
-        .equals(shortCode)
+        .where("county_id")
+        .equals(selectedCounty)
         .toArray();
     }, [selectedCounty]) ?? [];
 
@@ -76,7 +76,7 @@ export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
     useLiveQuery(async () => {
       if (!selectedArea) return [];
       return await indexedDb.precincts
-        .where("area_district")
+        .where("area_id") // New field name from syncReferenceData
         .equals(selectedArea)
         .toArray();
     }, [selectedArea]) ?? [];

@@ -70,7 +70,7 @@ export const AreaPrecinctSelector: React.FC<AreaPrecinctSelectorProps> = ({
       }
 
       return await indexedDb.precincts
-        .filter((p) => p.active === true && p.area_district === selectedArea)
+        .filter((p) => p.active === true && p.area_id === selectedArea)
         .toArray()
         .then((list) => list.sort((a, b) => a.name.localeCompare(b.name)));
     }, [authLoaded, claims, selectedArea]) ?? [];

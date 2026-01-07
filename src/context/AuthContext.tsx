@@ -1,4 +1,3 @@
-// src/context/AuthContext.tsx
 import React, {
   createContext,
   useContext,
@@ -7,15 +6,17 @@ import React, {
   useState,
   ReactNode,
 } from "react";
-import { User, onIdTokenChanged } from "firebase/auth";
-import { auth } from "../lib/firebase";
-import { Box, Typography, Button } from "@mui/material";
+import { User, onIdTokenChanged, getIdTokenResult } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore"; // Add these
+import { auth, db } from "../lib/firebase"; // Ensure db is exported from your firebase lib
+import { Box, Typography, Button, CircularProgress } from "@mui/material";
 
 export type ValidRole =
+  | "developer"
   | "state_admin"
   | "county_chair"
   | "area_chair"
-  | "candidate"
+  | "state_rep_district"
   | "ambassador"
   | "committeeperson"
   | "user"
@@ -28,6 +29,14 @@ export interface CustomClaims {
   counties?: string[];
   areas?: string[];
   precincts?: string[];
+  permissions?: {
+    can_manage_team: boolean;
+    can_create_users: boolean;
+    can_manage_resources: boolean;
+    can_upload_collections: boolean;
+    can_create_collections: boolean;
+    can_create_documents: boolean;
+  };
   [key: string]: unknown;
 }
 
@@ -36,8 +45,8 @@ interface AuthContextType {
   claims: CustomClaims | null;
   role: ValidRole;
   isAdmin: boolean;
-  isLoaded: boolean; // True once we've checked auth at least once
-  isLoading: boolean; // Currently fetching
+  isLoaded: boolean;
+  isLoading: boolean;
   error: Error | null;
 }
 
@@ -67,30 +76,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // 1. Primary Auth Listener
   useEffect(() => {
-    console.log("🔥 AuthProvider: Setting up listener");
-
-    const unsubscribe = onIdTokenChanged(auth, async (currentUser) => {
+    const unsubscribeAuth = onIdTokenChanged(auth, async (currentUser) => {
       try {
-        // 1. HARD GUARD: If the UID hasn't changed, do absolutely nothing.
-        // This stops background refreshes from causing a re-render.
-        if (currentUser?.uid === user?.uid && claims) {
-          return;
-        }
-
-        // 2. Only clear/set loading if the user actually changed (login/logout)
-        setIsLoading(true);
-        setError(null);
-
         if (currentUser) {
-          let tokenResult = await currentUser.getIdTokenResult();
-
-          if (!tokenResult.claims.role) {
-            console.log("🔑 Missing role, refreshing...");
-            tokenResult = await currentUser.getIdTokenResult(true);
-          }
-
-          // 3. Update state only once for the new user
+          const tokenResult = await getIdTokenResult(currentUser);
           setUser(currentUser);
           setClaims(tokenResult.claims as CustomClaims);
         } else {
@@ -106,8 +97,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
+
+  // 2. Claims Sync Listener (Watches for the Cloud Function's signal)
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    // Listen to the user's doc for the 'last_claims_sync' timestamp change
+    const unsubscribeDoc = onSnapshot(
+      doc(db, "users", user.uid),
+      async (snapshot) => {
+        const data = snapshot.data();
+        if (data?.last_claims_sync) {
+          console.log("🔄 Role change detected, refreshing token...");
+          // Force refresh the token to pick up new claims
+          const tokenResult = await getIdTokenResult(user, true);
+          setClaims(tokenResult.claims as CustomClaims);
+        }
+      }
+    );
+
+    return () => unsubscribeDoc();
+  }, [user?.uid]);
 
   const contextValue = useMemo<AuthContextType>(() => {
     const safeRole = (claims?.role as ValidRole) ?? "base";
@@ -115,15 +127,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       user,
       claims: claims ?? null,
       role: safeRole,
-      isAdmin: safeRole === "state_admin",
+      isAdmin: safeRole === "state_admin" || safeRole === "developer",
       isLoaded,
       isLoading,
       error,
     };
   }, [user, claims, isLoaded, isLoading, error]);
 
-  // Handle fatal errors only here.
-  // We removed the isLoading spinner to let App.tsx manage the UI.
   if (error) {
     return (
       <Box

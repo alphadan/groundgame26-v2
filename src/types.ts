@@ -1,68 +1,66 @@
 /**
  * src/types.ts
- * Standardized Type Definitions for Political Organizing Dashboard (Dec 2025)
+ * Standardized Type Definitions for Political Organizing Dashboard (Jan 2026)
  */
 
 // --- Base Interface ---
 export interface BaseMetadata {
   id: string; // Maps to Firestore Document ID
-  created_at: number | null; // Unix epoch milliseconds
-  last_updated: number | null; // Unix epoch milliseconds (Renamed for consistency)
-  active: boolean | null;
+  created_at: any; // Firestore Timestamp or number
+  updated_at: any; // Standardized from last_updated
+  active: boolean;
 }
 
 // --- Domain Models ---
 
-export interface Organization extends BaseMetadata {
+export interface Organization extends Omit<BaseMetadata, "id"> {
   id: string;
   code: string;
   name: string;
   short_name: string;
-  county_code: string;
-  county_name: string;
-  chair_uid: string | null;
-  vice_chair_uid: string | null;
-  chair_email: string | null;
+  county_id: string;
+  category?: string; // Change to optional if not in all constants
   hq_phone?: string | null;
   website?: string | null;
+  // Add these back if they exist in your constants but aren't in the type
   social_facebook?: string | null;
   social_x?: string | null;
   social_instagram?: string | null;
 }
 
-export interface County extends BaseMetadata {
-  // Primary Key in DB: id (formerly code '15')
-  id: string;
+export interface County extends Omit<BaseMetadata, "id"> {
+  id: string; // e.g., "PA-C-15"
   name: string;
-  code: string;
+  code: string; // BigQuery matching (e.g., "15")
+  state_code: string;
 }
 
-export interface Area extends BaseMetadata {
-  org_id?: string;
+export interface Area extends Omit<BaseMetadata, "id"> {
+  id: string;
+  org_id: string;
+  county_id: string;
   area_district: string;
-  county_code?: string;
   name: string;
-  chair_uid?: string | null;
-  vice_chair_uid?: string | null;
-  chair_email?: string | null;
+  // Fallback for old data during transition
+  last_updated?: number;
+  updated_at: any;
 }
 
-export interface Precinct extends BaseMetadata {
-  id: string;
-  county_code: string;
-  precinct_code: string;
+export interface Precinct extends Omit<BaseMetadata, "id"> {
+  id: string; // e.g., "PA15-P-005"
+  county_id: string; // Linked to County.id
+  area_id: string; // Linked to Area.id
+  precinct_code: string; // BigQuery matching (e.g., "5")
   name: string;
-  area_district: string;
-  congressional_district: string;
-  senate_district: string;
-  house_district: string;
-  county_district: string;
-  party_rep_district: string;
+  house_district?: string;
+  senate_district?: string;
+  congressional_district?: string;
 }
 
 // --- UserRole ---
 
 export type UserRole =
+  | "developer"
   | "state_admin"
   | "county_chair"
   | "state_rep_district"
@@ -73,30 +71,25 @@ export type UserRole =
   | "user"
   | "base";
 
-
-
 // --- Auth & Claims ---
+
 export interface UserPermissions {
   can_manage_team: boolean;
-  can_manage_resources?: boolean;
-  can_upload_collections?: boolean;
-  can_create_collections?: boolean;
-  can_create_documents?: boolean;
-  [key: string]: any; // Allow for future expansion
+  can_create_users: boolean;
+  can_manage_resources: boolean;
+  can_upload_collections: boolean;
+  can_create_collections: boolean;
+  can_create_documents: boolean;
 }
 
 export interface CustomClaims {
   role: UserRole;
-  org_id: string;
+  org_id: string | null;
   counties: string[];
   areas: string[];
   precincts: string[];
-  user_id?: string;
-  uid?: string;
-  roles?: string[];
-  scope?: string[];
-  permissions?: UserPermissions;
-  [key: string]: any; // Safety net for dynamic Firebase properties
+  permissions: UserPermissions;
+  [key: string]: any;
 }
 
 // --- UserProfile ---
@@ -105,29 +98,30 @@ export interface UserProfile {
   uid: string;
   display_name: string | null;
   email: string | null;
-  role: UserRole | null;
-  permissions: UserPermissions;
-  org_id: string | null;
   preferred_name: string | null;
   phone: string | null;
   photo_url: string | null;
-  access?: {
+  role: UserRole;
+  org_id: string | null;
+  permissions: UserPermissions;
+  access: {
     counties: string[];
     areas: string[];
     precincts: string[];
   };
-  last_claims_sync?: number;
+  last_claims_sync?: any; // Firestore Timestamp
 }
 
 // --- Org_Role ---
-export interface OrgRole {
-  id: string; // "PA15-R-committeeperson-220"
-  uid: string | null; // ID of the user assigned (null if vacant)
-  role: string;
+
+export interface OrgRole extends Omit<BaseMetadata, "id"> {
+  id: string;
+  uid: string | null;
+  role: UserRole;
   org_id: string;
-  county_code: string;
-  area_district: string;
-  precinct_code: string;
+  county_id: string;
+  area_id?: string | null; // Replaces area_district
+  precinct_id?: string | null; // Replaces precinct_code
   is_vacant: boolean;
   active: boolean;
 }
@@ -135,12 +129,12 @@ export interface OrgRole {
 // --- App Metadata & Sync ---
 
 export interface AppControl {
-  id: "app_control"; // Fixed primary key
-  current_app_version: string; // e.g., "0.1.0-alpha.3"
-  current_db_version: number; // e.g., 5
-  last_updated: number; // Timestamp of last successful sync
-  last_sync_attempt?: number; // Optional: for retry logic
-  sync_status?: "idle" | "syncing" | "error"; // Optional: useful for UI
+  id: "app_control";
+  current_app_version: string;
+  current_db_version: number;
+  last_updated: number;
+  last_sync_attempt?: number;
+  sync_status?: "idle" | "syncing" | "error";
 }
 
 export interface FilterValues {

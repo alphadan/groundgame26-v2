@@ -1,5 +1,5 @@
 // src/app/layout/MainLayout.tsx
-import React, { useState, useEffect, useCallback, ReactNode } from "react";
+import React, { useState, useEffect, useMemo, useCallback, ReactNode } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../../lib/firebase";
@@ -93,6 +93,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const userRole =
     typeof claims?.role === "string" ? claims.role.toLowerCase() : null;
   const userOrgId = typeof claims?.org_id === "string" ? claims.org_id : null;
+  const canManageTeam = !!claims?.permissions?.can_manage_team;
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const handleAvatarClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -118,7 +119,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
           .replace(/\b\w/g, (l) => l.toUpperCase())
       : "Dashboard";
 
-  const menuItems = [
+  const menuItems = useMemo(() => {
+  const baseItems = [
     { text: "Dashboard", icon: <HomeWork />, path: "/dashboard" },
     { text: "Analysis", icon: <Analytics />, path: "/analysis" },
     { text: "Resources", icon: <Campaign />, path: "/resources" },
@@ -129,8 +131,15 @@ export default function MainLayout({ children }: MainLayoutProps) {
     { divider: true },
     { text: "Settings", icon: <Settings />, path: "/settings" },
     { text: "How to Use", icon: <TipsAndUpdatesIcon />, path: "/how-to-use" },
-    // Admin only
   ];
+
+  // Only add Firebase Admin if the permission flag is true
+  if (canManageTeam) {
+    baseItems.push({ text: "Firebase", icon: <DataObjectIcon />, path: "/admin" });
+  }
+
+  return baseItems;
+}, [canManageTeam]);
 
   const handleDrawerToggle = () => setMobileOpen((prev) => !prev);
 

@@ -60,7 +60,7 @@ export default function FirebaseManagementPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const { user, isLoaded: authLoaded } = useAuth();
+  const { user, claims, isLoaded: authLoaded } = useAuth();
   const { callFunction } = useCloudFunctions();
 
   const localUser = useLiveQuery(async () => {
@@ -77,26 +77,30 @@ export default function FirebaseManagementPage() {
   }) as UserPermissions;
 
   // Dynamic Permission Checks
+
+  const canCreateCollections = !!permissions.can_create_collections;
+  const canCreateUsers = !!permissions.can_create_users;
   const canManageResources = !!permissions.can_manage_resources;
-  const canUpload = !!permissions.can_upload_collections;
-  const canCreate = !!permissions.can_create_documents;
+  const canUploadCollections = !!permissions.can_upload_collections;
+  const canCreateDocuments = !!permissions.can_create_documents;
 
   // Global access check: Does the user have ANY admin permission?
-  const hasAccess = canManageResources || canUpload || canCreate;
+  const hasAccess =
+    canManageResources || canUploadCollections || canCreateDocuments;
 
   const [tabValue, setTabValue] = useState(0);
 
   // === Tab Configuration ===
   // We define which tabs correspond to which permissions
   const availableTabs = [
-    { label: "Create Area", show: canCreate, id: 0 },
-    { label: "Import Areas", show: canUpload, id: 1 },
-    { label: "Create Precinct", show: canCreate, id: 2 },
-    { label: "Import Precincts", show: canUpload, id: 3 },
-    { label: "Create User", show: canCreate, id: 4 },
-    { label: "Create Org Role", show: canCreate, id: 5 },
-    { label: "Import Org Roles", show: canUpload, id: 6 },
-    { label: "Create Message Templates", show: canCreate, id: 7 },
+    { label: "Create Area", show: canCreateDocuments },
+    { label: "Import Areas", show: canUploadCollections },
+    { label: "Create Precinct", show: canCreateDocuments },
+    { label: "Import Precincts", show: canUploadCollections },
+    { label: "Create User", show: canCreateUsers }, // Changed to canCreateUsers
+    { label: "Create Org Role", show: canCreateDocuments },
+    { label: "Import Org Roles", show: canUploadCollections },
+    { label: "Message Templates", show: canManageResources }, // Match this label below
   ].filter((t) => t.show);
 
   // Defensive: if tabValue is out of range after filtering, reset to 0
@@ -311,7 +315,7 @@ export default function FirebaseManagementPage() {
 
   // Import Areas
   const handleImportAreas = useCallback(async () => {
-    if (!canUpload || areasPreview.length === 0) return;
+    if (!canUploadCollections || areasPreview.length === 0) return;
 
     setImportingAreas(true);
     setAreasImportResult(null);
@@ -332,7 +336,7 @@ export default function FirebaseManagementPage() {
     } finally {
       setImportingAreas(false);
     }
-  }, [canUpload, areasPreview, callFunction]);
+  }, [canUploadCollections, areasPreview, callFunction]);
 
   // Create Precinct
   const handleCreatePrecinct = useCallback(
@@ -975,7 +979,7 @@ export default function FirebaseManagementPage() {
             </Box>
           )}
           {/* Render the content based on the label of the active tab */}
-          {availableTabs[tabValue]?.label === "Import Area" && (
+          {availableTabs[tabValue]?.label === "Import Areas" && (
             <Box>
               {
                 <Paper sx={{ p: 4, borderRadius: 3 }}>
@@ -1513,7 +1517,7 @@ export default function FirebaseManagementPage() {
             </Box>
           )}
           {/* Render the content based on the label of the active tab */}
-          {availableTabs[tabValue]?.label === "Create Org Roles" && (
+          {availableTabs[tabValue]?.label === "Create Org Role" && (
             <Box>
               {
                 <Paper sx={{ p: 4, borderRadius: 3 }}>
@@ -1716,7 +1720,7 @@ export default function FirebaseManagementPage() {
             </Box>
           )}
           {/* Render the content based on the label of the active tab */}
-          {availableTabs[tabValue]?.label === "Import Roles" && (
+          {availableTabs[tabValue]?.label === "Import Org Roles" && (
             <Box>
               {
                 <Paper sx={{ p: 4, borderRadius: 3 }}>

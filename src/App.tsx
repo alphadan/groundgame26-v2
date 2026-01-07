@@ -22,7 +22,7 @@ import VoterListPage from "./app/voters/VoterListPage";
 import WalkListPage from "./app/walk/WalkListPage";
 import NameSearchPage from "./app/voters/NameSearchPage";
 import SettingsPage from "./app/settings/SettingsPage";
-import FirebasePage from "./app/admin/FirebaseManagementPage";
+import FirebaseManagementPage from "./app/admin/FirebaseManagementPage";
 import ManageTeamPage from "./app/precincts/ManageTeamPage";
 import BadgeRedemptionPage from "./app/rewards/BadgeRedemptionPage";
 import HowToUsePage from "./app/guide/HowToUsePage";
@@ -37,6 +37,7 @@ export default function App() {
   // 1. Correct Destructuring: Renaming isLoaded to authLoaded for clarity
   const {
     user,
+    claims,
     role,
     isLoaded: authLoaded,
     isLoading: authLoading,
@@ -184,7 +185,16 @@ export default function App() {
         <Route path="/manage-team" element={<ManageTeamPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/how-to-use" element={<HowToUsePage />} />
-        <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/admin"
+          element={
+            claims?.permissions?.can_manage_team ? (
+              <FirebaseManagementPage />
+            ) : (
+              <Navigate to="/dashboard" />
+            )
+          }
+        />
         <Route path="/rewards" element={<BadgeRedemptionPage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

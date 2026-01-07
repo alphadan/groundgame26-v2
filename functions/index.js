@@ -1,5 +1,6 @@
 import * as functions from "firebase-functions/v1";
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions/v2";
 import { BigQuery } from "@google-cloud/bigquery";
 import { initializeApp } from "firebase-admin/app";
@@ -14,6 +15,61 @@ const auth = getAuth();
 const storage = getStorage();
 const bucket = storage.bucket("groundgame26-v2.firebasestorage.app");
 const bigquery = new BigQuery();
+
+// ================================================================
+// ROLE_PRIORITY MAPPING
+// ================================================================
+
+const ROLE_PRIORITY = [
+  "developer",
+  "state_admin",
+  "county_chair",
+  "state_rep_district",
+  "area_chair",
+  "committeeperson",
+  "ambassador",
+  "base",
+];
+
+// ================================================================
+// PERMISSIONS MAPPING
+// ================================================================
+
+const getPermissionsForRole = (role) => {
+  const base = {
+    can_manage_team: false,
+    can_create_users: false,
+    can_manage_resources: false,
+    can_upload_collections: false,
+    can_create_collections: false,
+    can_create_documents: false,
+  };
+
+  switch (role) {
+    case "developer":
+      return {
+        ...base,
+        can_manage_team: true,
+        can_create_users: true,
+        can_manage_resources: true,
+        can_upload_collections: true,
+        can_create_collections: true,
+        can_create_documents: true,
+      };
+    case "state_admin":
+    case "county_chair":
+    case "state_rep_district":
+    case "area_chair":
+      return {
+        ...base,
+        can_manage_team: true,
+        can_create_users: true,
+        can_manage_resources: true,
+      };
+    default:
+      return base;
+  }
+};
 
 // ================================================================
 // 1. BIGQUERY PROXY (Gen 2)
@@ -600,37 +656,60 @@ export const getMessageIdeas = onCall(
 export const getUserProfile = onCall(
   { region: "us-central1" },
   async (request) => {
-    if (!request.auth || !request.auth.uid) {
-      throw new Error("Unauthorized");
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "User must be logged in.");
     }
-
     const uid = request.auth.uid;
 
     try {
+      // 2. Fetch User Identity
       const userDoc = await db.collection("users").doc(uid).get();
+      const userData = userDoc.data() || {};
 
-      if (!userDoc.exists) {
-        return { profile: null };
-      }
+      // 3. Query all active role assignments from the new org_roles structure
+      const rolesSnap = await db
+        .collection("org_roles")
+        .where("uid", "==", uid)
+        .where("is_vacant", "==", false)
+        .where("active", "==", true)
+        .get();
 
-      const data = userDoc.data();
+      const counties = new Set();
+      const areas = new Set();
+      const precincts = new Set();
+      const roles = new Set();
+      const orgIds = new Set();
 
-      // FIX: Clean up Firestore-specific types (Timestamps) so they can travel via JSON
-      const serializedData = JSON.parse(
-        JSON.stringify({
-          uid: userDoc.id,
-          ...data,
-          // Ensure updated_at is a number if it's a Timestamp
-          updated_at: data.updated_at?.toMillis
-            ? data.updated_at.toMillis()
-            : data.updated_at,
-        })
-      );
+      rolesSnap.forEach((doc) => {
+        const d = doc.data();
+        if (d.role) roles.add(d.role);
+        if (d.org_id) orgIds.add(d.org_id);
+        if (d.county_id) counties.add(d.county_id);
+        if (d.area_id) areas.add(d.area_id);
+        if (d.precinct_id) precincts.add(d.precinct_id);
+      });
 
-      return { profile: serializedData };
+      const primaryRole = ROLE_PRIORITY.find((r) => roles.has(r)) || "base";
+
+      // 4. Return profile matching your frontend syncReferenceData requirements
+      return {
+        profile: {
+          uid,
+          display_name: userData.display_name || null,
+          email: userData.email || request.auth.token.email || null,
+          role: primaryRole,
+          permissions: getPermissionsForRole(primaryRole),
+          org_id: Array.from(orgIds)[0] || null,
+          access: {
+            counties: Array.from(counties),
+            areas: Array.from(areas),
+            precincts: Array.from(precincts),
+          },
+        },
+      };
     } catch (error) {
-      console.error("Error fetching user profile:", error);
-      throw new Error("Failed to fetch profile");
+      console.error("Error in getUserProfile:", error);
+      throw new HttpsError("internal", error.message);
     }
   }
 );
@@ -681,202 +760,95 @@ export const createUserProfile = functions.auth
   });
 
 // ================================================================
-// 6. PERMISSIONS ENGINE — CENTRALIZED & CLEAN
-// ================================================================
-
-const getPermissionsForRole = (role) => {
-  const base = {
-    can_manage_team: false,
-    can_create_message_template: false,
-    can_manage_resources: false,
-    can_upload_collections: false,
-    can_create_collections: false,
-    can_create_documents: false,
-  };
-
-  switch (role?.toLowerCase()) {
-    case "county_chair":
-    case "state_admin":
-    case "state_chair":
-    case "state_rep":
-      return {
-        ...base,
-        can_manage_team: true,
-        can_create_message_template: true,
-      };
-
-    case "area_chair":
-    case "area_chairman":
-      return {
-        ...base,
-        can_manage_team: true,
-        can_create_message_template: true,
-      };
-
-    case "candidate":
-      return {
-        ...base,
-      };
-
-    case "ambassador":
-      return {
-        ...base,
-      };
-
-    case "committeeperson":
-      return {
-        ...base,
-      };
-
-    default:
-      return base;
-  }
-};
-
-// ================================================================
 //  SYNC ORG ROLES — CENTRALIZED & CLEAN
 //  CLOUD TRIGGERED FUNCTION ONLY
 // ================================================================
 
-export const syncOrgRolesToClaims = functions.firestore
-  .document("org_roles/{docId}")
-  .onWrite(async (change, context) => {
-    const before = change.before.exists ? change.before.data() : null;
-    const after = change.after.exists ? change.after.data() : null;
+export const syncOrgRolesToClaims = onDocumentWritten(
+  "org_roles/{docId}",
+  async (event) => {
+    // In v2, the 'event' object contains 'data', which has 'before' and 'after' snapshots
+    const snapshotAfter = event.data?.after;
+    const snapshotBefore = event.data?.before;
 
-    // 1. If document is deleted, marked vacant, or missing a UID, reset to base
-    if (!after || after.is_vacant || !after.uid) {
-      if (before?.uid) {
-        await getAuth().setCustomUserClaims(before.uid, { role: "base" });
-        // Also clear access in Firestore
-        await db.doc(`users/${before.uid}`).set(
-          {
-            role: "base",
-            access: { counties: [], areas: [], precincts: [] },
-          },
-          { merge: true }
-        );
-      }
+    const data = snapshotAfter ? snapshotAfter.data() : null;
+    const prevData = snapshotBefore ? snapshotBefore.data() : null;
+
+    const uid = data?.uid || prevData?.uid;
+    if (!uid) {
+      logger.info("No UID found for role change, skipping.");
       return;
     }
 
-    const uid = after.uid;
-    logger.info("[syncOrgRolesToClaims] Processing UID:", uid);
+    const ROLE_PRIORITY = [
+      "developer",
+      "state_admin",
+      "county_chair",
+      "state_rep_district",
+      "area_chair",
+      "committeeperson",
+      "ambassador",
+      "base",
+    ];
 
-    // 2. Aggregate all active roles for this user
-    const snap = await db
-      .collection("org_roles")
-      .where("uid", "==", uid)
-      .where("is_vacant", "==", false)
-      .get();
+    try {
+      // 1. Re-calculate the current state for this user
+      const rolesSnap = await db
+        .collection("org_roles")
+        .where("uid", "==", uid)
+        .where("is_vacant", "==", false)
+        .where("active", "==", true)
+        .get();
 
-    if (snap.empty) {
-      await getAuth().setCustomUserClaims(uid, { role: "base" });
-      await db.doc(`users/${uid}`).set(
+      const counties = new Set();
+      const areas = new Set();
+      const precincts = new Set();
+      const roles = new Set();
+      const orgIds = new Set();
+
+      rolesSnap.forEach((doc) => {
+        const d = doc.data();
+        if (d.role) roles.add(d.role);
+        if (d.org_id) orgIds.add(d.org_id);
+        if (d.county_id) counties.add(d.county_id);
+        if (d.area_id) areas.add(d.area_id);
+        if (d.precinct_id) precincts.add(d.precinct_id);
+      });
+
+      const primaryRole = ROLE_PRIORITY.find((r) => roles.has(r)) || "base";
+      const permissions = getPermissionsForRole(primaryRole);
+
+      // 2. Set Custom Claims for security rules and AuthContext
+      const claims = {
+        role: primaryRole,
+        permissions: permissions,
+        counties: Array.from(counties),
+        areas: Array.from(areas),
+        precincts: Array.from(precincts),
+        org_id: Array.from(orgIds)[0] || null,
+      };
+
+      await auth.setCustomUserClaims(uid, claims);
+
+      // 3. Update sync timestamp to signal frontend update
+      await db.collection("users").doc(uid).set(
         {
-          role: "base",
-          access: { counties: [], areas: [], precincts: [] },
+          last_claims_sync: FieldValue.serverTimestamp(),
+          updated_at: FieldValue.serverTimestamp(),
         },
         { merge: true }
       );
-      logger.info(
-        "[syncOrgRolesToClaims] No active roles found, reset to base"
+
+      console.log(
+        `Claims synced for UID: ${uid}. Primary Role: ${primaryRole}`
       );
-      return;
+      return null;
+    } catch (error) {
+      console.error("Error in syncOrgRolesToClaims:", error);
+      return null;
     }
-
-    const precincts = [];
-    const counties = new Set();
-    const areas = new Set();
-    const orgIds = new Set();
-    const roles = new Set();
-
-    snap.forEach((doc) => {
-      const d = doc.data();
-      if (d.role) roles.add(d.role);
-      if (d.org_id) orgIds.add(d.org_id);
-
-      // Helper to handle both string and array types defensively
-      const processField = (fieldData, targetSetOrArray) => {
-        if (!fieldData) return;
-        if (Array.isArray(fieldData)) {
-          fieldData.forEach((item) => {
-            if (item) {
-              if (targetSetOrArray instanceof Set) targetSetOrArray.add(item);
-              else targetSetOrArray.push(item);
-            }
-          });
-        } else {
-          if (targetSetOrArray instanceof Set) targetSetOrArray.add(fieldData);
-          else targetSetOrArray.push(fieldData);
-        }
-      };
-
-      processField(d.county_code, counties);
-      processField(d.area_district, areas);
-      processField(d.precinct_code, precincts);
-    });
-
-    // 3. Hierarchy Logic: Find the highest priority role
-    const priority = [
-      "state_admin",
-      "state_rep_district",
-      "county_chair",
-      "area_chair",
-      "committeeperson",
-    ];
-
-    const primaryRole = priority.find((r) => roles.has(r)) || "user";
-    const permissions = getPermissionsForRole(primaryRole);
-
-    // 4. Construct Claims and Access object
-    // Convert Sets to Arrays for JSON compatibility
-    const countyList = [...counties];
-    const areaList = [...areas];
-
-    const claims = {
-      role: primaryRole,
-      roles: [...roles],
-      counties: countyList,
-      areas: areaList,
-      precincts: precincts,
-      org_id: [...orgIds][0] || null,
-      permissions,
-      scope: [
-        ...countyList.map((c) => `county:${c}`),
-        ...areaList.map((a) => `area:${a}`),
-        ...precincts.map((p) => `precinct:${p}`),
-        ...[...orgIds].map((o) => `org:${o}`),
-      ],
-    };
-
-    logger.info(
-      `[Sync] Setting claims and profile for ${primaryRole}:`,
-      claims
-    );
-
-    // 5. Update Auth Custom Claims (The Key Card)
-    await getAuth().setCustomUserClaims(uid, claims);
-
-    // 6. Update Firestore User Document (The Profile File)
-    // frontend syncReferenceData reads the 'access' object from here
-    await db.doc(`users/${uid}`).set(
-      {
-        role: primaryRole,
-        permissions,
-        access: {
-          counties: countyList,
-          areas: areaList,
-          precincts: precincts,
-        },
-        primary_county: countyList[0] || null,
-        primary_precinct: precincts[0] || null,
-        org_id: claims.org_id,
-        updated_at: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-  });
+  }
+);
 
 // ================================================================
 //  SUBMIT VOLUNTEERS
