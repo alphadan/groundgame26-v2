@@ -144,23 +144,61 @@ export interface FilterValues {
   name?: string;
   street?: string;
   modeledParty?: string;
+  party?: string;
   turnout?: string;
   ageGroup?: string;
   mailBallot?: string;
 }
 
+/**
+ * Message Template Categories for strict typing
+ */
+export type MessageCategory =
+  | "Affordability"
+  | "Crime & Drugs"
+  | "Energy & Utilities"
+  | "Healthcare"
+  | "Housing"
+  | "Local";
+
+/**
+ * The Master Script Template
+ */
 export interface MessageTemplate {
-  id: string;
-  subject_line?: string;
-  body: string;
-  category: string;
-  tone: string;
-  age_group?: string;
-  modeled_party?: string;
-  turnout_score_general?: string;
-  has_mail_ballot?: string;
-  tags?: string[];
+  id: string; // Auto-generated human-readable slug
+  subject_line: string; // Required, max 60 chars
+  body: string; // HTML-supported content
+  category: MessageCategory; // Strictly typed dropdown
+
+  // Filtering Metadata (null = "Any/All")
+  age_group: string | null;
+  party: string | null; // Changed from modeled_party
+  turnout_score_general: string | null;
+  has_mail_ballot: string | null;
+
+  tags: string[]; // Saved as array of strings
   active: boolean;
+
+  // Analytics & Engagement (Admin Visibility)
+  favorite_count: number; // Total "Hearts"
+  copy_count: number; // Total "Clicks"
+  word_count: number; // Calculated on save
+
+  created_at: number; // Unix timestamp
+  last_updated: number; // Unix timestamp
+  created_by_uid: string; // Tracking who created the template
+}
+
+/**
+ * Junction Interface for Personal Favorites
+ * Stored in collection: `user_favorites`
+ * Doc ID pattern: `{uid}_{templateId}`
+ */
+export interface UserFavorite {
+  id: string; // Composite ID
+  uid: string; // The user who favorited
+  template_id: string; // Reference to MessageTemplate
+  created_at: number;
 }
 
 export interface VoterNotesProps {
@@ -172,10 +210,14 @@ export interface VoterNotesProps {
 export interface CampaignResource {
   id: string;
   title: string;
-  description: string;
-  category: "Brochures" | "Ballots" | "Forms" | "Graphics" | "Scripts";
+  category: string;
   url: string;
-  thumbnail?: string;
+  description?: string;
+  verified_by_role?: "county_chair" | "area_chair" | string;
+  scope?: "county" | "area" | "precinct";
+  county_id?: string;
+  area_id?: string;
+  precinct_id?: string;
 }
 
 export interface UsefulLink {

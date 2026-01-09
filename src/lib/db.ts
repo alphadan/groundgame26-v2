@@ -95,3 +95,9 @@ export async function updateAppControlAfterSync(): Promise<void> {
     sync_status: "idle",
   });
 }
+
+export const getPrecinctsByArea = async (areaId: string) => {
+  if (!areaId) return [];
+  // Assuming your precincts table has an 'area_id' index
+  return await db.table("precincts").where("area_id").equals(areaId).toArray();
+};

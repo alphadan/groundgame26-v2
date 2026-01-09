@@ -5,8 +5,9 @@ import { logger } from "firebase-functions/v2";
 import { BigQuery } from "@google-cloud/bigquery";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getFirestore, FieldValue, Filter } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { onObjectFinalized } from "firebase-functions/v2/storage";
 
 initializeApp();
 
@@ -608,46 +609,107 @@ export const queryVotersDynamicRNC = onCall(
 // GET MESSAGE IDEAS
 // ================================================================
 
-export const getMessageIdeas = onCall(
-  { region: "us-central1" },
-  async (request) => {
-    if (!request.auth) {
-      throw new Error(
-        "Unauthorized  you must be logged in to access message templates."
-      );
-    }
+/**
+ * Get Message Ideas
+ * Logic: Filters templates based on voter profile.
+ * Supports the "ANY" case where a null field in DB matches any filter.
+ */
 
-    const data = request.data || {};
-
-    let q = db.collection("message_templates").where("active", "==", true);
-
-    if (data.ageGroup && data.ageGroup !== "All") {
-      q = q.where("age_group", "==", data.ageGroup);
-    }
-    if (data.modeledParty && data.modeledParty !== "All") {
-      q = q.where("modeled_party", "==", data.modeledParty);
-    }
-    if (data.turnout && data.turnout !== "All") {
-      q = q.where("turnout_score_general", "==", data.turnout);
-    }
-    if (data.mailBallot && data.mailBallot !== "All") {
-      q = q.where("mail_ballot", "==", data.mailBallot);
-    }
-
-    try {
-      const snapshot = await q.limit(50).get();
-
-      const templates = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      return { templates };
-    } catch (error) {
-      console.error("Error fetching message templates:", error);
-      throw new Error("Failed to fetch message templates.");
-    }
+export const getMessageIdeas = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Login required.");
   }
-);
+
+  const data = request.data || {};
+
+  // Note: We use Filter directly here because it's imported at the top of your file
+  // from "firebase-admin/firestore"
+
+  let query = db.collection("message_templates").where("active", "==", true);
+
+  try {
+    // Defensive check for Party (Mapping 'R' to 'Republican' if necessary
+    // should ideally happen on frontend, but we handle it here too)
+    const partyValue =
+      data.party === "R"
+        ? "Republican"
+        : data.party === "D"
+        ? "Democratic"
+        : data.party;
+
+    // Helper to safely apply OR filters
+    const applyOrFilter = (queryRef, field, value) => {
+      if (!value || value === "all") return queryRef;
+
+      // We use Filter directly (not admin.firestore.Filter)
+      return queryRef.where(
+        Filter.or(
+          Filter.where(field, "==", value),
+          Filter.where(field, "==", null)
+        )
+      );
+    };
+
+    // Apply filters
+    query = applyOrFilter(query, "age_group", data.ageGroup);
+    query = applyOrFilter(query, "party", partyValue);
+    query = applyOrFilter(query, "turnout_score_general", data.turnout);
+    query = applyOrFilter(query, "has_mail_ballot", data.mailBallot);
+
+    const snapshot = await query.limit(50).get();
+
+    const templates = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    return { templates };
+  } catch (error) {
+    // If you see an error here now, it will likely be a missing Index link
+    console.error("Query Execution Error:", error);
+    throw new HttpsError(
+      "internal",
+      error.message || "Failed to fetch templates."
+    );
+  }
+});
+
+// ================================================================
+// INCREMENT MESSAGE USAGE COUNT
+// ================================================================
+
+/**
+ * Analytics: Increment Copy Count
+ * Logic: Tracks every time a user clicks "Copy" on a script.
+ */
+export const incrementCopyCount = onCall(async (request) => {
+  // Authorization: Only logged-in users contribute to analytics
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Login required.");
+  }
+
+  const { templateId } = request.data;
+  if (!templateId) {
+    throw new HttpsError("invalid-argument", "Template ID is required.");
+  }
+
+  try {
+    const templateRef = db.collection("message_templates").doc(templateId);
+
+    // Atomic increment: works even if the field was previously missing
+    await templateRef.update({
+      copy_count: FieldValue.increment(1),
+      last_used_at: Date.now(), // Optional: track freshness
+    });
+
+    return { success: true };
+  } catch (error) {
+    logger.error("Increment Copy Count Error:", error);
+    // We throw a silent-ish error here because we don't want to
+    // interrupt the user's "Copy" experience if analytics fail.
+    return { success: false, error: error.message };
+  }
+});
 
 // ================================================================
 // GET USER PROFILE
@@ -674,6 +736,8 @@ export const getUserProfile = onCall(
         .where("active", "==", true)
         .get();
 
+      logger.log("rolesSnap", rolesSnap);
+
       const counties = new Set();
       const areas = new Set();
       const precincts = new Set();
@@ -690,6 +754,8 @@ export const getUserProfile = onCall(
       });
 
       const primaryRole = ROLE_PRIORITY.find((r) => roles.has(r)) || "base";
+
+      logger.log("primaryRole", primaryRole);
 
       // 4. Return profile matching your frontend syncReferenceData requirements
       return {
@@ -1326,119 +1392,260 @@ export const adminImportAreas = onCall(async (request) => {
 //  CREATE INDIVIDUAL MESSAGE TEMPLATES
 // ================================================================
 
+// ... existing imports ...
+
+/**
+ * Admin: Create Message Template
+ * Logic: Auto-slug ID, sanitizes tags, calculates word count.
+ */
 export const adminCreateMessageTemplate = onCall(async (request) => {
-  // 1. Check authentication first
+  // 1. Auth & Permission Gating
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "You must be logged in.");
   }
 
-  const data = request.data;
-
-  if (!data.id || !data.body || !data.category || !data.tone) {
-    throw new HttpsError(
-      "invalid-argument",
-      "id, body, category, and tone are required."
-    );
+  // Permissions check using custom claims
+  if (!request.auth.token.permissions?.can_manage_resources) {
+    throw new HttpsError("permission-denied", "Insufficient permissions.");
   }
 
-  const toNullIfAny = (value) =>
-    value === "Any" || value === "" ? null : value;
+  const data = request.data;
+
+  // 2. Validation
+  const required = ["id", "subject_line", "body", "category"];
+  for (const field of required) {
+    if (!data[field]) {
+      throw new HttpsError("invalid-argument", `Missing field: ${field}`);
+    }
+  }
 
   try {
-    // 2. Correct way to get user info in 2nd Gen
-    const authUser = await getAuth().getUser(request.auth.uid);
+    const body = data.body.trim();
 
-    await db
-      .collection("message_templates")
-      .doc(data.id)
-      .set({
-        id: data.id.trim(),
-        subject_line: data.subject_line?.trim() || null,
-        body: data.body.trim(),
-        category: data.category,
-        tone: data.tone,
-        age_group: data.age_group?.trim() || null,
-        modeled_party: toNullIfAny(data.modeled_party),
-        turnout_score_general: toNullIfAny(data.turnout_score_general),
-        has_mail_ballot: toNullIfAny(data.has_mail_ballot),
-        tags: Array.isArray(data.tags)
-          ? data.tags
-          : data.tags
-              ?.split(",")
-              .map((t) => t.trim())
-              .filter((t) => t.length > 0) || [],
-        active: data.active ?? true,
-        created_at: Date.now(),
-        last_updated: Date.now(),
-      });
+    // Tag Processing (String -> Clean Array)
+    const tagsArray =
+      typeof data.tags === "string"
+        ? data.tags
+            .split(",")
+            .map((t) => t.trim().toLowerCase())
+            .filter((t) => t !== "")
+        : [];
+
+    // Server-side Word Count
+    const wordCount = body ? body.split(/\s+/).length : 0;
+
+    const templateData = {
+      id: data.id,
+      subject_line: data.subject_line.trim(),
+      body: body,
+      category: data.category,
+      // ANY Case: If frontend sends "all", store as null for query logic
+      party: data.party === "all" ? null : data.party || null,
+      age_group: data.age_group === "all" ? null : data.age_group || null,
+      turnout_score_general:
+        data.turnout_score_general === "all"
+          ? null
+          : data.turnout_score_general || null,
+      has_mail_ballot:
+        data.has_mail_ballot === "all" ? null : data.has_mail_ballot || null,
+      tags: tagsArray,
+      active: data.active ?? true,
+      word_count: wordCount,
+      favorite_count: 0,
+      copy_count: 0,
+      created_by_uid: request.auth.uid,
+      created_at: Date.now(),
+      last_updated: Date.now(),
+    };
+
+    await db.collection("message_templates").doc(data.id).set(templateData);
+
+    return { success: true, docId: data.id };
+  } catch (error) {
+    logger.error("Template Creation Error:", error);
+    throw new HttpsError("internal", error.message);
+  }
+});
+
+/**
+ * User: Toggle Favorite Message
+ * Logic: Atomic transaction to add/remove favorite and update global count.
+ */
+export const toggleFavoriteMessage = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Login required.");
+  }
+
+  const { templateId } = request.data;
+  if (!templateId) {
+    throw new HttpsError("invalid-argument", "Template ID required.");
+  }
+
+  const uid = request.auth.uid;
+  const favoriteId = `${uid}_${templateId}`;
+  const favRef = db.collection("user_favorites").doc(favoriteId);
+  const templateRef = db.collection("message_templates").doc(templateId);
+
+  try {
+    await db.runTransaction(async (transaction) => {
+      const favDoc = await transaction.get(favRef);
+
+      if (favDoc.exists) {
+        // Un-heart: Delete link and decrement global count
+        transaction.delete(favRef);
+        transaction.update(templateRef, {
+          favorite_count: FieldValue.increment(-1),
+        });
+      } else {
+        // Heart: Create link and increment global count
+        transaction.set(favRef, {
+          uid,
+          template_id: templateId,
+          created_at: Date.now(),
+        });
+        transaction.update(templateRef, {
+          favorite_count: FieldValue.increment(1),
+        });
+      }
+    });
 
     return { success: true };
   } catch (error) {
-    console.error("Admin Create Message Template failed:");
-    // 3. Throw a proper HttpsError for the frontend
-    throw new HttpsError(
-      "internal",
-      "Failed to create message template record."
-    );
+    logger.error("Toggle Favorite Error:", error);
+    throw new HttpsError("internal", "Failed to update favorite status.");
   }
 });
 
 // ================================================================
-//  CREATE INDIVIDUAL MESSAGE TEMPLATES
+//  CREATE INDIVIDUAL DOWNLOADABLE TEMPLATES
 // ================================================================
 
-export const adminGenerateResourceUploadUrl = onCall(async (request) => {
-  logger.info("adminGenerateResourceUploadUrl called", {
-    uid: request.auth?.uid,
-  });
+// functions/src/index.js
+export const adminGenerateResourceUploadUrl = onCall(
+  { cors: true },
+  async (request) => {
+    const {
+      title,
+      category,
+      fileName,
+      county_code,
+      area_code,
+      precinct_code,
+      scope,
+    } = request.data;
 
-  if (!request.auth?.uid) {
-    throw new HttpsError("unauthenticated", "You must be logged in.");
-  }
+    // 1. File size & Type security (Logic check)
+    if (!fileName.toLowerCase().endsWith(".pdf")) {
+      throw new HttpsError("invalid-argument", "Only PDF files are allowed.");
+    }
 
-  const { title, description = "", category, fileName } = request.data || {};
+    const filePath = `resources/${category.toLowerCase()}/${Date.now()}-${fileName}`;
+    const file = bucket.file(filePath);
 
-  if (!title || !category || !fileName) {
-    throw new HttpsError(
-      "invalid-argument",
-      "title, category, and fileName are required"
-    );
-  }
-
-  const validCategories = [
-    "Brochures",
-    "Ballots",
-    "Forms",
-    "Graphics",
-    "Scripts",
-  ];
-  if (!validCategories.includes(category)) {
-    throw new HttpsError("invalid-argument", "Invalid category");
-  }
-
-  const safeFileName = `${Date.now()}-${fileName.replace(
-    /[^a-zA-Z0-9.-]/g,
-    "_"
-  )}`;
-  const folder = category.toLowerCase().replace(/\s+/g, "-");
-  const filePath = `resources/${folder}/${safeFileName}`;
-
-  logger.info("Generating signed URL", { filePath, title, category });
-
-  const file = bucket.file(filePath);
-
-  try {
     const [url] = await file.getSignedUrl({
       action: "write",
-      expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+      expires: Date.now() + 15 * 60 * 1000,
       contentType: "application/pdf",
+      version: "v4",
     });
 
-    logger.info("Signed URL generated successfully", { filePath });
-
-    return { uploadUrl: url, filePath, fileName: safeFileName };
-  } catch (error) {
-    logger.error("Failed to generate signed URL", { error: error.message });
-    throw new HttpsError("internal", "Failed to generate upload URL");
+    return { uploadUrl: url, filePath };
   }
+);
+
+// ================================================================
+//  SET DOWNLOADABLE TEMPLATES COLLECTION
+// ================================================================
+
+export const onResourceUploaded = onObjectFinalized(async (event) => {
+  const metadata = event.data.metadata;
+  if (!event.data.name.startsWith("resources/")) return;
+
+  const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${
+    event.data.bucket
+  }/o/${encodeURIComponent(event.data.name)}?alt=media`;
+
+  await db.collection("campaign_resources").add({
+    title: metadata.title,
+    category: metadata.category,
+    scope: metadata.scope,
+    county_code: metadata["county-code"],
+    area_code: metadata["area-code"],
+    precinct_code: metadata["precinct-code"],
+    url: downloadUrl,
+    verified_by_role: "area_chair", // Logic to determine role can go here
+    created_at: admin.firestore.FieldValue.serverTimestamp(),
+  });
 });
+
+// ================================================================
+//  GET DOWNLOADABLE TEMPLATES
+// ================================================================
+
+export const getResourcesByLocation = onCall(
+  { cors: true },
+  async (request) => {
+    logger.info("adminGenerateResourceUploadUrl called", {
+      uid: request.auth?.uid,
+    });
+    logger.info("Incoming request data:", request.data);
+
+    // 1. Auth Guard
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "You must be logged in.");
+    }
+
+    const { county, area, precinct } = request.data;
+
+    logger.info(
+      `Searching for: County=${county}, Area=${area}, Precinct=${precinct}`
+    );
+
+    try {
+      // 2. The "Waterfall" Query
+      // Notice: We use 'db' and 'Filter' directly here because they are
+      // already imported and initialized at the top of your file.
+      const query = db.collection("campaign_resources").where(
+        Filter.or(
+          // Search using the _code fields that match your frontend/BigQuery values
+          Filter.and(
+            Filter.where("county_code", "==", county),
+            Filter.where("scope", "==", "county")
+          ),
+          Filter.and(
+            Filter.where("area_code", "==", area),
+            Filter.where("scope", "==", "area")
+          ),
+          Filter.and(
+            Filter.where("precinct_code", "==", precinct),
+            Filter.where("scope", "==", "precinct")
+          )
+        )
+      );
+
+      logger.info("getResourcesByLocation query", query);
+
+      const snapshot = await query.get();
+      const resources = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      logger.info(`Found ${snapshot.size} matching documents`);
+
+      // 3. Categorize
+      const categorized = {
+        Brochures: resources.filter((r) => r.category === "Brochures"),
+        Ballots: resources.filter((r) => r.category === "Ballots"),
+        Graphics: resources.filter((r) => r.category === "Graphics"),
+        Forms: resources.filter((r) => r.category === "Forms"),
+        Scripts: resources.filter((r) => r.category === "Scripts"),
+      };
+
+      return { categorized };
+    } catch (error) {
+      logger.error("Resource Query Error:", error); // Using the 'logger' you imported
+      throw new HttpsError("internal", error.message);
+    }
+  }
+);

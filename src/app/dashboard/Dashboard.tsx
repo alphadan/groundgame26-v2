@@ -374,14 +374,7 @@ export default function Dashboard() {
         </Stack>
       </Paper>
 
-      {/* Team Management */}
-      {(claims?.role === "state_admin" ||
-        claims?.role === "county_chair" ||
-        claims?.role === "area_chair") && (
-        <Box mt={6}>
-          <ManageTeamPage />
-        </Box>
-      )}
+
     </Box>
   );
 }

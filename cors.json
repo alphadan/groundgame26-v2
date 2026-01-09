@@ -1,0 +1,16 @@
+[
+  {
+    "origin": ["*"],
+    "method": ["GET", "PUT", "POST", "DELETE", "OPTIONS"],
+    "responseHeader": [
+      "Content-Type",
+      "x-goog-meta-title",
+      "x-goog-meta-category",
+      "x-goog-meta-scope",
+      "x-goog-meta-county-code",
+      "x-goog-meta-area-code",
+      "x-goog-meta-precinct-code"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

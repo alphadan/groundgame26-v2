@@ -16,7 +16,6 @@ import EnrollMFAScreen from "./components/auth/EnrollMFAScreen";
 // Page Imports
 import Dashboard from "./app/dashboard/Dashboard";
 import AnalysisPage from "./app/analysis/AnalysisPage";
-import MessagingPage from "./app/messaging/MessagingPage";
 import ResourcesPage from "./app/resources/ResourcesPage";
 import VoterListPage from "./app/voters/VoterListPage";
 import WalkListPage from "./app/walk/WalkListPage";
@@ -177,7 +176,6 @@ export default function App() {
       <Routes>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/analysis" element={<AnalysisPage />} />
-        <Route path="/messaging" element={<MessagingPage />} />
         <Route path="/resources" element={<ResourcesPage />} />
         <Route path="/voters" element={<VoterListPage />} />
         <Route path="/walk-lists" element={<WalkListPage />} />

@@ -42,6 +42,8 @@ interface FilterSelectorProps {
   isLoading?: boolean;
   disabled?: boolean;
   unrestrictedFilters?: FilterKey[];
+  showLocationFilters?: boolean;
+  showAdditionalCriteria?: boolean;
 }
 
 export const FilterSelector: React.FC<FilterSelectorProps> = ({
@@ -50,6 +52,8 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
   isLoading = false,
   disabled = false,
   unrestrictedFilters = [],
+  showLocationFilters = true,
+  showAdditionalCriteria = true
 }) => {
   const theme = useTheme();
 
@@ -88,44 +92,46 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
       }}
     >
       <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
-        Voter Filters
+        Filters
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={4}>
-        Narrow down voters by location and attributes for targeted analysis.
+        Narrow down results by location and attributes for targeted analysis.
       </Typography>
 
       <form onSubmit={handleSubmit(onSubmitForm)}>
         <Stack spacing={4}>
           {/* Restricted Location Filters */}
-          <Box>
-            <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-              Location
-            </Typography>
-            <RestrictedFilters
-              control={control}
-              setValue={setValue as any}
-              selectedCounty={selectedCounty}
-              selectedArea={selectedArea}
-              onCountyChange={(value) => {
-                setValue("county", value);
-              }}
-              onAreaChange={(value) => {
-                setValue("area", value);
-              }}
-              onPrecinctChange={(value) => {
-                setValue("precinct", value);
-              }}
-              onAreaDistrictChange={setSelectedAreaDistrict}
-              onCountyCodeChange={setSelectedCountyCode}
-            />
-          </Box>
+          {showLocationFilters && (
+            <Box>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Location
+              </Typography>
+              <RestrictedFilters
+                control={control}
+                setValue={setValue as any}
+                selectedCounty={selectedCounty}
+                selectedArea={selectedArea}
+                onCountyChange={(value) => {
+                  setValue("county", value);
+                }}
+                onAreaChange={(value) => {
+                  setValue("area", value);
+                }}
+                onPrecinctChange={(value) => {
+                  setValue("precinct", value);
+                }}
+                onAreaDistrictChange={setSelectedAreaDistrict}
+                onCountyCodeChange={setSelectedCountyCode}
+              />
+            </Box>
+          )}
 
-          {unrestrictedFilters.length > 0 && (
+          {showAdditionalCriteria && unrestrictedFilters.length > 0 && (
             <>
-              <Divider />
+              {showLocationFilters && <Divider sx={{ mb: 3 }} />}
               <Box>
                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                  Additional Criteria
+                  Demographics
                 </Typography>
                 <UnrestrictedFilters
                   control={control}

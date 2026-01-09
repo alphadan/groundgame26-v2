@@ -128,14 +128,6 @@ export default function AnalysisPage() {
       label: "Contact Trend (Default)",
     },
     {
-      id: "noMailR",
-      label: "Republicans Without Mail Ballots",
-      filters: {
-        modeledParty: "1 - Hard Republican,2 - Weak Republican",
-        mailBallot: "false",
-      },
-    },
-    {
       id: "swingHigh",
       label: "High-Turnout Swing Voters",
       filters: {
@@ -395,7 +387,7 @@ export default function AnalysisPage() {
       )}
 
       {/* Filter Selector for Admins */}
-      {(claims?.role === "state_admin" || claims?.role === "county_chair") && (
+      {(
         <FilterSelector
           onSubmit={handleSubmit}
           isLoading={votersLoading}

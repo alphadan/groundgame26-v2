@@ -55,6 +55,7 @@ export default function ManageTeamPage() {
   const [loading, setLoading] = useState(true);
 
   const canView =
+    claims?.role === "developer" ||
     claims?.role === "state_admin" ||
     claims?.role === "county_chair" ||
     claims?.role === "area_chair";
