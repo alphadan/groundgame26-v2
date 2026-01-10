@@ -116,10 +116,10 @@ export const MessageTemplateForm: React.FC = () => {
   return (
     <Box component="form" onSubmit={handleSubmit}>
       <Typography variant="h6" fontWeight="bold" gutterBottom>
-        Create Outreach Script
+        Create Message Templates
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Scripts are automatically optimized for mobile delivery standards.
+        Templates are automatically optimized for mobile delivery standards.
       </Typography>
 
       <Grid container spacing={3}>

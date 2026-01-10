@@ -61,11 +61,11 @@ export default function FirebaseManagementPage() {
   // We define which tabs correspond to which permissions
   const availableTabs = [
     { label: "Message Templates", show: canManageResources },
+    { label: "Create User", show: canCreateUsers },
     { label: "Create Area", show: canCreateDocuments },
     { label: "Import Areas", show: canUploadCollections },
     { label: "Create Precinct", show: canCreateDocuments },
     { label: "Import Precincts", show: canUploadCollections },
-    { label: "Create User", show: canCreateUsers },
     // Match this label below
   ].filter((t) => t.show);
 
@@ -137,6 +137,12 @@ export default function FirebaseManagementPage() {
             </Paper>
           )}
           {/* Render the content based on the label of the active tab */}
+          {availableTabs[tabValue]?.label === "Create User" && (
+            <Paper sx={{ p: 4, borderRadius: 3 }}>
+              <CreateUserForm claims={claims} />
+            </Paper>
+          )}
+          {/* Render the content based on the label of the active tab */}
           {availableTabs[tabValue]?.label === "Create Area" && (
             <Paper sx={{ p: 4, borderRadius: 3 }}>
               <AreaForm />
@@ -158,12 +164,6 @@ export default function FirebaseManagementPage() {
           {availableTabs[tabValue]?.label === "Import Precincts" && (
             <Paper sx={{ p: 4, borderRadius: 3 }}>
               <ImportPrecinctsForm />
-            </Paper>
-          )}
-          {/* Render the content based on the label of the active tab */}
-          {availableTabs[tabValue]?.label === "Create User" && (
-            <Paper sx={{ p: 4, borderRadius: 3 }}>
-              <CreateUserForm />
             </Paper>
           )}
         </>

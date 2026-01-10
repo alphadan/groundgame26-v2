@@ -1110,50 +1110,6 @@ export const adminCreatePrecinct = onCall(async (request) => {
 });
 
 // ================================================================
-//  CREATE INDIVIDUAL USER
-// ================================================================
-
-export const adminCreateUser = onCall(async (request) => {
-  // 1. Check authentication first
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "You must be logged in.");
-  }
-
-  const data = request.data;
-
-  try {
-    // 2. Correct way to get user info in 2nd Gen
-    const authUser = await getAuth().getUser(request.auth.uid);
-
-    await db
-      .collection("users")
-      .doc(data.uid)
-      .set({
-        uid: data.uid || null,
-        display_name: data.display_name || null,
-        org_id: data.org_id || "Unknown",
-        name: data.name || "Unknown",
-        email: data.email || null,
-        login_count: data.login_count || null,
-        phone: data.phone || "Unknown",
-        photo_url: data.photo_url || null,
-        preferred_name: data.preferred_name || null,
-        notifications_enabled: data.notifications_enabled || null,
-        role: data.role || null,
-        active: true,
-        created_at: Date.now(),
-        last_updated: Date.now(),
-      });
-
-    return { success: true };
-  } catch (error) {
-    console.error("Admin Create User failed:", error);
-    // 3. Throw a proper HttpsError for the frontend
-    throw new HttpsError("internal", "Failed to create user record.");
-  }
-});
-
-// ================================================================
 //  CREATE ORGNIZATON ROLE
 // ================================================================
 
@@ -1649,3 +1605,88 @@ export const getResourcesByLocation = onCall(
     }
   }
 );
+
+// ================================================================
+//  CREATE NEW USERS THROUGH APP
+// ================================================================
+
+export const adminCreateUser = onCall({ cors: true }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
+
+  const { email, display_name, role, precinct_id } = request.data;
+
+  // 1. AUTOMATIC CONTEXT: Fetch Admin's jurisdiction from their token
+  const adminRole = request.auth.token.role;
+  const adminCounty = request.auth.token.counties?.[0]; // e.g., PA-C-15
+  const adminArea = request.auth.token.areas?.[0]; // e.g., PA15-A-15
+  const adminOrg = request.auth.token.org_id;
+
+  // 2. Authorization: Determine if the Admin has the right to create this role
+  const adminRole = request.auth.token.role;
+  const allowed = {
+    developer: [
+      "developer",
+      "state_admin",
+      "county_chair",
+      "area_chair",
+      "committeeperson",
+      "candidate",
+      "ambassador",
+    ],
+    county_chair: ["area_chair", "candidate"],
+    area_chair: ["committeeperson", "ambassador", "candidate"],
+  };
+
+  if (!allowed[adminRole]?.includes(role)) {
+    throw new HttpsError(
+      "permission-denied",
+      `A ${adminRole} cannot create a ${role}.`
+    );
+  }
+
+  try {
+    const tempPassword = `${display_name
+      .replace(/\s+/g, "")
+      .substring(0, 4)}123456`;
+
+    // 3. Create Auth Account
+    const userRecord = await getAuth().createUser({
+      email,
+      password: tempPassword,
+      displayName: display_name,
+    });
+
+    const uid = userRecord.uid;
+
+    // 4. Create User Doc (ID = UID)
+    await db.collection("users").doc(uid).set({
+      uid,
+      display_name,
+      email,
+      active: true,
+      created_at: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
+    });
+
+    // 5. Create Role Doc (Using Admin's data to ensure integrity)
+    await db.collection("org_roles").add({
+      uid,
+      role,
+      org_id: adminOrg,
+      county_id: adminCounty,
+      area_id: adminArea,
+      precinct_id: role === "committeeperson" ? precinct_id : null,
+      active: true,
+      updated_at: FieldValue.serverTimestamp(),
+    });
+
+    return {
+      success: true,
+      tempPassword,
+      email,
+      display_name,
+    };
+  } catch (error) {
+    throw new HttpsError("internal", error.message);
+  }
+});
