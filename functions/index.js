@@ -1611,82 +1611,150 @@ export const getResourcesByLocation = onCall(
 // ================================================================
 
 export const adminCreateUser = onCall({ cors: true }, async (request) => {
-  if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
+  // 1. Authentication Check
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "You must be logged in to provision users."
+    );
+  }
 
-  const { email, display_name, role, precinct_id } = request.data;
+  const {
+    email,
+    display_name,
+    preferred_name,
+    phone,
+    role,
+    org_id,
+    county_id,
+    area_id,
+    precinct_id,
+  } = request.data;
 
-  // 1. AUTOMATIC CONTEXT: Fetch Admin's jurisdiction from their token
+  // 2. Data Validation
+  if (!email || !display_name || !role || !org_id) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Missing required fields: email, display_name, role, or org_id."
+    );
+  }
+
+  // 3. Authorization Logic: Verify the Creator's Rank
   const adminRole = request.auth.token.role;
-  const adminCounty = request.auth.token.counties?.[0]; // e.g., PA-C-15
-  const adminArea = request.auth.token.areas?.[0]; // e.g., PA15-A-15
-  const adminOrg = request.auth.token.org_id;
+  const adminName = request.auth.token.name || "A Campaign Lead";
 
-  // 2. Authorization: Determine if the Admin has the right to create this role
-  const adminRole = request.auth.token.role;
-  const allowed = {
+  const allowedRanks = {
     developer: [
       "developer",
       "state_admin",
       "county_chair",
+      "state_rep_district",
       "area_chair",
+      "candidate",
       "committeeperson",
+      "ambassador",
+      "base",
+    ],
+    state_rep_district: [
+      "area_chair",
       "candidate",
       "ambassador",
+      "committeeperson",
     ],
-    county_chair: ["area_chair", "candidate"],
-    area_chair: ["committeeperson", "ambassador", "candidate"],
+    county_chair: ["area_chair"],
+    area_chair: ["committeeperson", "ambassador"],
   };
 
-  if (!allowed[adminRole]?.includes(role)) {
+  const canCreate = allowedRanks[adminRole]?.includes(role);
+  if (!canCreate) {
     throw new HttpsError(
       "permission-denied",
-      `A ${adminRole} cannot create a ${role}.`
+      `A ${adminRole} is not authorized to create a ${role}.`
     );
   }
 
   try {
-    const tempPassword = `${display_name
-      .replace(/\s+/g, "")
-      .substring(0, 4)}123456`;
+    // 4. Generate Temporary Password (First 4 of Name + 123456)
+    const cleanName = display_name.replace(/[^a-zA-Z]/g, "");
+    const tempPassword = `${cleanName.substring(0, 4)}123456`;
 
-    // 3. Create Auth Account
-    const userRecord = await getAuth().createUser({
-      email,
+    logger.info(`Provisioning new ${role}: ${email}`);
+
+    // 5. Create Firebase Auth Account
+    const userRecord = await auth.createUser({
+      email: email.trim(),
       password: tempPassword,
-      displayName: display_name,
+      displayName: display_name.trim(),
+      phoneNumber: phone ? phone.trim() : undefined,
     });
 
     const uid = userRecord.uid;
 
-    // 4. Create User Doc (ID = UID)
-    await db.collection("users").doc(uid).set({
-      uid,
-      display_name,
-      email,
+    // 6. Create Firestore User Document (ID = UID)
+    const userDoc = {
+      uid: uid,
+      display_name: display_name.trim(),
+      preferred_name: preferred_name || display_name.split(" ")[0],
+      email: email.toLowerCase().trim(),
+      phone: phone || null,
+      photo_url: null,
       active: true,
-      created_at: FieldValue.serverTimestamp(),
-      updated_at: FieldValue.serverTimestamp(),
-    });
+      created_by: request.auth.uid,
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    };
 
-    // 5. Create Role Doc (Using Admin's data to ensure integrity)
-    await db.collection("org_roles").add({
-      uid,
-      role,
-      org_id: adminOrg,
-      county_id: adminCounty,
-      area_id: adminArea,
-      precinct_id: role === "committeeperson" ? precinct_id : null,
+    // 7. Create Org Role Document
+    // This will trigger the syncOrgRolesToClaims function automatically
+    const roleDoc = {
+      uid: uid,
+      role: role,
+      org_id: org_id,
+      county_id: county_id || null,
+      area_id: area_id || null,
+      precinct_id: precinct_id || null,
       active: true,
-      updated_at: FieldValue.serverTimestamp(),
-    });
+      is_vacant: false,
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    };
 
+    // Execute Firestore writes
+    const batch = db.batch();
+    batch.set(db.collection("users").doc(uid), userDoc);
+    batch.add(db.collection("org_roles"), roleDoc);
+    await batch.commit();
+
+    logger.info(`User ${uid} successfully provisioned by ${request.auth.uid}`);
+
+    // 8. Return data for the Frontend Welcome Email Template
     return {
       success: true,
-      tempPassword,
-      email,
-      display_name,
+      uid: uid,
+      email: email,
+      display_name: display_name,
+      preferred_name: userDoc.preferred_name,
+      tempPassword: tempPassword,
+      created_by: adminName,
     };
   } catch (error) {
-    throw new HttpsError("internal", error.message);
+    logger.error("Admin Create User failed:", error);
+
+    if (error.code === "auth/email-already-exists") {
+      throw new HttpsError(
+        "already-exists",
+        "This email address is already registered in the system."
+      );
+    }
+    if (error.code === "auth/invalid-phone-number") {
+      throw new HttpsError(
+        "invalid-argument",
+        "The phone number provided is invalid."
+      );
+    }
+
+    throw new HttpsError(
+      "internal",
+      error.message || "An unexpected error occurred during user provisioning."
+    );
   }
 });
