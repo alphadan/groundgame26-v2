@@ -13,6 +13,8 @@ import {
   ReCaptchaEnterpriseProvider,
 } from "firebase/app-check";
 
+import { getMessaging, Messaging } from "firebase/messaging";
+
 // === 1. Strict Config Validation ===
 const requiredConfigKeys = [
   "apiKey",
@@ -33,6 +35,14 @@ const firebaseConfig = {
   serviceAccountId: process.env.REACT_APP_SERVICE_ACCOUNT_ID,
   recaptchaSiteKey: process.env.REACT_APP_RECAPTCHA_SITE_KEY?.trim(),
 };
+
+const vapidKey = process.env.REACT_APP_FIREBASE_VAPID_KEY?.trim();
+if (!vapidKey) {
+  console.warn(
+    "[Firebase] VAPID key missing (REACT_APP_FIREBASE_VAPID_KEY). " +
+      "Web push notifications will not work until set in .env and Firebase console."
+  );
+}
 
 for (const key of requiredConfigKeys) {
   const value = firebaseConfig[key];
@@ -55,6 +65,7 @@ if (getApps().length === 0) {
 export const auth: Auth = getAuth(app);
 export const storage: FirebaseStorage = getStorage(app);
 export const functions: Functions = getFunctions(app);
+export const messaging: Messaging = getMessaging(app);
 
 export const db: Firestore = initializeFirestore(app, {
   localCache: memoryLocalCache(),

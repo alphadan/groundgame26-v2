@@ -28,9 +28,9 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 // Standard Organization List
 const ORGANIZATIONS = [
-  { id: "PA15-O-01", name: "Chester County Republican Committee" },
-  { id: "PA15-O-02", name: "Turning Point Action" },
-  { id: "PA15-O-03", name: "Young Republicans" },
+  { id: "PA15-G-01", name: "Chester County Republican Committee" },
+  { id: "PA15-G-02", name: "Turning Point Action" },
+  { id: "PA15-G-03", name: "Young Republicans" },
 ];
 
 interface Props {
@@ -247,7 +247,8 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
         Create New User
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={4}>
-        Fill out the details below. A new user will be provisioned. Simply send the new user the pre-generated Welcome Email.
+        Fill out the details below. A new user will be provisioned. Simply send
+        the new user the pre-generated Welcome Email.
       </Typography>
 
       <Grid container spacing={3}>

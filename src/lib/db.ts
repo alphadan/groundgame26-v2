@@ -3,7 +3,7 @@ import Dexie, { Table } from "dexie";
 import {
   Area,
   County,
-  Organization,
+  Group,
   Precinct,
   UserProfile,
   AppControl,
@@ -17,7 +17,7 @@ class GroundGame26DB extends Dexie {
   counties!: Table<County>;
   areas!: Table<Area>;
   precincts!: Table<Precinct>;
-  organizations!: Table<Organization>;
+  groups!: Table<Group>;
   users!: Table<UserProfile>;
   app_control!: Table<AppControl>;
 
@@ -28,7 +28,7 @@ class GroundGame26DB extends Dexie {
       counties: "id, name",
       areas: "id, county_id",
       precincts: "id, area_id, county_id",
-      organizations: "id, code, county_code",
+      groups: "id, code, county_code",
       users: "uid",
       app_control: "id",
     });

@@ -13,7 +13,7 @@ export interface BaseMetadata {
 
 // --- Domain Models ---
 
-export interface Organization extends Omit<BaseMetadata, "id"> {
+export interface Group extends Omit<BaseMetadata, "id"> {
   id: string;
   code: string;
   name: string;

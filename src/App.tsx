@@ -21,10 +21,24 @@ import VoterListPage from "./app/voters/VoterListPage";
 import WalkListPage from "./app/walk/WalkListPage";
 import NameSearchPage from "./app/voters/NameSearchPage";
 import SettingsPage from "./app/settings/SettingsPage";
-import FirebaseManagementPage from "./app/admin/FirebaseManagementPage";
 import ManageTeamPage from "./app/precincts/ManageTeamPage";
 import BadgeRedemptionPage from "./app/rewards/BadgeRedemptionPage";
 import HowToUsePage from "./app/guide/HowToUsePage";
+
+// ── Admin Pages (new structure) ─────────────────────────────────────────────
+import AdminDashboard from "./app/admin/AdminDashboard"; // ← new main dashboard with cards
+import UsersManagement from "./app/admin/users/UsersManagement";
+import AreasManagement from "./app/admin/areas/AreasManagement";
+import PrecinctsManagement from "./app/admin/precincts/PrecinctsManagement";
+import MessagesManagement from "./app/admin/messages/MessagesManagement";
+import ResourcesManagement from "./app/admin/resources/ResourcesManagement";
+import GroupsManagement from "./app/admin/groups/GroupsManagement";
+import RewardsManagement from "./app/admin/rewards/RewardsManagement"; // ← your new one (can start as stub)
+import NotificationsManagement from "./app/admin/notifications/NotificationsManagement";
+import AnalyticsManagement from "./app/admin/analytics/AnalyticsManagement";
+
+// You can keep the old page temporarily during transition
+// import FirebaseManagementPage from "./app/admin/FirebaseManagementPage";
 
 export default function App() {
   const [isSynced, setIsSynced] = useState(false);
@@ -33,39 +47,27 @@ export default function App() {
 
   const hasSyncedRef = useRef<string | null>(null);
 
-  // 1. Correct Destructuring: Renaming isLoaded to authLoaded for clarity
   const {
     user,
     claims,
-    role,
     isLoaded: authLoaded,
     isLoading: authLoading,
   } = useAuth();
 
-  // 2. Defensive performSync Callback
   const performSync = useCallback(async () => {
-    // 1. Exit if no user or we already successfully synced for THIS specific UID
-    if (!user?.uid || hasSyncedRef.current === user.uid) {
-      return;
-    }
+    if (!user?.uid || hasSyncedRef.current === user.uid) return;
 
-    // 2. Lock the sync immediately
     hasSyncedRef.current = user.uid;
     console.log("[App] 🚀 Starting strategic sync for UID:", user.uid);
 
     try {
       setSyncError(null);
       setIsOffline(false);
-
-      // 3. The actual heavy lifting
       await syncReferenceData(user.uid);
-
       console.log("[App] ✅ SYNC COMPLETE");
       setIsSynced(true);
     } catch (err: any) {
       console.error("[App] ❌ Sync failed:", err);
-
-      // 4. Reset the ref on error so the user can retry (or the next effect run can try)
       hasSyncedRef.current = null;
 
       if (!navigator.onLine || err?.code === "unavailable") {
@@ -77,16 +79,13 @@ export default function App() {
     }
   }, [user?.uid]);
 
-  // 3. Trigger Sync when criteria are met
   useEffect(() => {
     if (authLoaded && user?.uid) {
       performSync();
     }
   }, [authLoaded, user?.uid, performSync]);
 
-  // === RENDER LOGIC ===
-
-  // A. Auth Loading State
+  // ── Loading / Auth / MFA / Sync States ──────────────────────────────────────
   if (authLoading || !authLoaded) {
     return (
       <Box
@@ -103,12 +102,10 @@ export default function App() {
     );
   }
 
-  // B. Unauthenticated State
   if (!user) {
     return <LoginPage />;
   }
 
-  // C. MFA Enforcement
   let enrolledFactors: any[] = [];
   try {
     const mfaUser = multiFactor(user);
@@ -121,7 +118,6 @@ export default function App() {
     return <EnrollMFAScreen />;
   }
 
-  // D. Data Sync Loading State
   if (!isSynced && !syncError) {
     return (
       <Box
@@ -138,7 +134,6 @@ export default function App() {
     );
   }
 
-  // E. Sync Error Boundary
   if (syncError) {
     return (
       <Box
@@ -159,7 +154,6 @@ export default function App() {
         <Button
           variant="contained"
           onClick={() => {
-            // FIX: Change false to null
             hasSyncedRef.current = null;
             performSync();
           }}
@@ -170,7 +164,9 @@ export default function App() {
     );
   }
 
-  // F. Authenticated & Authorized Application UI
+  // ── Main Application ────────────────────────────────────────────────────────
+  const hasAdminAccess = claims?.permissions?.can_manage_team === true;
+
   return (
     <MainLayout>
       <Routes>
@@ -183,17 +179,113 @@ export default function App() {
         <Route path="/manage-team" element={<ManageTeamPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/how-to-use" element={<HowToUsePage />} />
+        <Route path="/rewards" element={<BadgeRedemptionPage />} />
+
+        {/* ── Admin Routes ──────────────────────────────────────────────────── */}
         <Route
           path="/admin"
           element={
-            claims?.permissions?.can_manage_team ? (
-              <FirebaseManagementPage />
+            hasAdminAccess ? (
+              <AdminDashboard />
             ) : (
-              <Navigate to="/dashboard" />
+              <Navigate to="/dashboard" replace />
             )
           }
         />
-        <Route path="/rewards" element={<BadgeRedemptionPage />} />
+        <Route
+          path="/admin/users"
+          element={
+            hasAdminAccess ? (
+              <UsersManagement />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/areas"
+          element={
+            hasAdminAccess ? (
+              <AreasManagement />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/precincts"
+          element={
+            hasAdminAccess ? (
+              <PrecinctsManagement />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/messages"
+          element={
+            hasAdminAccess ? (
+              <MessagesManagement />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/resources"
+          element={
+            hasAdminAccess ? (
+              <ResourcesManagement />
+            ) : (
+              <Navigate to="/resources" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/groups"
+          element={
+            hasAdminAccess ? (
+              <GroupsManagement />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/rewards"
+          element={
+            hasAdminAccess ? (
+              <RewardsManagement />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/notifications"
+          element={
+            hasAdminAccess ? (
+              <NotificationsManagement />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/analytics"
+          element={
+            hasAdminAccess ? (
+              <AnalyticsManagement />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
+        />
+
+        {/* Optional: keep old admin route during transition */}
+        {/* <Route path="/admin/old" element={hasAdminAccess ? <FirebaseManagementPage /> : <Navigate to="/dashboard" replace />} /> */}
+
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

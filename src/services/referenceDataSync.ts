@@ -4,7 +4,7 @@ import {
   counties as allCounties,
   areas as allAreas,
   precincts as allPrecincts,
-  organizations as allOrgs,
+  groups as allGroups,
 } from "../constants/referenceData";
 import { UserProfile, Precinct } from "../types";
 
@@ -71,14 +71,14 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
     // 5. Atomic Write to IndexedDB (Dexie Transaction)
     await db.transaction(
       "rw",
-      [db.counties, db.areas, db.precincts, db.organizations, db.users],
+      [db.counties, db.areas, db.precincts, db.groups, db.users],
       async () => {
         // Clear old data for a clean state
         await Promise.all([
           db.counties.clear(),
           db.areas.clear(),
           db.precincts.clear(),
-          db.organizations.clear(),
+          db.groups.clear(),
           db.users.clear(),
         ]);
 
@@ -90,7 +90,7 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
           await db.precincts.bulkPut(filteredPrecincts);
 
         // Organizations are global for now, but we use the filtered county_id to narrow if needed
-        await db.organizations.bulkPut(allOrgs);
+        await db.groups.bulkPut(allGroups);
 
         // Store the full profile for offline permission checks
         await db.users.put(profileData);

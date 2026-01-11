@@ -1,4 +1,4 @@
-import { County, Area, Precinct, Organization } from "../types";
+import { County, Area, Precinct, Group } from "../types";
 
 // === Runtime Validation Helpers (Type Guards) ===
 function isValidCounty(entry: any): entry is County {
@@ -52,7 +52,7 @@ function isValidPrecinct(entry: any): entry is Precinct {
   );
 }
 
-function isValidOrganization(entry: any): entry is Organization {
+function isValidGroup(entry: any): entry is Group {
   return (
     typeof entry === "object" &&
     entry !== null &&
@@ -8108,7 +8108,7 @@ export const precincts = [
   },
 ];
 
-export const organizations = [
+export const groups = [
   {
     id: "PA15-O-01",
     code: "gop",
