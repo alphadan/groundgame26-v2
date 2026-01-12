@@ -89,7 +89,7 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
         if (filteredPrecincts.length > 0)
           await db.precincts.bulkPut(filteredPrecincts);
 
-        // Organizations are global for now, but we use the filtered county_id to narrow if needed
+        // Groups are global for now, but we use the filtered county_id to narrow if needed
         await db.groups.bulkPut(allGroups);
 
         // Store the full profile for offline permission checks

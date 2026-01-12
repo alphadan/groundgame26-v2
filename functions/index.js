@@ -123,20 +123,47 @@ export const queryVoters = onRequest(
 // ================================================================
 // 2. GET VOTERS BY PRECINCT (Converted to export const)
 // ================================================================
-export const getVotersByPrecinct = functions.https.onCall(
-  async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "Auth required");
-    }
-    const { precinctCode } = data;
-    const sql = `SELECT * FROM \`groundgame26-v2.groundgame26_voters.chester_county\` WHERE precinct = @precinctCode AND active = TRUE LIMIT 1000`;
-    const [rows] = await bigquery.query({
-      query: sql,
-      params: { precinctCode },
-    });
-    return { voters: rows };
+
+export const getVotersByPrecinct = onCall(async (request) => {
+  // 1. In v2, auth is located in request.auth
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "The function must be called while authenticated."
+    );
   }
-);
+
+  // 2. Data is located in request.data
+  const { precinctCode } = request.data;
+
+  if (!precinctCode) {
+    throw new HttpsError(
+      "invalid-argument",
+      "The function must be called with a precinctCode."
+    );
+  }
+
+  // 3. BigQuery uses named placeholders with @ but the params object
+  // needs to match that key exactly.
+  const sql = `
+    SELECT * FROM \`groundgame26-v2.groundgame26_voters.chester_county\` 
+    WHERE precinct = @precinctCode 
+    AND active = TRUE 
+    LIMIT 1000`;
+
+  const options = {
+    query: sql,
+    params: { precinctCode },
+  };
+
+  try {
+    const [rows] = await bigquery.query(options);
+    return { voters: rows };
+  } catch (error) {
+    console.error("BigQuery Error:", error);
+    throw new HttpsError("internal", "Failed to fetch voters from BigQuery.");
+  }
+});
 
 // ================================================================
 // SEARCH VOTERS BY NAME — FINAL v2 VERSION (Dec 2025)
@@ -567,9 +594,9 @@ export const queryVotersDynamicRNC = onCall(
     // === Mail Ballot ===
     if (filters.mailBallot && filters.mailBallot.trim() !== "") {
       if (filters.mailBallot === "true") {
-        sql += ` AND VBM_AppReturnedDate = !null`;
+        sql += ` AND VBM_AppReturnedDate = IS NOT NULL`;
       } else if (filters.mailBallot === "false") {
-        sql += ` AND VBM_AppReturnedDate = null`;
+        sql += ` AND VBM_AppReturnedDate = IS NULL`;
       }
     }
 
@@ -742,12 +769,12 @@ export const getUserProfile = onCall(
       const areas = new Set();
       const precincts = new Set();
       const roles = new Set();
-      const orgIds = new Set();
+      const groupIds = new Set();
 
       rolesSnap.forEach((doc) => {
         const d = doc.data();
         if (d.role) roles.add(d.role);
-        if (d.org_id) orgIds.add(d.org_id);
+        if (d.group_id) groupIds.add(d.group_id);
         if (d.county_id) counties.add(d.county_id);
         if (d.area_id) areas.add(d.area_id);
         if (d.precinct_id) precincts.add(d.precinct_id);
@@ -765,7 +792,7 @@ export const getUserProfile = onCall(
           email: userData.email || request.auth.token.email || null,
           role: primaryRole,
           permissions: getPermissionsForRole(primaryRole),
-          org_id: Array.from(orgIds)[0] || null,
+          group_id: Array.from(groupIds)[0] || null,
           access: {
             counties: Array.from(counties),
             areas: Array.from(areas),
@@ -803,7 +830,7 @@ export const createUserProfile = functions.auth
         primary_county: "15",
         primary_precinct: "",
         role: "base",
-        org_id: "pending",
+        group_id: "pending",
         notifications_enabled: true,
         login_count: 1,
         last_ip: "auth-trigger",
@@ -846,17 +873,6 @@ export const syncOrgRolesToClaims = onDocumentWritten(
       return;
     }
 
-    const ROLE_PRIORITY = [
-      "developer",
-      "state_admin",
-      "county_chair",
-      "state_rep_district",
-      "area_chair",
-      "committeeperson",
-      "ambassador",
-      "base",
-    ];
-
     try {
       // 1. Re-calculate the current state for this user
       const rolesSnap = await db
@@ -870,12 +886,12 @@ export const syncOrgRolesToClaims = onDocumentWritten(
       const areas = new Set();
       const precincts = new Set();
       const roles = new Set();
-      const orgIds = new Set();
+      const groupIds = new Set();
 
       rolesSnap.forEach((doc) => {
         const d = doc.data();
         if (d.role) roles.add(d.role);
-        if (d.org_id) orgIds.add(d.org_id);
+        if (d.group_id) groupIds.add(d.group_id);
         if (d.county_id) counties.add(d.county_id);
         if (d.area_id) areas.add(d.area_id);
         if (d.precinct_id) precincts.add(d.precinct_id);
@@ -891,7 +907,7 @@ export const syncOrgRolesToClaims = onDocumentWritten(
         counties: Array.from(counties),
         areas: Array.from(areas),
         precincts: Array.from(precincts),
-        org_id: Array.from(orgIds)[0] || null,
+        group_id: Array.from(groupIds)[0] || null,
       };
 
       await auth.setCustomUserClaims(uid, claims);
@@ -926,7 +942,7 @@ export const submitVolunteer = onCall(async (request) => {
     logger.info("[submitVolunteer]request :", request.data);
 
     if (!request) {
-      throw new Error("invalid-argument", "request required");
+      throw new HttpsError("invalid-argument", "request required");
     }
 
     const { name, email, comment, recaptchaToken } = request.data;
@@ -962,13 +978,13 @@ export const submitVolunteer = onCall(async (request) => {
 export const addVoterNote = onCall(async (request) => {
   // Auth check - automatically provided by onCall
   if (!request.auth || !request.auth.uid) {
-    throw new Error("Unauthorized");
+    throw new HttpsError("Unauthorized");
   }
 
   const { voter_id, precinct, full_name, address, note } = request.data;
 
   if (!note || typeof note !== "string" || note.trim().length === 0) {
-    throw new Error("Note text is required");
+    throw new HttpsError("Note text is required");
   }
 
   try {
@@ -988,7 +1004,7 @@ export const addVoterNote = onCall(async (request) => {
     return { success: true };
   } catch (error) {
     console.error("Failed to save voter note:");
-    throw new Error("Failed to save note");
+    throw new HttpsError("Failed to save note");
   }
 });
 
@@ -998,7 +1014,7 @@ export const addVoterNote = onCall(async (request) => {
 
 export const getVoterNotes = onCall(async (request) => {
   if (!request.auth || !request.auth.uid) {
-    throw new Error("Unauthorized");
+    throw new HttpsError("Unauthorized");
   }
 
   const { voterIds } = request.data;
@@ -1022,7 +1038,7 @@ export const getVoterNotes = onCall(async (request) => {
     return { notes };
   } catch (error) {
     console.error("Failed to fetch voter notes:", error);
-    throw new Error("Failed to load notes");
+    throw new HttpsError("Failed to load notes");
   }
 });
 
@@ -1031,38 +1047,46 @@ export const getVoterNotes = onCall(async (request) => {
 // ================================================================
 
 export const adminCreateArea = onCall(async (request) => {
-  // 1. Check authentication first
+  // 1. Authentication check
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "You must be logged in.");
   }
 
   const data = request.data;
 
+  // 2. Basic input validation
+  if (!data.id || !data.name || !data.area_district) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Missing required fields: id, name, or area_district."
+    );
+  }
+
   try {
-    // 2. Correct way to get user info in 2nd Gen
-    const authUser = await getAuth().getUser(request.auth.uid);
+    // Optional: Check if caller has permission (e.g., admin role)
+    const caller = await getAuth().getUser(request.auth.uid);
+    // Example: if (!caller.customClaims?.admin) throw ...
 
     await db
       .collection("areas")
       .doc(data.id)
       .set({
-        id: data.id || null,
-        org_id: data.org_id || null,
-        area_district: data.area_district || "Unknown",
-        name: data.name || "Unknown",
-        chair_uid: data.chair_uid || null,
-        vice_chair_uid: data.vice_chair_uid || null,
-        chair_email: data.chair_email || "Unknown",
-        active: true,
-        created_at: Date.now(),
-        last_updated: Date.now(),
+        id: data.id.trim(),
+        name: data.name.trim(),
+        area_district: data.area_district.trim(),
+        county_id: data.county_id || null, // ← keep if still needed
+        active: data.active ?? true, // Default to true
+        created_at: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+        // No chair fields anymore
       });
 
-    return { success: true };
+    logger.info(`Area created: ${data.id} by ${request.auth.uid}`);
+
+    return { success: true, id: data.id };
   } catch (error) {
-    console.error("Admin Create Area failed:", error);
-    // 3. Throw a proper HttpsError for the frontend
-    throw new HttpsError("internal", "Failed to create area record.");
+    logger.error("adminCreateArea failed:", error);
+    throw new HttpsError("internal", error.message || "Failed to create area.");
   }
 });
 
@@ -1125,27 +1149,42 @@ export const adminCreateOrgRole = onCall(async (request) => {
     // 2. Correct way to get user info in 2nd Gen
     const authUser = await getAuth().getUser(request.auth.uid);
 
+    // Safe destructuring FIRST (no logic inside)
+    const {
+      id,
+      uid,
+      area_district,
+      county_code,
+      is_vacant,
+      group_id,
+      precint_code,
+      role: roleName,
+      active = true,
+    } = data;
+
+    // Compute final values AFTER destructuring
+    const finalUid = is_vacant ? null : uid;
+
     await db
       .collection("org_roles")
-      .doc(data.id)
+      .doc(id)
       .set({
-        id: data.id || null,
-        uid: is_vacant ? null : uid,
-        area_district: data.area_district || null,
-        county_code: data.county_code || "Unknown",
-        is_vacant: data.is_vacant || "Unknown",
-        org_id: data.org_id || null,
-        precint_code: data.precint_code || null,
-        role: data.role || "Unknown",
-        active: true,
-        created_at: Date.now(),
-        last_updated: Date.now(),
+        id: id || null,
+        uid: finalUid,
+        area_district: area_district || null,
+        county_code: county_code || "Unknown",
+        is_vacant: is_vacant ?? false,
+        group_id: group_id || null,
+        precinct_code: precint_code || null, // fixed typo: precint → precinct
+        role: roleName || "Unknown",
+        active,
+        created_at: FieldValue.serverTimestamp(),
+        last_updated: FieldValue.serverTimestamp(),
       });
 
     return { success: true };
   } catch (error) {
     console.error("Admin Create Org_Role failed:", error);
-    // 3. Throw a proper HttpsError for the frontend
     throw new HttpsError("internal", "Failed to create org_role record.");
   }
 });
@@ -1178,7 +1217,7 @@ export const adminImportOrgRoles = onCall(async (request) => {
       id,
       uid = null,
       role: roleName,
-      org_id,
+      group_id,
       county_code = null,
       area_district = null,
       precinct_code,
@@ -1192,7 +1231,7 @@ export const adminImportOrgRoles = onCall(async (request) => {
       id,
       uid: is_vacant ? null : uid,
       role: roleName,
-      org_id,
+      group_id,
       county_code,
       area_district,
       precinct_code,
@@ -1209,8 +1248,8 @@ export const adminImportOrgRoles = onCall(async (request) => {
     await batch.commit();
     return { success: successCount, total: roles.length };
   } catch (error) {
-    functions.logger.error("Batch import failed:", error);
-    throw new functions.https.HttpsError("internal", "Batch write failed");
+    logger.error("Batch import failed:", error);
+    throw new HttpsError("internal", "Batch write failed");
   }
 });
 
@@ -1276,8 +1315,8 @@ export const adminImportPrecincts = onCall(async (request) => {
     await batch.commit();
     return { success: successCount, total: precincts.length };
   } catch (error) {
-    functions.logger.error("Batch import failed:", error);
-    throw new functions.https.HttpsError("internal", "Batch write failed");
+    logger.error("Batch import failed:", error);
+    throw new HttpsError("internal", "Batch write failed");
   }
 });
 
@@ -1286,61 +1325,78 @@ export const adminImportPrecincts = onCall(async (request) => {
 // ================================================================
 
 export const adminImportAreas = onCall(async (request) => {
-  // 1. Check authentication first
+  // 1. Authentication check
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "You must be logged in.");
   }
 
   const areas = request.data.data;
 
-  // Safety check to ensure it's actually an array
-  if (!Array.isArray(areas)) {
-    throw new HttpsError("invalid-argument", "Expected an array of areas.");
+  // 2. Validate input
+  if (!Array.isArray(areas) || areas.length === 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Expected a non-empty array of areas."
+    );
   }
-
-  const authUser = await getAuth().getUser(request.auth.uid);
 
   const batch = db.batch();
   let successCount = 0;
+  const errors = [];
 
   for (const area of areas) {
-    const {
-      id,
-      name,
-      org_id,
-      area_district,
-      chair_email,
-      chair_uid,
-      last_updated,
-      vice_chair_uid,
-      active = true,
-    } = area;
+    const { id, name, area_district, active = true, county_id } = area;
 
-    const docRef = db.collection("areas").doc(id);
+    // Required fields validation
+    if (!id || !name || !area_district) {
+      errors.push(
+        `Area missing required fields (id, name, area_district): ${JSON.stringify(
+          area
+        )}`
+      );
+      continue;
+    }
+
+    const docRef = db.collection("areas").doc(id.trim());
 
     batch.set(docRef, {
-      id,
-      name,
-      org_id,
-      area_district,
-      chair_email,
-      chair_uid,
-      last_updated,
-      vice_chair_uid,
-      active,
-      created_at: Date.now(),
-      last_updated: Date.now(),
+      id: id.trim(),
+      name: name.trim(),
+      area_district: area_district.trim(),
+      county_id: county_id || null,
+      active: !!active, // Force boolean
+      created_at: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
     });
 
     successCount++;
   }
 
   try {
-    await batch.commit();
-    return { success: successCount, total: areas.length };
+    if (successCount > 0) {
+      await batch.commit();
+    }
+
+    const message =
+      errors.length > 0
+        ? `Imported ${successCount}/${
+            areas.length
+          } areas. Errors: ${errors.join("; ")}`
+        : `Successfully imported ${successCount} areas.`;
+
+    logger.info(message);
+
+    return {
+      success: successCount,
+      total: areas.length,
+      errors: errors.length > 0 ? errors : null,
+    };
   } catch (error) {
-    functions.logger.error("Batch import failed:", error);
-    throw new functions.https.HttpsError("internal", "Batch write failed");
+    logger.error("adminImportAreas batch failed:", error);
+    throw new HttpsError(
+      "internal",
+      "Batch import failed: " + (error.message || "Unknown error")
+    );
   }
 });
 
@@ -1530,7 +1586,7 @@ export const onResourceUploaded = onObjectFinalized(async (event) => {
     precinct_code: metadata["precinct-code"],
     url: downloadUrl,
     verified_by_role: "area_chair", // Logic to determine role can go here
-    created_at: admin.firestore.FieldValue.serverTimestamp(),
+    created_at: FieldValue.serverTimestamp(),
   });
 });
 
@@ -1625,17 +1681,18 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
     preferred_name,
     phone,
     role,
-    org_id,
+    group_id,
     county_id,
     area_id,
     precinct_id,
+    active,
   } = request.data;
 
   // 2. Data Validation
-  if (!email || !display_name || !role || !org_id) {
+  if (!email || !display_name || !role || !group_id) {
     throw new HttpsError(
       "invalid-argument",
-      "Missing required fields: email, display_name, role, or org_id."
+      "Missing required fields: email, display_name, role, or group_id."
     );
   }
 
@@ -1698,10 +1755,10 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       email: email.toLowerCase().trim(),
       phone: phone || null,
       photo_url: null,
-      active: true,
+      active: active ?? true,
       created_by: request.auth.uid,
-      created_at: admin.firestore.FieldValue.serverTimestamp(),
-      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      created_at: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
     };
 
     // 7. Create Org Role Document
@@ -1709,13 +1766,13 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
     const roleDoc = {
       uid: uid,
       role: role,
-      org_id: org_id,
+      group_id: group_id,
       county_id: county_id || null,
       area_id: area_id || null,
       precinct_id: precinct_id || null,
       active: true,
       is_vacant: false,
-      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
     };
 
     // Execute Firestore writes

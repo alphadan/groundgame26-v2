@@ -1,7 +1,7 @@
 // src/app/admin/notifications/NotificationSetup.tsx
 import { useEffect } from "react";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { messaging } from "../../../firebase";
+import { messaging } from '../../../lib/firebase'; 
 
 export function NotificationSetup() {
   useEffect(() => {

@@ -1,5 +1,5 @@
 // src/app/admin/resources/ResourcesManagement.tsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../../../context/AuthContext"; // adjust path as needed
 import { useLiveQuery } from "dexie-react-hooks";
 import { db as indexedDb } from "../../../lib/db"; // adjust path

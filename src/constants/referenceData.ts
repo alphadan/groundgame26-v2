@@ -18,14 +18,9 @@ function isValidArea(entry: any): entry is Area {
     typeof entry === "object" &&
     entry !== null &&
     typeof entry.id === "string" &&
-    typeof entry.org_id === "string" &&
     typeof entry.area_district === "string" &&
     typeof entry.county_code === "string" &&
     typeof entry.name === "string" &&
-    (entry.chair_uid === null || typeof entry.chair_uid === "string") &&
-    (entry.vice_chair_uid === null ||
-      typeof entry.vice_chair_uid === "string") &&
-    (entry.chair_email === null || typeof entry.chair_email === "string") &&
     typeof entry.active === "boolean" &&
     typeof entry.created_at === "number" &&
     typeof entry.last_updated === "number"
@@ -140,7 +135,6 @@ export const counties = [
 export const areas = [
   {
     id: "PA15-A-01",
-    org_id: "PA15-O-01",
     area_district: "01",
     county_code: "15",
     county_id: "PA-C-15",
@@ -151,7 +145,6 @@ export const areas = [
   },
   {
     id: "PA15-A-02",
-    org_id: "PA15-O-01",
     area_district: "02",
     county_code: "15",
     county_id: "PA-C-15",
@@ -162,7 +155,6 @@ export const areas = [
   },
   {
     id: "PA15-A-03",
-    org_id: "PA15-O-01",
     area_district: "03",
     county_code: "15",
     county_id: "PA-C-15",
@@ -173,7 +165,6 @@ export const areas = [
   },
   {
     id: "PA15-A-04",
-    org_id: "PA15-O-01",
     area_district: "04",
     county_code: "15",
     county_id: "PA-C-15",
@@ -184,7 +175,6 @@ export const areas = [
   },
   {
     id: "PA15-A-05",
-    org_id: "PA15-O-01",
     area_district: "05",
     county_code: "15",
     county_id: "PA-C-15",
@@ -195,7 +185,6 @@ export const areas = [
   },
   {
     id: "PA15-A-06",
-    org_id: "PA15-O-01",
     area_district: "06",
     county_code: "15",
     county_id: "PA-C-15",
@@ -206,7 +195,6 @@ export const areas = [
   },
   {
     id: "PA15-A-07",
-    org_id: "PA15-O-01",
     area_district: "07",
     county_code: "15",
     county_id: "PA-C-15",
@@ -217,7 +205,6 @@ export const areas = [
   },
   {
     id: "PA15-A-08",
-    org_id: "PA15-O-01",
     area_district: "08",
     county_code: "15",
     county_id: "PA-C-15",
@@ -228,7 +215,6 @@ export const areas = [
   },
   {
     id: "PA15-A-09",
-    org_id: "PA15-O-01",
     area_district: "09",
     county_code: "15",
     county_id: "PA-C-15",
@@ -239,7 +225,6 @@ export const areas = [
   },
   {
     id: "PA15-A-10",
-    org_id: "PA15-O-01",
     area_district: "10",
     county_code: "15",
     county_id: "PA-C-15",
@@ -250,7 +235,6 @@ export const areas = [
   },
   {
     id: "PA15-A-11",
-    org_id: "PA15-O-01",
     area_district: "11",
     county_code: "15",
     county_id: "PA-C-15",
@@ -261,7 +245,6 @@ export const areas = [
   },
   {
     id: "PA15-A-12",
-    org_id: "PA15-O-01",
     area_district: "12",
     county_code: "15",
     county_id: "PA-C-15",
@@ -272,7 +255,6 @@ export const areas = [
   },
   {
     id: "PA15-A-13",
-    org_id: "PA15-O-01",
     area_district: "13",
     county_code: "15",
     county_id: "PA-C-15",
@@ -283,7 +265,6 @@ export const areas = [
   },
   {
     id: "PA15-A-14",
-    org_id: "PA15-O-01",
     area_district: "14",
     county_code: "15",
     county_id: "PA-C-15",
@@ -294,7 +275,6 @@ export const areas = [
   },
   {
     id: "PA15-A-15",
-    org_id: "PA15-O-01",
     area_district: "15",
     county_code: "15",
     county_id: "PA-C-15",
@@ -305,7 +285,6 @@ export const areas = [
   },
   {
     id: "PA15-A-16",
-    org_id: "PA15-O-01",
     area_district: "16",
     county_code: "15",
     county_id: "PA-C-15",
@@ -316,7 +295,6 @@ export const areas = [
   },
   {
     id: "PA15-A-17",
-    org_id: "PA15-O-01",
     area_district: "17",
     county_code: "15",
     county_id: "PA-C-15",
@@ -327,7 +305,6 @@ export const areas = [
   },
   {
     id: "PA15-A-18",
-    org_id: "PA15-O-01",
     area_district: "18",
     county_code: "15",
     county_id: "PA-C-15",
@@ -338,7 +315,6 @@ export const areas = [
   },
   {
     id: "PA15-A-19",
-    org_id: "PA15-O-01",
     area_district: "19",
     county_code: "15",
     county_id: "PA-C-15",
@@ -349,7 +325,6 @@ export const areas = [
   },
   {
     id: "PA15-A-20",
-    org_id: "PA15-O-01",
     area_district: "20",
     county_code: "15",
     county_id: "PA-C-15",
@@ -360,7 +335,6 @@ export const areas = [
   },
   {
     id: "PA15-A-21",
-    org_id: "PA15-O-01",
     area_district: "21",
     county_code: "15",
     county_id: "PA-C-15",
@@ -371,7 +345,6 @@ export const areas = [
   },
   {
     id: "PA15-A-22",
-    org_id: "PA15-O-01",
     area_district: "22",
     county_code: "15",
     county_id: "PA-C-15",
@@ -382,7 +355,6 @@ export const areas = [
   },
   {
     id: "PA15-A-23",
-    org_id: "PA15-O-01",
     area_district: "23",
     county_code: "15",
     county_id: "PA-C-15",
@@ -393,7 +365,6 @@ export const areas = [
   },
   {
     id: "PA15-A-24",
-    org_id: "PA15-O-01",
     area_district: "24",
     county_code: "15",
     county_id: "PA-C-15",
@@ -404,7 +375,6 @@ export const areas = [
   },
   {
     id: "PA15-A-25",
-    org_id: "PA15-O-01",
     area_district: "25",
     county_code: "15",
     county_id: "PA-C-15",
@@ -415,7 +385,6 @@ export const areas = [
   },
   {
     id: "PA15-A-26",
-    org_id: "PA15-O-01",
     area_district: "26",
     county_code: "15",
     county_id: "PA-C-15",
@@ -426,7 +395,6 @@ export const areas = [
   },
   {
     id: "PA15-A-27",
-    org_id: "PA15-O-01",
     area_district: "27",
     county_code: "15",
     county_id: "PA-C-15",
@@ -437,7 +405,6 @@ export const areas = [
   },
   {
     id: "PA15-A-28",
-    org_id: "PA15-O-01",
     area_district: "28",
     county_code: "15",
     county_id: "PA-C-15",
@@ -452,7 +419,7 @@ export const org_roles = [
   {
     uid: "",
     role: "state_admin",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-235",
@@ -462,7 +429,7 @@ export const org_roles = [
     id: "PA15-RCP01-220",
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-220",
@@ -471,7 +438,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-220",
@@ -480,7 +447,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-295",
@@ -489,7 +456,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-295",
@@ -498,7 +465,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-300",
@@ -507,7 +474,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-300",
@@ -516,7 +483,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-301",
@@ -525,7 +492,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-301",
@@ -534,7 +501,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-060",
@@ -543,7 +510,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-060",
@@ -552,7 +519,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-061",
@@ -561,7 +528,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-061",
@@ -570,7 +537,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-380",
@@ -579,7 +546,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-01",
     precinct_code: "PA15-P-380",
@@ -588,7 +555,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-02",
     precinct_code: "PA15-P-665",
@@ -597,7 +564,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-02",
     precinct_code: "PA15-P-665",
@@ -606,7 +573,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-02",
     precinct_code: "PA15-P-666",
@@ -615,7 +582,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-02",
     precinct_code: "PA15-P-666",
@@ -624,7 +591,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-02",
     precinct_code: "PA15-P-525",
@@ -633,7 +600,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-02",
     precinct_code: "PA15-P-525",
@@ -642,7 +609,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-02",
     precinct_code: "PA15-P-690",
@@ -651,7 +618,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-02",
     precinct_code: "PA15-P-690",
@@ -660,7 +627,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-02",
     precinct_code: "PA15-P-693",
@@ -669,7 +636,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-02",
     precinct_code: "PA15-P-693",
@@ -678,7 +645,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-375",
@@ -687,7 +654,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-375",
@@ -696,7 +663,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-145",
@@ -705,7 +672,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-145",
@@ -714,7 +681,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-150",
@@ -723,7 +690,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-150",
@@ -732,7 +699,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-155",
@@ -741,7 +708,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-155",
@@ -750,7 +717,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-156",
@@ -759,7 +726,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-156",
@@ -768,7 +735,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-695",
@@ -777,7 +744,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-695",
@@ -786,7 +753,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-700",
@@ -795,7 +762,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-700",
@@ -804,7 +771,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-705",
@@ -813,7 +780,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-03",
     precinct_code: "PA15-P-705",
@@ -822,7 +789,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-160",
@@ -831,7 +798,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-160",
@@ -840,7 +807,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-160",
@@ -849,7 +816,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-160",
@@ -858,7 +825,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-165",
@@ -867,7 +834,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-165",
@@ -876,7 +843,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-680",
@@ -885,7 +852,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-680",
@@ -894,7 +861,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-681",
@@ -903,7 +870,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-681",
@@ -912,7 +879,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-682",
@@ -921,7 +888,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-682",
@@ -930,7 +897,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-683",
@@ -939,7 +906,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-683",
@@ -948,7 +915,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-170",
@@ -957,7 +924,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-170",
@@ -966,7 +933,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-560",
@@ -975,7 +942,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-560",
@@ -984,7 +951,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-565",
@@ -993,7 +960,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-565",
@@ -1002,7 +969,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-570",
@@ -1011,7 +978,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-570",
@@ -1020,7 +987,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-575",
@@ -1029,7 +996,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-04",
     precinct_code: "PA15-P-575",
@@ -1038,7 +1005,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-472",
@@ -1047,7 +1014,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-472",
@@ -1056,7 +1023,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-473",
@@ -1065,7 +1032,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-473",
@@ -1074,7 +1041,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-475",
@@ -1083,7 +1050,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-475",
@@ -1092,7 +1059,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-468",
@@ -1101,7 +1068,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-468",
@@ -1110,7 +1077,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-469",
@@ -1119,7 +1086,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-469",
@@ -1128,7 +1095,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-461",
@@ -1137,7 +1104,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-461",
@@ -1146,7 +1113,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-463",
@@ -1155,7 +1122,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-463",
@@ -1164,7 +1131,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-464",
@@ -1173,7 +1140,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-464",
@@ -1182,7 +1149,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-477",
@@ -1191,7 +1158,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-477",
@@ -1200,7 +1167,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-478",
@@ -1209,7 +1176,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-478",
@@ -1218,7 +1185,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-479",
@@ -1227,7 +1194,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-05",
     precinct_code: "PA15-P-479",
@@ -1236,7 +1203,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-",
@@ -1245,7 +1212,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-",
@@ -1254,7 +1221,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-065",
@@ -1263,7 +1230,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-065",
@@ -1272,7 +1239,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-515",
@@ -1281,7 +1248,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-515",
@@ -1290,7 +1257,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-520",
@@ -1299,7 +1266,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-520",
@@ -1308,7 +1275,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-521",
@@ -1317,7 +1284,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-521",
@@ -1326,7 +1293,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-550",
@@ -1335,7 +1302,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-550",
@@ -1344,7 +1311,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-555",
@@ -1353,7 +1320,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-555",
@@ -1362,7 +1329,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-556",
@@ -1371,7 +1338,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-556",
@@ -1380,7 +1347,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-558",
@@ -1389,7 +1356,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-06",
     precinct_code: "PA15-P-558",
@@ -1398,7 +1365,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-",
@@ -1407,7 +1374,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-",
@@ -1416,7 +1383,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-614",
@@ -1425,7 +1392,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-614",
@@ -1434,7 +1401,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-615",
@@ -1443,7 +1410,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-615",
@@ -1452,7 +1419,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-616",
@@ -1461,7 +1428,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-616",
@@ -1470,7 +1437,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-617",
@@ -1479,7 +1446,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-617",
@@ -1488,7 +1455,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-618",
@@ -1497,7 +1464,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-618",
@@ -1506,7 +1473,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-619",
@@ -1515,7 +1482,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-619",
@@ -1524,7 +1491,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-620",
@@ -1533,7 +1500,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-07",
     precinct_code: "PA15-P-620",
@@ -1542,7 +1509,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-195",
@@ -1551,7 +1518,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-195",
@@ -1560,7 +1527,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-198",
@@ -1569,7 +1536,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-198",
@@ -1578,7 +1545,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-201",
@@ -1587,7 +1554,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-201",
@@ -1596,7 +1563,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-204",
@@ -1605,7 +1572,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-204",
@@ -1614,7 +1581,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-207",
@@ -1623,7 +1590,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-207",
@@ -1632,7 +1599,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-210",
@@ -1641,7 +1608,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-210",
@@ -1650,7 +1617,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-213",
@@ -1659,7 +1626,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-08",
     precinct_code: "PA15-P-213",
@@ -1668,7 +1635,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-350",
@@ -1677,7 +1644,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-350",
@@ -1686,7 +1653,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-770",
@@ -1695,7 +1662,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-770",
@@ -1704,7 +1671,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-775",
@@ -1713,7 +1680,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-775",
@@ -1722,7 +1689,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-780",
@@ -1731,7 +1698,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-780",
@@ -1740,7 +1707,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-785",
@@ -1749,7 +1716,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-785",
@@ -1758,7 +1725,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-790",
@@ -1767,7 +1734,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-790",
@@ -1776,7 +1743,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-795",
@@ -1785,7 +1752,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-795",
@@ -1794,7 +1761,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-800",
@@ -1803,7 +1770,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-800",
@@ -1812,7 +1779,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-805",
@@ -1821,7 +1788,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-805",
@@ -1830,7 +1797,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-806",
@@ -1839,7 +1806,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-09",
     precinct_code: "PA15-P-806",
@@ -1848,7 +1815,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-10",
     precinct_code: "PA15-P-735",
@@ -1857,7 +1824,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-10",
     precinct_code: "PA15-P-735",
@@ -1866,7 +1833,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-10",
     precinct_code: "PA15-P-740",
@@ -1875,7 +1842,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-10",
     precinct_code: "PA15-P-740",
@@ -1884,7 +1851,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-10",
     precinct_code: "PA15-P-745",
@@ -1893,7 +1860,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-10",
     precinct_code: "PA15-P-745",
@@ -1902,7 +1869,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-10",
     precinct_code: "PA15-P-750",
@@ -1911,7 +1878,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-10",
     precinct_code: "PA15-P-750",
@@ -1920,7 +1887,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-10",
     precinct_code: "PA15-P-752",
@@ -1929,7 +1896,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-10",
     precinct_code: "PA15-P-752",
@@ -1938,7 +1905,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-10",
     precinct_code: "PA15-P-754",
@@ -1947,7 +1914,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-10",
     precinct_code: "PA15-P-754",
@@ -1956,7 +1923,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-810",
@@ -1965,7 +1932,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-810",
@@ -1974,7 +1941,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-820",
@@ -1983,7 +1950,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-820",
@@ -1992,7 +1959,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-825",
@@ -2001,7 +1968,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-825",
@@ -2010,7 +1977,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-835",
@@ -2019,7 +1986,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-835",
@@ -2028,7 +1995,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-842",
@@ -2037,7 +2004,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-842",
@@ -2046,7 +2013,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-846",
@@ -2055,7 +2022,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-846",
@@ -2064,7 +2031,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-850",
@@ -2073,7 +2040,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-850",
@@ -2082,7 +2049,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-860",
@@ -2091,7 +2058,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-11",
     precinct_code: "PA15-P-860",
@@ -2100,7 +2067,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-020",
@@ -2109,7 +2076,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-020",
@@ -2118,7 +2085,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-021",
@@ -2127,7 +2094,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-021",
@@ -2136,7 +2103,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-023",
@@ -2145,7 +2112,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-023",
@@ -2154,7 +2121,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-024",
@@ -2163,7 +2130,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-024",
@@ -2172,7 +2139,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-025",
@@ -2181,7 +2148,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-025",
@@ -2190,7 +2157,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-030",
@@ -2199,7 +2166,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-030",
@@ -2208,7 +2175,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-031",
@@ -2217,7 +2184,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-031",
@@ -2226,7 +2193,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-032",
@@ -2235,7 +2202,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-032",
@@ -2244,7 +2211,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-033",
@@ -2253,7 +2220,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-12",
     precinct_code: "PA15-P-033",
@@ -2262,7 +2229,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-035",
@@ -2271,7 +2238,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-035",
@@ -2280,7 +2247,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-036",
@@ -2289,7 +2256,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-036",
@@ -2298,7 +2265,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-038",
@@ -2307,7 +2274,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-038",
@@ -2316,7 +2283,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-055",
@@ -2325,7 +2292,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-055",
@@ -2334,7 +2301,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-056",
@@ -2343,7 +2310,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-056",
@@ -2352,7 +2319,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-175",
@@ -2361,7 +2328,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-175",
@@ -2370,7 +2337,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-180",
@@ -2379,7 +2346,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-180",
@@ -2388,7 +2355,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-185",
@@ -2397,7 +2364,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-185",
@@ -2406,7 +2373,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-190",
@@ -2415,7 +2382,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-13",
     precinct_code: "PA15-P-190",
@@ -2424,7 +2391,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-070",
@@ -2433,7 +2400,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-070",
@@ -2442,7 +2409,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-800",
@@ -2451,7 +2418,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-800",
@@ -2460,7 +2427,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-090",
@@ -2469,7 +2436,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-090",
@@ -2478,7 +2445,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-100",
@@ -2487,7 +2454,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-100",
@@ -2496,7 +2463,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-110",
@@ -2505,7 +2472,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-110",
@@ -2514,7 +2481,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-120",
@@ -2523,7 +2490,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-120",
@@ -2532,7 +2499,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-140",
@@ -2541,7 +2508,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-140",
@@ -2550,7 +2517,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-370",
@@ -2559,7 +2526,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-370",
@@ -2568,7 +2535,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-670",
@@ -2577,7 +2544,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-670",
@@ -2586,7 +2553,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-671",
@@ -2595,7 +2562,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-671",
@@ -2604,7 +2571,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-672",
@@ -2613,7 +2580,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-672",
@@ -2622,7 +2589,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-675",
@@ -2631,7 +2598,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-14",
     precinct_code: "PA15-P-675",
@@ -2640,7 +2607,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-005",
@@ -2649,7 +2616,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-005",
@@ -2658,7 +2625,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-225",
@@ -2667,7 +2634,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-225",
@@ -2676,7 +2643,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-230",
@@ -2685,7 +2652,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-230",
@@ -2694,7 +2661,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-290",
@@ -2703,7 +2670,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-290",
@@ -2712,7 +2679,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-440",
@@ -2721,7 +2688,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-440",
@@ -2730,7 +2697,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-445",
@@ -2739,7 +2706,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-445",
@@ -2748,7 +2715,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-535",
@@ -2757,7 +2724,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-535",
@@ -2766,7 +2733,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-540",
@@ -2775,7 +2742,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-540",
@@ -2784,7 +2751,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-545",
@@ -2793,7 +2760,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-545",
@@ -2802,7 +2769,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-235",
@@ -2811,7 +2778,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-15",
     precinct_code: "PA15-P-235",
@@ -2820,7 +2787,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-014",
@@ -2829,7 +2796,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-014",
@@ -2838,7 +2805,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-015",
@@ -2847,7 +2814,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-015",
@@ -2856,7 +2823,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-400",
@@ -2865,7 +2832,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-400",
@@ -2874,7 +2841,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-453",
@@ -2883,7 +2850,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-453",
@@ -2892,7 +2859,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-454",
@@ -2901,7 +2868,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-454",
@@ -2910,7 +2877,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-456",
@@ -2919,7 +2886,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-456",
@@ -2928,7 +2895,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-457",
@@ -2937,7 +2904,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-457",
@@ -2946,7 +2913,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-530",
@@ -2955,7 +2922,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-16",
     precinct_code: "PA15-P-530",
@@ -2964,7 +2931,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-305",
@@ -2973,7 +2940,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-305",
@@ -2982,7 +2949,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-310",
@@ -2991,7 +2958,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-310",
@@ -3000,7 +2967,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-315",
@@ -3009,7 +2976,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-315",
@@ -3018,7 +2985,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-320",
@@ -3027,7 +2994,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-320",
@@ -3036,7 +3003,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-325",
@@ -3045,7 +3012,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-325",
@@ -3054,7 +3021,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-328",
@@ -3063,7 +3030,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-328",
@@ -3072,7 +3039,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-329",
@@ -3081,7 +3048,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-329",
@@ -3090,7 +3057,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-385",
@@ -3099,7 +3066,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-385",
@@ -3108,7 +3075,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-390",
@@ -3117,7 +3084,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-390",
@@ -3126,7 +3093,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-391",
@@ -3135,7 +3102,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-17",
     precinct_code: "PA15-P-391",
@@ -3144,7 +3111,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-010",
@@ -3153,7 +3120,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-010",
@@ -3162,7 +3129,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-355",
@@ -3171,7 +3138,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-355",
@@ -3180,7 +3147,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-356",
@@ -3189,7 +3156,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-356",
@@ -3198,7 +3165,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-360",
@@ -3207,7 +3174,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-360",
@@ -3216,7 +3183,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-340",
@@ -3225,7 +3192,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-340",
@@ -3234,7 +3201,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-345",
@@ -3243,7 +3210,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-345",
@@ -3252,7 +3219,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-710",
@@ -3261,7 +3228,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-710",
@@ -3270,7 +3237,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-715",
@@ -3279,7 +3246,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-715",
@@ -3288,7 +3255,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-365",
@@ -3297,7 +3264,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-18",
     precinct_code: "PA15-P-365",
@@ -3306,7 +3273,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-405",
@@ -3315,7 +3282,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-405",
@@ -3324,7 +3291,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-406",
@@ -3333,7 +3300,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-406",
@@ -3342,7 +3309,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-215",
@@ -3351,7 +3318,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-215",
@@ -3360,7 +3327,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-425",
@@ -3369,7 +3336,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-425",
@@ -3378,7 +3345,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-430",
@@ -3387,7 +3354,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-430",
@@ -3396,7 +3363,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-415",
@@ -3405,7 +3372,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-415",
@@ -3414,7 +3381,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-420",
@@ -3423,7 +3390,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-420",
@@ -3432,7 +3399,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-435",
@@ -3441,7 +3408,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-435",
@@ -3450,7 +3417,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-410",
@@ -3459,7 +3426,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-19",
     precinct_code: "PA15-P-410",
@@ -3468,7 +3435,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-265",
@@ -3477,7 +3444,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-265",
@@ -3486,7 +3453,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-270",
@@ -3495,7 +3462,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-270",
@@ -3504,7 +3471,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-255",
@@ -3513,7 +3480,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-255",
@@ -3522,7 +3489,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-260",
@@ -3531,7 +3498,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-260",
@@ -3540,7 +3507,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-261",
@@ -3549,7 +3516,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-261",
@@ -3558,7 +3525,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-262",
@@ -3567,7 +3534,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-262",
@@ -3576,7 +3543,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-275",
@@ -3585,7 +3552,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-275",
@@ -3594,7 +3561,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-280",
@@ -3603,7 +3570,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-280",
@@ -3612,7 +3579,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-285",
@@ -3621,7 +3588,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-285",
@@ -3630,7 +3597,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-286",
@@ -3639,7 +3606,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-20",
     precinct_code: "PA15-P-286",
@@ -3648,7 +3615,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-243",
@@ -3657,7 +3624,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-243",
@@ -3666,7 +3633,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-244",
@@ -3675,7 +3642,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-244",
@@ -3684,7 +3651,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-245",
@@ -3693,7 +3660,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-245",
@@ -3702,7 +3669,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-246",
@@ -3711,7 +3678,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-246",
@@ -3720,7 +3687,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-247",
@@ -3729,7 +3696,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-247",
@@ -3738,7 +3705,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-248",
@@ -3747,7 +3714,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-248",
@@ -3756,7 +3723,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-249",
@@ -3765,7 +3732,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-249",
@@ -3774,7 +3741,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-250",
@@ -3783,7 +3750,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-250",
@@ -3792,7 +3759,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-251",
@@ -3801,7 +3768,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-21",
     precinct_code: "PA15-P-251",
@@ -3810,7 +3777,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-22",
     precinct_code: "PA15-P-585",
@@ -3819,7 +3786,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-22",
     precinct_code: "PA15-P-585",
@@ -3828,7 +3795,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-22",
     precinct_code: "PA15-P-590",
@@ -3837,7 +3804,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-22",
     precinct_code: "PA15-P-590",
@@ -3846,7 +3813,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-22",
     precinct_code: "PA15-P-595",
@@ -3855,7 +3822,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-22",
     precinct_code: "PA15-P-595",
@@ -3864,7 +3831,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-22",
     precinct_code: "PA15-P-600",
@@ -3873,7 +3840,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-22",
     precinct_code: "PA15-P-600",
@@ -3882,7 +3849,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-22",
     precinct_code: "PA15-P-605",
@@ -3891,7 +3858,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-22",
     precinct_code: "PA15-P-605",
@@ -3900,7 +3867,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-23",
     precinct_code: "PA15-P-630",
@@ -3909,7 +3876,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-23",
     precinct_code: "PA15-P-630",
@@ -3918,7 +3885,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-23",
     precinct_code: "PA15-P-635",
@@ -3927,7 +3894,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-23",
     precinct_code: "PA15-P-635",
@@ -3936,7 +3903,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-23",
     precinct_code: "PA15-P-640",
@@ -3945,7 +3912,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-23",
     precinct_code: "PA15-P-640",
@@ -3954,7 +3921,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-23",
     precinct_code: "PA15-P-645",
@@ -3963,7 +3930,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-23",
     precinct_code: "PA15-P-645",
@@ -3972,7 +3939,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-23",
     precinct_code: "PA15-P-647",
@@ -3981,7 +3948,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-23",
     precinct_code: "PA15-P-647",
@@ -3990,7 +3957,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-580",
@@ -3999,7 +3966,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-580",
@@ -4008,7 +3975,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-581",
@@ -4017,7 +3984,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-581",
@@ -4026,7 +3993,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-720",
@@ -4035,7 +4002,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-720",
@@ -4044,7 +4011,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-725",
@@ -4053,7 +4020,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-725",
@@ -4062,7 +4029,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-730",
@@ -4071,7 +4038,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-730",
@@ -4080,7 +4047,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-733",
@@ -4089,7 +4056,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-733",
@@ -4098,7 +4065,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-734",
@@ -4107,7 +4074,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-24",
     precinct_code: "PA15-P-734",
@@ -4116,7 +4083,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-653",
@@ -4125,7 +4092,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-653",
@@ -4134,7 +4101,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-654",
@@ -4143,7 +4110,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-654",
@@ -4152,7 +4119,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-655",
@@ -4161,7 +4128,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-655",
@@ -4170,7 +4137,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-656",
@@ -4179,7 +4146,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-656",
@@ -4188,7 +4155,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-657",
@@ -4197,7 +4164,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-657",
@@ -4206,7 +4173,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-658",
@@ -4215,7 +4182,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-658",
@@ -4224,7 +4191,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-659",
@@ -4233,7 +4200,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-659",
@@ -4242,7 +4209,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-660",
@@ -4251,7 +4218,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-660",
@@ -4260,7 +4227,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-661",
@@ -4269,7 +4236,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-25",
     precinct_code: "PA15-P-661",
@@ -4278,7 +4245,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-759",
@@ -4287,7 +4254,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-759",
@@ -4296,7 +4263,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-760",
@@ -4305,7 +4272,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-760",
@@ -4314,7 +4281,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-761",
@@ -4323,7 +4290,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-761",
@@ -4332,7 +4299,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-762",
@@ -4341,7 +4308,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-762",
@@ -4350,7 +4317,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-763",
@@ -4359,7 +4326,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-763",
@@ -4368,7 +4335,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-764",
@@ -4377,7 +4344,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-764",
@@ -4386,7 +4353,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-765",
@@ -4395,7 +4362,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-26",
     precinct_code: "PA15-P-765",
@@ -4404,7 +4371,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-045",
@@ -4413,7 +4380,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-045",
@@ -4422,7 +4389,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-050",
@@ -4431,7 +4398,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-050",
@@ -4440,7 +4407,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-053",
@@ -4449,7 +4416,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-053",
@@ -4458,7 +4425,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-054",
@@ -4467,7 +4434,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-054",
@@ -4476,7 +4443,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-040",
@@ -4485,7 +4452,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-040",
@@ -4494,7 +4461,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-041",
@@ -4503,7 +4470,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-041",
@@ -4512,7 +4479,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-040",
@@ -4521,7 +4488,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-040",
@@ -4530,7 +4497,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-041",
@@ -4539,7 +4506,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-041",
@@ -4548,7 +4515,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-043",
@@ -4557,7 +4524,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-27",
     precinct_code: "PA15-P-043",
@@ -4566,7 +4533,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-28",
     precinct_code: "PA15-P-240",
@@ -4575,7 +4542,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-28",
     precinct_code: "PA15-P-240",
@@ -4584,7 +4551,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-28",
     precinct_code: "PA15-P-330",
@@ -4593,7 +4560,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-28",
     precinct_code: "PA15-P-330",
@@ -4602,7 +4569,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-28",
     precinct_code: "PA15-P-335",
@@ -4611,7 +4578,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-28",
     precinct_code: "PA15-P-335",
@@ -4620,7 +4587,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-28",
     precinct_code: "PA15-P-395",
@@ -4629,7 +4596,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-28",
     precinct_code: "PA15-P-395",
@@ -4638,7 +4605,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-28",
     precinct_code: "PA15-P-450",
@@ -4647,7 +4614,7 @@ export const org_roles = [
   {
     uid: "",
     role: "committeeperson",
-    org_id: "PA15-O-01",
+    group_id: "PA15-G-01",
     county_code: "PA-C-15",
     area_district: "PA15-A-28",
     precinct_code: "PA15-P-450",
@@ -8189,7 +8156,7 @@ export const state_rep_districts = [
     id: "PA-SRD-DISTRICT-1",
     county_id: "PA-C-15",
     area_associations: ["PA15-A-01"],
-    org_id: "PA-ORG-STATE-GOP",
+    group_id: "PA-ORG-STATE-GOP",
     district_number: "distict_1",
     name: "Chester County State Republican Party - District 1",
     active: true,
@@ -8206,7 +8173,7 @@ export const state_rep_districts = [
       "PA15-A-27",
       "PA15-A-28",
     ],
-    org_id: "PA-ORG-STATE-GOP",
+    group_id: "PA-ORG-STATE-GOP",
     district_number: "distict_2",
     name: "Chester County State Republican Party - District 2",
     active: true,
@@ -8217,7 +8184,7 @@ export const state_rep_districts = [
     id: "PA-SRD-DISTRICT-3",
     county_id: "PA-C-15",
     area_associations: ["PA15-A-01"],
-    org_id: "PA-ORG-STATE-GOP",
+    group_id: "PA-ORG-STATE-GOP",
     district_number: "distict_3",
     name: "Chester County State Republican Party - District 3",
     active: true,
@@ -8228,7 +8195,7 @@ export const state_rep_districts = [
     id: "PA-SRD-DISTRICT-4",
     county_id: "PA-C-15",
     area_associations: ["PA15-A-01"],
-    org_id: "PA-ORG-STATE-GOP",
+    group_id: "PA-ORG-STATE-GOP",
     district_number: "distict_4",
     name: "Chester County State Republican Party - District 4",
     active: true,
@@ -8239,7 +8206,7 @@ export const state_rep_districts = [
     id: "PA-SRD-DISTRICT-5",
     county_id: "PA-C-15",
     area_associations: ["PA15-A-01"],
-    org_id: "PA-ORG-STATE-GOP",
+    group_id: "PA-ORG-STATE-GOP",
     district_number: "distict_5",
     name: "Chester County State Republican Party - District 5",
     active: true,
@@ -8250,7 +8217,7 @@ export const state_rep_districts = [
     id: "PA-SRD-DISTRICT-6",
     county_id: "PA-C-15",
     area_associations: ["PA15-A-01"],
-    org_id: "PA-ORG-STATE-GOP",
+    group_id: "PA-ORG-STATE-GOP",
     district_number: "distict_6",
     name: "Chester County State Republican Party - District 6",
     active: true,
@@ -8261,7 +8228,7 @@ export const state_rep_districts = [
     id: "PA-SRD-DISTRICT-6",
     county_id: "PA-C-15",
     area_associations: ["PA15-A-01"],
-    org_id: "PA-ORG-STATE-GOP",
+    group_id: "PA-ORG-STATE-GOP",
     district_number: "distict_7",
     name: "Chester County State Republican Party - District 7",
     active: true,

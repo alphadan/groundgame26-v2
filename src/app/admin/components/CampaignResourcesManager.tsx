@@ -22,17 +22,16 @@ import {
   DialogContent,
   MenuItem,
   Tooltip,
-  Chip,
+  Chip,  
 } from "@mui/material";
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import {
   CloudUpload as UploadIcon,
   Delete as DeleteIcon,
   OpenInNew as OpenIcon,
-  LocationOn as LocationIcon,
-  CheckCircle as CheckCircleIcon,
-  InfoOutlined as InfoIcon,
   Search as SearchIcon,
+  CheckCircle as CheckCircleIcon,
+  Info as InfoIcon,
 } from "@mui/icons-material";
 import confetti from "canvas-confetti";
 import {
@@ -45,8 +44,6 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
-
-// Helper from your lib/db.ts
 import { getPrecinctsByArea } from "../../../lib/db";
 
 export const CampaignResourcesManager: React.FC = () => {
@@ -72,6 +69,10 @@ export const CampaignResourcesManager: React.FC = () => {
     file: null as File | null,
   });
 
+  // Length trackers
+  const titleLength = newResource.title.length;
+  const descriptionLength = newResource.description.length;
+
   // --- Load Data ---
   const loadResources = useCallback(async () => {
     setLoading(true);
@@ -96,7 +97,6 @@ export const CampaignResourcesManager: React.FC = () => {
 
   useEffect(() => {
     loadResources();
-    // Assuming PA15-A-15 is the context; update this with actual user session data if available
     getPrecinctsByArea("PA15-A-15").then(setAvailablePrecincts);
   }, [loadResources]);
 
@@ -142,9 +142,18 @@ export const CampaignResourcesManager: React.FC = () => {
   const handleUpload = async () => {
     if (!newResource.file || !newResource.title.trim()) return;
 
+    // Extra validation for limits
+    if (newResource.title.length > 60) {
+      setError("Title cannot exceed 60 characters.");
+      return;
+    }
+    if (newResource.description.length > 120) {
+      setError("Description cannot exceed 120 characters.");
+      return;
+    }
+
     setIsUploading(true);
     try {
-      // 1. Get the URL
       const { uploadUrl } = await callFunction<{ uploadUrl: string }>(
         "adminGenerateResourceUploadUrl",
         {
@@ -153,7 +162,6 @@ export const CampaignResourcesManager: React.FC = () => {
         }
       );
 
-      // 2. The Binary Upload (XHR)
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", uploadUrl);
@@ -167,8 +175,6 @@ export const CampaignResourcesManager: React.FC = () => {
         xhr.send(newResource.file);
       });
 
-      // 3. Save to Firestore MANUALLY since we aren't using the Storage Trigger yet
-      // This ensures your codes (15, 235, etc) are saved correctly
       const downloadUrl = uploadUrl.split("?")[0] + "?alt=media";
 
       await addDoc(collection(firestore, "campaign_resources"), {
@@ -176,7 +182,6 @@ export const CampaignResourcesManager: React.FC = () => {
         description: newResource.description.trim(),
         category: newResource.category,
         scope: newResource.scope,
-        // Map your BigQuery codes here
         county_code: newResource.scope === "county" ? "15" : "",
         area_code: newResource.scope === "area" ? "15" : "",
         precinct_code:
@@ -199,9 +204,7 @@ export const CampaignResourcesManager: React.FC = () => {
       });
     } catch (err: any) {
       console.error("Upload Error:", err);
-      alert(
-        "Upload failed. Header mismatch resolved, but check console for details."
-      );
+      setError("Upload failed. Please check console for details.");
     } finally {
       setIsUploading(false);
     }
@@ -220,7 +223,7 @@ export const CampaignResourcesManager: React.FC = () => {
     }
   };
 
-  // --- DataGrid Columns ---
+  // --- DataGrid Columns (unchanged) ---
   const columns: GridColDef[] = [
     { field: "title", headerName: "Title", flex: 1, minWidth: 200 },
     { field: "category", headerName: "Category", width: 120 },
@@ -363,26 +366,73 @@ export const CampaignResourcesManager: React.FC = () => {
             </TextField>
           </Grid>
         )}
+
+        {/* Title with 60 char limit + counter */}
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             label="Title"
             fullWidth
             value={newResource.title}
             onChange={(e) =>
-              setNewResource((p) => ({ ...p, title: e.target.value }))
+              setNewResource((p) => ({
+                ...p,
+                title: e.target.value.slice(0, 60),
+              }))
+            }
+            inputProps={{ maxLength: 60 }}
+            error={titleLength > 50}
+            helperText={
+              <Box component="span">
+                {titleLength}/60 characters
+                {titleLength > 40 && titleLength <= 50 && (
+                  <Box component="span" sx={{ color: "warning.main", ml: 1 }}>
+                    ⚠️ May truncate on mobile
+                  </Box>
+                )}
+                {titleLength > 50 && (
+                  <Box component="span" sx={{ color: "error.main", ml: 1 }}>
+                    Too long!
+                  </Box>
+                )}
+              </Box>
             }
           />
         </Grid>
+
+        {/* Description with 120 char limit + counter */}
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             label="Description"
             fullWidth
+            multiline
+            rows={3}
             value={newResource.description}
             onChange={(e) =>
-              setNewResource((p) => ({ ...p, description: e.target.value }))
+              setNewResource((p) => ({
+                ...p,
+                description: e.target.value.slice(0, 120),
+              }))
+            }
+            inputProps={{ maxLength: 120 }}
+            error={descriptionLength > 100}
+            helperText={
+              <Box component="span">
+                {descriptionLength}/120 characters
+                {descriptionLength > 80 && descriptionLength <= 100 && (
+                  <Box component="span" sx={{ color: "warning.main", ml: 1 }}>
+                    Consider shortening
+                  </Box>
+                )}
+                {descriptionLength > 100 && (
+                  <Box component="span" sx={{ color: "error.main", ml: 1 }}>
+                    Too long!
+                  </Box>
+                )}
+              </Box>
             }
           />
         </Grid>
+
         <Grid size={{ xs: 12, md: 6 }}>
           <Button
             variant="outlined"
@@ -411,7 +461,9 @@ export const CampaignResourcesManager: React.FC = () => {
             variant="contained"
             fullWidth
             onClick={handleUpload}
-            disabled={isUploading || !newResource.file || !newResource.title}
+            disabled={
+              isUploading || !newResource.file || !newResource.title.trim()
+            }
             sx={{ height: 56, fontWeight: "bold" }}
           >
             {isUploading
@@ -431,6 +483,7 @@ export const CampaignResourcesManager: React.FC = () => {
 
       <Divider sx={{ my: 6 }} />
 
+      {/* Rest of your component (search + DataGrid + Delete Dialog) remains unchanged */}
       <Stack
         direction={{ xs: "column", sm: "row" }}
         justifyContent="space-between"

@@ -1,214 +1,139 @@
-// src/app/admin/components/AreaForm.tsx
-import React, { useState, useCallback } from "react";
-import { useCloudFunctions } from "../../../hooks/useCloudFunctions";
+import React, { useState, useEffect } from "react";
 import {
   Box,
-  Button,
   TextField,
-  Typography,
-  Grid,
+  Button,
   FormControlLabel,
   Switch,
+  Stack,
   Alert,
-  CircularProgress,
 } from "@mui/material";
+import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
 
-export const AreaForm: React.FC = () => {
-  const { callFunction } = useCloudFunctions();
+interface Area {
+  id: string;
+  name: string;
+  area_district: string;
+  county_id: string;
+  active: boolean;
+}
 
-  // Localized form state
-  const [form, setForm] = useState({
+interface AreaFormProps {
+  initialData?: Area | null;
+  onSuccess?: () => void;
+}
+
+export const AreaForm: React.FC<AreaFormProps> = ({
+  initialData,
+  onSuccess,
+}) => {
+  const { create, update, loading, error } = useAdminCRUD<Area>({
+    collectionName: "areas",
+  });
+
+  const [formData, setFormData] = useState<Partial<Area>>({
     id: "",
     name: "",
     area_district: "",
-    org_id: "",
-    chair_uid: "",
-    chair_email: "",
-    vice_chair_uid: "",
+    county_id: "15", // Default for Chester County
     active: true,
   });
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<{
-    success: boolean;
-    message: string;
-  } | null>(null);
+  // Sync form state if initialData changes (when clicking Edit)
+  useEffect(() => {
+    if (initialData) {
+      setFormData(initialData);
+    } else {
+      setFormData({
+        id: "",
+        name: "",
+        area_district: "",
+        county_id: "15",
+        active: true,
+      });
+    }
+  }, [initialData]);
 
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-
-      // Basic Validation
-      if (!form.id || !form.name || !form.area_district) {
-        setResult({
-          success: false,
-          message: "ID, Name, and District are required",
-        });
-        return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (initialData?.id) {
+        // Mode: EDIT
+        await update(initialData.id, formData);
+      } else {
+        // Mode: CREATE
+        // Note: we pass id inside the object because Areas often use custom IDs (like 'AREA-01')
+        await create(formData as Area);
       }
 
-      setIsSubmitting(true);
-      setResult(null);
-
-      try {
-        await callFunction("adminCreateArea", {
-          ...form,
-          // Ensure ID and emails are trimmed
-          id: form.id.trim(),
-          chair_email: form.chair_email.trim() || null,
-        });
-
-        setResult({
-          success: true,
-          message: `Successfully created Area: ${form.id}`,
-        });
-
-        // Reset form
-        setForm({
-          id: "",
-          name: "",
-          area_district: "",
-          org_id: "",
-          chair_uid: "",
-          chair_email: "",
-          vice_chair_uid: "",
-          active: true,
-        });
-      } catch (err: any) {
-        setResult({
-          success: false,
-          message: err.message || "Failed to create area",
-        });
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [form, callFunction]
-  );
+      if (onSuccess) onSuccess();
+    } catch (err) {
+      console.error("Submission failed:", err);
+    }
+  };
 
   return (
-    <Box component="form" onSubmit={handleSubmit}>
-      <Typography variant="h6" fontWeight="bold" gutterBottom>
-        Create Individual Area
-      </Typography>
-
-      <Grid container spacing={3} sx={{ mt: 1 }}>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            label="Document ID *"
-            fullWidth
-            value={form.id}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, id: e.target.value }))
-            }
-            required
-            disabled={isSubmitting}
-            helperText="e.g. PA15-A-14"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            label="Name *"
-            fullWidth
-            value={form.name}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, name: e.target.value }))
-            }
-            required
-            disabled={isSubmitting}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            label="Area District *"
-            fullWidth
-            value={form.area_district}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, area_district: e.target.value }))
-            }
-            required
-            disabled={isSubmitting}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            label="Org ID"
-            fullWidth
-            value={form.org_id}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, org_id: e.target.value }))
-            }
-            disabled={isSubmitting}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            label="Chair UID"
-            fullWidth
-            value={form.chair_uid}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, chair_uid: e.target.value }))
-            }
-            disabled={isSubmitting}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            label="Chair Email"
-            type="email"
-            fullWidth
-            value={form.chair_email}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, chair_email: e.target.value }))
-            }
-            disabled={isSubmitting}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            label="Vice Chair UID"
-            fullWidth
-            value={form.vice_chair_uid}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, vice_chair_uid: e.target.value }))
-            }
-            disabled={isSubmitting}
-          />
-        </Grid>
-        <Grid size={{ xs: 12 }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={form.active}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, active: e.target.checked }))
-                }
-                disabled={isSubmitting}
-              />
-            }
-            label="Active"
-          />
-        </Grid>
-      </Grid>
-
-      <Button
-        type="submit"
-        variant="contained"
-        size="large"
-        sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
-        disabled={isSubmitting}
-        startIcon={
-          isSubmitting ? <CircularProgress size={20} color="inherit" /> : null
-        }
-      >
-        {isSubmitting ? "Creating..." : "Create Area"}
-      </Button>
-
-      {result && (
-        <Alert severity={result.success ? "success" : "error"} sx={{ mt: 3 }}>
-          {result.message}
+    <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
         </Alert>
       )}
+
+      <Stack spacing={3}>
+        <TextField
+          label="Area ID (unique)"
+          fullWidth
+          required
+          disabled={!!initialData} // IDs are usually immutable once created
+          value={formData.id}
+          onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+          placeholder="e.g. area_1"
+        />
+
+        <TextField
+          label="Display Name"
+          fullWidth
+          required
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          placeholder="e.g. West Chester North"
+        />
+
+        <TextField
+          label="Area District"
+          fullWidth
+          required
+          value={formData.area_district}
+          onChange={(e) =>
+            setFormData({ ...formData, area_district: e.target.value })
+          }
+          placeholder="e.g. District 5"
+        />
+
+        <FormControlLabel
+          control={
+            <Switch
+              checked={formData.active}
+              onChange={(e) =>
+                setFormData({ ...formData, active: e.target.checked })
+              }
+            />
+          }
+          label="Active Status"
+        />
+
+        <Button
+          type="submit"
+          variant="contained"
+          fullWidth
+          size="large"
+          loading={loading}
+          disabled={loading}
+        >
+          {initialData ? "Update Area" : "Create Area"}
+        </Button>
+      </Stack>
     </Box>
   );
 };

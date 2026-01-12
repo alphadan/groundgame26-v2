@@ -22,6 +22,7 @@ export interface Group extends Omit<BaseMetadata, "id"> {
   category?: string; // Change to optional if not in all constants
   hq_phone?: string | null;
   website?: string | null;
+  active: boolean;
   // Add these back if they exist in your constants but aren't in the type
   social_facebook?: string | null;
   social_x?: string | null;
@@ -37,7 +38,6 @@ export interface County extends Omit<BaseMetadata, "id"> {
 
 export interface Area extends Omit<BaseMetadata, "id"> {
   id: string;
-  org_id: string;
   county_id: string;
   area_district: string;
   name: string;
@@ -84,7 +84,7 @@ export interface UserPermissions {
 
 export interface CustomClaims {
   role: UserRole;
-  org_id: string | null;
+  group_id: string | null;
   counties: string[];
   areas: string[];
   precincts: string[];
@@ -102,13 +102,14 @@ export interface UserProfile {
   phone: string | null;
   photo_url: string | null;
   role: UserRole;
-  org_id: string | null;
+  group_id: string | null;
   permissions: UserPermissions;
   access: {
     counties: string[];
     areas: string[];
     precincts: string[];
   };
+  active: boolean;
   last_claims_sync?: any; // Firestore Timestamp
 }
 
@@ -118,7 +119,7 @@ export interface OrgRole extends Omit<BaseMetadata, "id"> {
   id: string;
   uid: string | null;
   role: UserRole;
-  org_id: string;
+  group_id: string;
   county_id: string;
   area_id?: string | null; // Replaces area_district
   precinct_id?: string | null; // Replaces precinct_code

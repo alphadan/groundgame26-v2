@@ -1,11 +1,11 @@
 // src/app/admin/notifications/NotificationsManagement.tsx
 import React, { useEffect, useState } from "react";
-import { useAuth } from "../../../context/AuthContext"; // adjust path
+import { useAuth } from "../../../context/AuthContext";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db as indexedDb } from "../../../lib/db"; // adjust path
-import { UserPermissions } from "../../../types"; // adjust path
+import { db as indexedDb } from "../../../lib/db";
+import { UserPermissions } from "../../../types";
 
-// Navigation & UI imports
+// Navigation & UI
 import { useNavigate } from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -35,15 +35,14 @@ import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 
-// Mock Cloud Function call (replace with real HTTPS callable later)
+// Mock send (replace with real Cloud Function call later)
 const sendNotification = async (payload: any) => {
   console.log("Sending notification:", payload);
-  // TODO: Call Cloud Function
   return { success: true, message: "Notification queued!" };
 };
 
 export default function NotificationsManagement() {
-  const { user, isLoaded: authLoaded } = useAuth();
+  const { user, claims, isLoaded: authLoaded } = useAuth();
   const navigate = useNavigate();
 
   const localUser = useLiveQuery(async () => {
@@ -53,9 +52,48 @@ export default function NotificationsManagement() {
 
   const permissions: UserPermissions = (localUser?.permissions ||
     {}) as UserPermissions;
-  const canBroadcast = !!permissions.can_manage_resources; // Adjust to your broadcast-specific permission
+  const canBroadcast = !!permissions.can_manage_resources; // Adjust if you have a specific broadcast perm
 
   const hasAccess = canBroadcast;
+
+  // Get sender's role from claims (e.g. custom claim 'role')
+  const senderRole = claims?.role as string | undefined; // e.g. 'county_chair', 'area_chair', etc.
+
+  // === Role-based Audience Filtering ===
+  const fullAudienceOptions = [
+    { value: "all_users", label: "All Users" },
+    { value: "state_rep_admins", label: "State Rep Admins" },
+    { value: "area_chairs", label: "Area Chairs" },
+    { value: "committeepersons", label: "Committeepersons" },
+    { value: "candidates", label: "Candidates" },
+    { value: "ambassadors", label: "Ambassadors" },
+  ];
+
+  // Filter options based on sender role
+  const getAllowedAudiences = () => {
+    if (senderRole === "county_chair") {
+      return fullAudienceOptions; // Full access
+    }
+    if (senderRole === "state_rep_admin") {
+      return fullAudienceOptions.filter((opt) =>
+        [
+          "area_chairs",
+          "committeepersons",
+          "candidates",
+          "ambassadors",
+        ].includes(opt.value)
+      );
+    }
+    if (senderRole === "area_chair") {
+      return fullAudienceOptions.filter((opt) =>
+        ["committeepersons", "candidates", "ambassadors"].includes(opt.value)
+      );
+    }
+    // Fallback: no options (shouldn't reach here due to hasAccess)
+    return [];
+  };
+
+  const allowedAudiences = getAllowedAudiences();
 
   // Form state
   const [title, setTitle] = useState("");
@@ -68,15 +106,13 @@ export default function NotificationsManagement() {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Available audiences (based on your roles)
-  const availableAudiences = [
-    "all_users",
-    "state_rep_admins",
-    "area_chairs",
-    "committeepersons",
-    "candidates",
-    "ambassadors",
-  ];
+  // Length calculations
+  const titleLength = title.length;
+  const bodyLength = body.length;
+  const bodyWords = body.split(/\s+/).filter(Boolean).length;
+
+  const isTitleTooLong = titleLength > 60;
+  const isBodyTooLong = bodyLength > 200 || bodyWords > 100;
 
   // Prevent cursor blinking
   useEffect(() => {
@@ -113,17 +149,19 @@ export default function NotificationsManagement() {
     );
   }
 
-  const bodyLength = body.length;
-  const isBodyTooLong = bodyLength > 200;
-
   const handleSubmit = async () => {
     if (!title.trim() || !body.trim() || audience.length === 0) {
       setError("Please fill in all required fields");
       return;
     }
 
-    if (isBodyTooLong) {
-      setError("Message body is too long (max 200 characters)");
+    if (isTitleTooLong) {
+      setError("Title must be 60 characters or less");
+      return;
+    }
+
+    if (bodyWords > 100) {
+      setError("Body must be 100 words or fewer");
       return;
     }
 
@@ -179,7 +217,7 @@ export default function NotificationsManagement() {
             Manage Notifications
           </Typography>
           <Typography variant="h6" color="text.secondary">
-            Send targeted push notifications to users
+            Send targeted push notifications ({senderRole || "Unknown role"})
           </Typography>
         </Box>
       </Box>
@@ -199,20 +237,36 @@ export default function NotificationsManagement() {
         )}
 
         <Grid container spacing={3}>
-          {/* Title */}
+          {/* Title with strict limit */}
           <Grid size={{ xs: 12 }}>
             <TextField
               label="Notification Title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => setTitle(e.target.value.slice(0, 60))} // Enforce limit
               fullWidth
               required
               variant="outlined"
-              helperText="Keep it short and attention-grabbing (e.g., 'New Milestone Challenge!')"
+              inputProps={{ maxLength: 60 }}
+              error={isTitleTooLong}
+              helperText={
+                <Box component="span">
+                  {titleLength}/60 characters
+                  {isTitleTooLong && (
+                    <Box component="span" sx={{ color: "error.main", ml: 1 }}>
+                      Too long!
+                    </Box>
+                  )}
+                  {titleLength > 40 && titleLength <= 60 && (
+                    <Box component="span" sx={{ color: "warning.main", ml: 1 }}>
+                      May truncate on some devices
+                    </Box>
+                  )}
+                </Box>
+              }
             />
           </Grid>
 
-          {/* Body */}
+          {/* Body with word & char limits */}
           <Grid size={{ xs: 12 }}>
             <TextField
               label="Message Body"
@@ -221,13 +275,25 @@ export default function NotificationsManagement() {
               fullWidth
               required
               multiline
-              rows={4}
+              rows={5}
               variant="outlined"
-              error={isBodyTooLong}
+              error={bodyLength > 200 || bodyWords > 100}
               helperText={
-                isBodyTooLong
-                  ? `Too long (${bodyLength}/200 characters)`
-                  : `${bodyLength}/200 characters recommended`
+                <Box component="span">
+                  {bodyLength}/200 characters • {bodyWords} words
+                  <br />
+                  Target: 40-60 words for best engagement
+                  {(bodyWords > 60 || bodyLength > 150) && (
+                    <Box component="span" sx={{ color: "warning.main", ml: 1 }}>
+                      Consider shortening
+                    </Box>
+                  )}
+                  {(bodyWords > 100 || bodyLength > 200) && (
+                    <Box component="span" sx={{ color: "error.main", ml: 1 }}>
+                      Exceeds limits!
+                    </Box>
+                  )}
+                </Box>
               }
             />
             <Typography
@@ -235,12 +301,12 @@ export default function NotificationsManagement() {
               color="text.secondary"
               sx={{ mt: 1, display: "block" }}
             >
-              Best practices: Keep under 100 words • Use emojis sparingly •
-              Include clear CTA (e.g., "View Now")
+              Best practices: Clear CTA • Emojis sparingly • Personalize when
+              possible
             </Typography>
           </Grid>
 
-          {/* Audience */}
+          {/* Audience – role-filtered */}
           <Grid size={{ xs: 12, sm: 6 }}>
             <FormControl fullWidth required>
               <InputLabel>Audience</InputLabel>
@@ -254,22 +320,30 @@ export default function NotificationsManagement() {
                       : e.target.value
                   )
                 }
-                renderValue={(selected) => selected.join(", ")}
+                renderValue={(selected) =>
+                  selected
+                    .map(
+                      (v) =>
+                        fullAudienceOptions.find((o) => o.value === v)?.label
+                    )
+                    .join(", ")
+                }
               >
-                {availableAudiences.map((role) => (
-                  <MenuItem key={role} value={role}>
-                    <Checkbox checked={audience.includes(role)} />
-                    <ListItemText primary={role.replace(/_/g, " ")} />
+                {allowedAudiences.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    <Checkbox checked={audience.includes(opt.value)} />
+                    <ListItemText primary={opt.label} />
                   </MenuItem>
                 ))}
               </Select>
               <FormHelperText>
-                Select who will receive this notification
+                Available options limited by your role (
+                {senderRole || "loading..."})
               </FormHelperText>
             </FormControl>
           </Grid>
 
-          {/* Custom Group (stub - expand later) */}
+          {/* Custom Group (stub) */}
           <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               label="Custom Broadcast Group (optional)"
@@ -277,8 +351,8 @@ export default function NotificationsManagement() {
               onChange={(e) => setCustomGroup(e.target.value)}
               fullWidth
               variant="outlined"
-              helperText="Select or create a saved group (coming soon)"
-              disabled // Enable when you add group management
+              helperText="Saved groups coming soon"
+              disabled
             />
           </Grid>
 
@@ -300,16 +374,20 @@ export default function NotificationsManagement() {
                   label="Schedule for"
                   value={schedule}
                   onChange={(newValue) => setSchedule(newValue)}
-                  renderInput={(params) => (
-                    <TextField {...params} fullWidth sx={{ mt: 2 }} />
-                  )}
                   minDateTime={new Date()}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      sx: { mt: 2 },
+                      helperText: "Select date & time for scheduled send",
+                    },
+                  }}
                 />
               </LocalizationProvider>
             )}
           </Grid>
 
-          {/* Preview (simple text mockup) */}
+          {/* Preview */}
           <Grid size={{ xs: 12 }}>
             <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
               Preview
@@ -338,7 +416,10 @@ export default function NotificationsManagement() {
                 loading ||
                 !title.trim() ||
                 !body.trim() ||
-                audience.length === 0
+                audience.length === 0 ||
+                isTitleTooLong ||
+                bodyWords > 100 ||
+                bodyLength > 200
               }
               fullWidth
             >
@@ -359,16 +440,13 @@ export default function NotificationsManagement() {
         </Typography>
         <Box component="ul" sx={{ pl: 3, mt: 1 }}>
           <Typography component="li" variant="body1">
-            Full notification history & analytics
+            Notification history & delivery analytics
           </Typography>
           <Typography component="li" variant="body1">
-            Saved templates
+            Saved templates & custom groups
           </Typography>
           <Typography component="li" variant="body1">
-            Custom audience groups
-          </Typography>
-          <Typography component="li" variant="body1">
-            Milestone-triggered automation
+            Milestone-triggered auto-notifications
           </Typography>
         </Box>
       </Box>
