@@ -22,18 +22,10 @@ import {
 import { Comment } from "@mui/icons-material";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../lib/firebase";
-import { VoterNotesProps } from "../types";
+import { VoterNotesProps, VoterNote } from "../types";
 
 const getVoterNotes = httpsCallable(functions, "getVoterNotes");
 const addVoterNote = httpsCallable(functions, "addVoterNote");
-
-interface VoterNote {
-  id: string;
-  voter_id: string;
-  note: string;
-  created_by_name?: string;
-  created_at: any;
-}
 
 export const VoterNotes: React.FC<VoterNotesProps> = ({
   voterId,

@@ -95,12 +95,12 @@ export const ImportAreasForm: React.FC = () => {
         Bulk Import Areas
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Upload a JSON file or paste an array of area objects. Required fields:
+        Upload a JSON file or paste an array of area objects. Enclose in array [ ].<br />Required fields:
         <br />• <code>id</code> (unique, e.g. PA15-A-14)
         <br />• <code>name</code> (e.g. "Area 14")
         <br />• <code>area_district</code> (e.g. "14")
         <br />• <code>county_id</code> (e.g. "PA-C-15")
-        <br />• <code>active</code> (boolean, optional – defaults to true)
+        <br />• <code>active</code> (boolean, optional - defaults to true)
       </Typography>
 
       <Stack spacing={3}>

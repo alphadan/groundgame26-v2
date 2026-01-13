@@ -1,5 +1,5 @@
 // src/app/admin/components/CreatePrecinctForm.tsx
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useCloudFunctions } from "../../../hooks/useCloudFunctions";
 import {
   Box,
@@ -13,10 +13,17 @@ import {
   CircularProgress,
 } from "@mui/material";
 
-export const CreatePrecinctForm: React.FC = () => {
+interface PrecinctFormProps {
+  initialData?: any | null;
+  onSuccess?: () => void;
+}
+
+export const CreatePrecinctForm: React.FC<PrecinctFormProps> = ({
+  initialData,
+  onSuccess,
+}) => {
   const { callFunction } = useCloudFunctions();
 
-  // Localized form state
   const [form, setForm] = useState({
     id: "",
     name: "",
@@ -37,11 +44,30 @@ export const CreatePrecinctForm: React.FC = () => {
     message: string;
   } | null>(null);
 
+  // Sync initialData for Editing
+  useEffect(() => {
+    if (initialData) {
+      setForm({ ...initialData });
+    } else {
+      setForm({
+        id: "",
+        name: "",
+        precinct_code: "",
+        area_district: "",
+        county_code: "",
+        congressional_district: "",
+        senate_district: "",
+        house_district: "",
+        county_district: "",
+        party_rep_district: "",
+        active: true,
+      });
+    }
+  }, [initialData]);
+
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-
-      // Basic Validation
       if (!form.id || !form.name || !form.precinct_code) {
         setResult({
           success: false,
@@ -54,6 +80,7 @@ export const CreatePrecinctForm: React.FC = () => {
       setResult(null);
 
       try {
+        // In your backend, adminCreatePrecinct uses .set(), acting as an upsert (Edit/Create)
         await callFunction("adminCreatePrecinct", {
           ...form,
           id: form.id.trim(),
@@ -61,54 +88,40 @@ export const CreatePrecinctForm: React.FC = () => {
 
         setResult({
           success: true,
-          message: `Successfully created Precinct: ${form.id}`,
+          message: `Successfully ${
+            initialData ? "updated" : "created"
+          } Precinct: ${form.id}`,
         });
 
-        // Reset form
-        setForm({
-          id: "",
-          name: "",
-          precinct_code: "",
-          area_district: "",
-          county_code: "",
-          congressional_district: "",
-          senate_district: "",
-          house_district: "",
-          county_district: "",
-          party_rep_district: "",
-          active: true,
-        });
+        if (onSuccess) {
+          setTimeout(() => onSuccess(), 1500);
+        }
       } catch (err: any) {
         setResult({
           success: false,
-          message: err.message || "Failed to create precinct",
+          message: err.message || "Failed to process precinct",
         });
       } finally {
         setIsSubmitting(false);
       }
     },
-    [form, callFunction]
+    [form, callFunction, initialData, onSuccess]
   );
 
   return (
     <Box component="form" onSubmit={handleSubmit}>
-      <Typography variant="h6" fontWeight="bold" gutterBottom>
-        Create Individual Precinct
-      </Typography>
-
-      <Grid container spacing={3} sx={{ mt: 1 }}>
-        {/* Core Identity */}
+      <Grid container spacing={2} sx={{ mt: 1 }}>
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             label="Document ID *"
             fullWidth
             required
+            disabled={isSubmitting || !!initialData}
             value={form.id}
             onChange={(e) =>
               setForm((prev) => ({ ...prev, id: e.target.value }))
             }
             helperText="e.g. PA15-P-005"
-            disabled={isSubmitting}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -121,9 +134,10 @@ export const CreatePrecinctForm: React.FC = () => {
               setForm((prev) => ({ ...prev, name: e.target.value }))
             }
             disabled={isSubmitting}
+            helperText="Use official name e.g. Atglen"
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <TextField
             label="Precinct Code *"
             fullWidth
@@ -133,9 +147,10 @@ export const CreatePrecinctForm: React.FC = () => {
               setForm((prev) => ({ ...prev, precinct_code: e.target.value }))
             }
             disabled={isSubmitting}
+            helperText="Use official code e.g. 005"
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <TextField
             label="Area District"
             fullWidth
@@ -144,9 +159,10 @@ export const CreatePrecinctForm: React.FC = () => {
               setForm((prev) => ({ ...prev, area_district: e.target.value }))
             }
             disabled={isSubmitting}
+            helperText="Use two digit number e.g. 01"
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <TextField
             label="County Code"
             fullWidth
@@ -155,55 +171,58 @@ export const CreatePrecinctForm: React.FC = () => {
               setForm((prev) => ({ ...prev, county_code: e.target.value }))
             }
             disabled={isSubmitting}
+            helperText="Use two digit number e.g. 15"
           />
         </Grid>
 
-        {/* Legislative Districts */}
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 12 }}>
+          <Typography variant="caption" color="text.secondary">
+            Legislative Districts
+          </Typography>
+        </Grid>
+
+        <Grid size={{ xs: 6, md: 4 }}>
           <TextField
             label="Congressional"
             fullWidth
             value={form.congressional_district}
             onChange={(e) =>
-              setForm((prev) => ({
-                ...prev,
-                congressional_district: e.target.value,
-              }))
+              setForm((p) => ({ ...p, congressional_district: e.target.value }))
             }
-            disabled={isSubmitting}
+            helperText="Use official state number e.g. 6"
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <TextField
-            label="State Senate"
+            label="Senate"
             fullWidth
             value={form.senate_district}
             onChange={(e) =>
-              setForm((prev) => ({ ...prev, senate_district: e.target.value }))
+              setForm((p) => ({ ...p, senate_district: e.target.value }))
             }
-            disabled={isSubmitting}
+            helperText="Use official state number e.g.44"
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <TextField
-            label="State House"
+            label="House"
             fullWidth
             value={form.house_district}
             onChange={(e) =>
-              setForm((prev) => ({ ...prev, house_district: e.target.value }))
+              setForm((p) => ({ ...p, house_district: e.target.value }))
             }
-            disabled={isSubmitting}
+            helperText="Use official state number e.g. 74"
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 3 }}>
+        <Grid size={{ xs: 6, md: 4 }}>
           <TextField
-            label="County District"
+            label="County"
             fullWidth
             value={form.county_district}
             onChange={(e) =>
-              setForm((prev) => ({ ...prev, county_district: e.target.value }))
+              setForm((p) => ({ ...p, county_district: e.target.value }))
             }
-            disabled={isSubmitting}
+            helperText="Use official state number e.g. 15"
           />
         </Grid>
 
@@ -213,9 +232,8 @@ export const CreatePrecinctForm: React.FC = () => {
               <Switch
                 checked={form.active}
                 onChange={(e) =>
-                  setForm((prev) => ({ ...prev, active: e.target.checked }))
+                  setForm((p) => ({ ...p, active: e.target.checked }))
                 }
-                disabled={isSubmitting}
               />
             }
             label="Active"
@@ -226,18 +244,21 @@ export const CreatePrecinctForm: React.FC = () => {
       <Button
         type="submit"
         variant="contained"
-        size="large"
-        sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
+        fullWidth
+        sx={{ mt: 3, fontWeight: "bold" }}
         disabled={isSubmitting}
-        startIcon={
-          isSubmitting ? <CircularProgress size={20} color="inherit" /> : null
-        }
       >
-        {isSubmitting ? "Creating..." : "Create Precinct"}
+        {isSubmitting ? (
+          <CircularProgress size={24} />
+        ) : initialData ? (
+          "Update Precinct"
+        ) : (
+          "Create Precinct"
+        )}
       </Button>
 
       {result && (
-        <Alert severity={result.success ? "success" : "error"} sx={{ mt: 3 }}>
+        <Alert severity={result.success ? "success" : "error"} sx={{ mt: 2 }}>
           {result.message}
         </Alert>
       )}

@@ -34,15 +34,7 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
-
-interface Area {
-  id: string;
-  name: string;
-  area_district: string;
-  county_id: string;
-  active: boolean;
-  created_at: any;
-}
+import { Area } from "../../../types";
 
 export default function AreasManagement() {
   const { user, isLoaded: authLoaded } = useAuth();

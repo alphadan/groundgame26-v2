@@ -36,6 +36,9 @@ import GroupsManagement from "./app/admin/groups/GroupsManagement";
 import RewardsManagement from "./app/admin/rewards/RewardsManagement"; // ← your new one (can start as stub)
 import NotificationsManagement from "./app/admin/notifications/NotificationsManagement";
 import AnalyticsManagement from "./app/admin/analytics/AnalyticsManagement";
+import GoalsManagement from "./app/admin/goals/GoalsManagement";
+import RolesManagement from "./app/admin/roles/RolesManagement";
+import DncManagement from "./app/admin/dnc/DncManagement";
 
 // You can keep the old page temporarily during transition
 // import FirebaseManagementPage from "./app/admin/FirebaseManagementPage";
@@ -280,6 +283,32 @@ export default function App() {
             ) : (
               <Navigate to="/dashboard" replace />
             )
+          }
+        />
+        <Route
+          path="/admin/goals"
+          element={
+            hasAdminAccess ? (
+              <GoalsManagement />
+            ) : (
+              <Navigate to="/dashboard" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/roles"
+          element={
+            hasAdminAccess ? (
+              <RolesManagement />
+            ) : (
+              <Navigate to="/roles" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/dnc"
+          element={
+            hasAdminAccess ? <DncManagement /> : <Navigate to="/dns" replace />
           }
         />
 

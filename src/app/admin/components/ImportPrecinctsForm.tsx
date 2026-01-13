@@ -72,12 +72,25 @@ export const ImportPrecinctsForm: React.FC = () => {
   return (
     <Box>
       <Typography variant="h6" fontWeight="bold" gutterBottom>
-        Bulk Import Precincts
+        Import Precincts
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Upload a JSON file or paste an array of precinct objects. Required
-        fields: <code>id</code>, <code>name</code>, <code>precinct_code</code>,
-        and <code>area_district</code>.
+        Upload a JSON file or paste an array of precinct objects. Enclose in
+        array [ ].
+        <br />
+        Required fields:
+        <br />• <code>area_district</code> (string, e.g. "18")
+        <br />• <code>area_id</code> (string, e.g. "PA15-A-18")
+        <br />• <code>congressional_district</code> (string, e.g. "6")
+        <br />• <code>county_code</code> (string, e.g. "15")
+        <br />• <code>county_district</code> (string, e.g. "15")
+        <br />• <code>county_id</code> (string, e.g. "PA-C-15")
+        <br />• <code>house_district</code> (string, e.g. "13")
+        <br />• <code>name</code> (string, e.g. "West Grove 2")
+        <br />• <code>party_rep_district</code> (string, e.g. "district_2")
+        <br />• <code>precinct_code</code> (string, e.g. "715")
+        <br />• <code>senate_district</code> (string, e.g. "9")
+        <br />• <code>active</code> (boolean, optional - defaults to true)
       </Typography>
 
       <Stack spacing={3}>

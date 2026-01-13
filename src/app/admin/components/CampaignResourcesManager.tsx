@@ -22,7 +22,7 @@ import {
   DialogContent,
   MenuItem,
   Tooltip,
-  Chip,  
+  Chip,
 } from "@mui/material";
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import {
@@ -189,7 +189,7 @@ export const CampaignResourcesManager: React.FC = () => {
             ? newResource.geoId.split("-").pop()
             : "",
         url: downloadUrl,
-        created_at: serverTimestamp(),
+        created_at: Date.now(),
       });
 
       confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });

@@ -171,7 +171,7 @@ export default function VoterListPage() {
         created_by_uid: user.uid,
         created_by_name:
           user.displayName || user.email?.split("@")[0] || "User",
-        created_at: new Date(),
+        created_at: Date.now(),
       });
 
       setSnackbarMessage("Note saved successfully");

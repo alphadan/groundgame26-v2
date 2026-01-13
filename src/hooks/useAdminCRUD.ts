@@ -1,3 +1,4 @@
+// src/hooks/useAdminCRUD.ts
 import { useState, useEffect, useCallback } from "react";
 import {
   collection,
@@ -9,7 +10,6 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  serverTimestamp,
   DocumentData,
   QueryConstraint,
   OrderByDirection,
@@ -18,38 +18,39 @@ import {
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 
-interface UseAdminCRUDOptions {
+export function useAdminCRUD<T extends DocumentData>(options: {
   collectionName: string;
   defaultOrderBy?: string;
   orderDirection?: OrderByDirection;
-}
-
-/**
- * A production-ready CRUD hook for Firestore Admin activities.
- * Standardizes 'id' field for MUI DataGrid compatibility.
- */
-export function useAdminCRUD<T extends DocumentData>(
-  options: UseAdminCRUDOptions
-) {
+}) {
   const {
     collectionName,
-    defaultOrderBy = "created_at",
-    orderDirection = "asc",
+    defaultOrderBy = "updated_at",
+    orderDirection = "desc",
   } = options;
   const { user } = useAuth();
-
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Helper to map Firestore docs to our local type with guaranteed ID
+  // Normalizes Firestore Timestamps to Unix Numbers
+  const normalize = (val: any): number => {
+    if (!val) return Date.now();
+    if (typeof val === "number") return val;
+    if (val.seconds) return val.seconds * 1000; // Handle Firestore Timestamp object
+    return new Date(val).getTime() || Date.now();
+  };
+
   const mapDocs = useCallback((snapshot: any): T[] => {
     return snapshot.docs.map((doc: any) => {
       const docData = doc.data();
       return {
         ...docData,
-        id: doc.id, // Mandatory for MUI DataGrid
-        uid: docData.uid || doc.id, // Fallback to doc.id if uid isn't in fields
+        id: doc.id,
+        uid: docData.uid || doc.id,
+        // Ensure consistency for IndexedDB
+        created_at: normalize(docData.created_at),
+        updated_at: normalize(docData.updated_at),
       } as T;
     });
   }, []);
@@ -57,32 +58,63 @@ export function useAdminCRUD<T extends DocumentData>(
   const fetchAll = useCallback(
     async (filters: Record<string, any> = {}) => {
       setLoading(true);
-      setError(null);
-
       try {
         const constraints: QueryConstraint[] = [];
-
-        // Add dynamic filters
         Object.entries(filters).forEach(([field, value]) => {
           if (value !== undefined && value !== null && value !== "") {
             constraints.push(where(field, "==", value));
           }
         });
-
-        // Add sorting
         constraints.push(orderBy(defaultOrderBy, orderDirection));
-
         const q = query(collection(db, collectionName), ...constraints);
         const snapshot = await getDocs(q);
         setData(mapDocs(snapshot));
       } catch (err: any) {
-        console.error(`[useAdminCRUD] Error fetching ${collectionName}:`, err);
-        setError(err.message || "Failed to load data");
+        console.error(`[useAdminCRUD] Error:`, err);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     },
     [collectionName, defaultOrderBy, orderDirection, mapDocs]
+  );
+
+  const create = useCallback(
+    async (item: any) => {
+      const docId =
+        item.id || item.uid || doc(collection(db, collectionName)).id;
+      const now = Date.now(); // Use Unix Number
+      const payload = {
+        ...item,
+        id: docId,
+        created_at: now,
+        updated_at: now,
+        created_by: user?.uid || "system",
+      };
+      await setDoc(doc(db, collectionName, docId), payload);
+      await fetchAll();
+      return docId;
+    },
+    [collectionName, user?.uid, fetchAll]
+  );
+
+  const update = useCallback(
+    async (id: string, updates: any) => {
+      await updateDoc(doc(db, collectionName, id), {
+        ...updates,
+        updated_at: Date.now(), // Use Unix Number
+      });
+      await fetchAll();
+    },
+    [collectionName, fetchAll]
+  );
+
+  const remove = useCallback(
+    async (id: string) => {
+      await deleteDoc(doc(db, collectionName, id));
+      await fetchAll();
+    },
+    [collectionName, fetchAll]
   );
 
   const search = useCallback(
@@ -108,79 +140,9 @@ export function useAdminCRUD<T extends DocumentData>(
     [collectionName, fetchAll, mapDocs]
   );
 
-  const create = useCallback(
-    async (item: Omit<T, "id" | "uid"> & { uid?: string }) => {
-      setError(null);
-      try {
-        // If a UID is provided (like when creating a User), use it as the doc ID
-        const docId = item.uid || doc(collection(db, collectionName)).id;
-        const docRef = doc(db, collectionName, docId);
-
-        const payload = {
-          ...item,
-          uid: docId,
-          created_at: serverTimestamp(),
-          updated_at: serverTimestamp(),
-          created_by: user?.uid || "system",
-        };
-
-        await setDoc(docRef, payload);
-        await fetchAll();
-        return docId;
-      } catch (err: any) {
-        setError(err.message);
-        throw err;
-      }
-    },
-    [collectionName, user?.uid, fetchAll]
-  );
-
-  const update = useCallback(
-    async (id: string, updates: Partial<T>) => {
-      setError(null);
-      try {
-        const docRef = doc(db, collectionName, id);
-        await updateDoc(docRef, {
-          ...updates,
-          updated_at: serverTimestamp(),
-          updated_by: user?.uid || "system",
-        });
-        await fetchAll();
-      } catch (err: any) {
-        setError(err.message);
-        throw err;
-      }
-    },
-    [collectionName, user?.uid, fetchAll]
-  );
-
-  const remove = useCallback(
-    async (id: string) => {
-      setError(null);
-      try {
-        await deleteDoc(doc(db, collectionName, id));
-        await fetchAll();
-      } catch (err: any) {
-        setError(err.message);
-        throw err;
-      }
-    },
-    [collectionName, fetchAll]
-  );
-
-  // Initial Load
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
 
-  return {
-    data,
-    loading,
-    error,
-    fetchAll,
-    search,
-    create,
-    update,
-    remove,
-  };
+  return { data, loading, error, fetchAll, search, create, update, remove };
 }

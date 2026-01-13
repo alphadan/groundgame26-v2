@@ -51,8 +51,8 @@ export function CreateGroupsForm() {
       const db = getFirestore();
       await addDoc(collection(db, "organizations"), {
         ...formData,
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
+        created_at: Date.now(),
+        updated_at: Date.now(),
       });
       setSuccess(true);
       // Optional: reset form

@@ -834,9 +834,9 @@ export const createUserProfile = functions.auth
         notifications_enabled: true,
         login_count: 1,
         last_ip: "auth-trigger",
-        created_at: FieldValue.serverTimestamp(),
-        updated_at: FieldValue.serverTimestamp(),
-        last_login: FieldValue.serverTimestamp(),
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        last_login: Date.now(),
       });
 
       await db.collection("login_attempts").add({
@@ -845,7 +845,7 @@ export const createUserProfile = functions.auth
         success: true,
         type: "initial_registration",
         ip: "auth-trigger",
-        timestamp: FieldValue.serverTimestamp(),
+        timestamp: Date.now(),
       });
     } catch (err) {
       console.error("createUserProfile failed:", err);
@@ -915,8 +915,8 @@ export const syncOrgRolesToClaims = onDocumentWritten(
       // 3. Update sync timestamp to signal frontend update
       await db.collection("users").doc(uid).set(
         {
-          last_claims_sync: FieldValue.serverTimestamp(),
-          updated_at: FieldValue.serverTimestamp(),
+          last_claims_sync: Date.now(),
+          updated_at: Date.now(),
         },
         { merge: true }
       );
@@ -951,7 +951,7 @@ export const submitVolunteer = onCall(async (request) => {
       name: name.trim(),
       email: email.toLowerCase().trim(),
       comment: comment?.trim() || "",
-      submitted_at: FieldValue.serverTimestamp(),
+      submitted_at: Date.now(),
       status: "new",
     });
 
@@ -1076,8 +1076,8 @@ export const adminCreateArea = onCall(async (request) => {
         area_district: data.area_district.trim(),
         county_id: data.county_id || null, // ← keep if still needed
         active: data.active ?? true, // Default to true
-        created_at: FieldValue.serverTimestamp(),
-        updated_at: FieldValue.serverTimestamp(),
+        created_at: Date.now(),
+        updated_at: Date.now(),
         // No chair fields anymore
       });
 
@@ -1178,8 +1178,8 @@ export const adminCreateOrgRole = onCall(async (request) => {
         precinct_code: precint_code || null, // fixed typo: precint → precinct
         role: roleName || "Unknown",
         active,
-        created_at: FieldValue.serverTimestamp(),
-        last_updated: FieldValue.serverTimestamp(),
+        created_at: Date.now(),
+        last_updated: Date.now(),
       });
 
     return { success: true };
@@ -1365,8 +1365,8 @@ export const adminImportAreas = onCall(async (request) => {
       area_district: area_district.trim(),
       county_id: county_id || null,
       active: !!active, // Force boolean
-      created_at: FieldValue.serverTimestamp(),
-      updated_at: FieldValue.serverTimestamp(),
+      created_at: Date.now(),
+      updated_at: Date.now(),
     });
 
     successCount++;
@@ -1586,7 +1586,7 @@ export const onResourceUploaded = onObjectFinalized(async (event) => {
     precinct_code: metadata["precinct-code"],
     url: downloadUrl,
     verified_by_role: "area_chair", // Logic to determine role can go here
-    created_at: FieldValue.serverTimestamp(),
+    created_at: Date.now(),
   });
 });
 
@@ -1757,8 +1757,8 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       photo_url: null,
       active: active ?? true,
       created_by: request.auth.uid,
-      created_at: FieldValue.serverTimestamp(),
-      updated_at: FieldValue.serverTimestamp(),
+      created_at: Date.now(),
+      updated_at: Date.now(),
     };
 
     // 7. Create Org Role Document
@@ -1772,7 +1772,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       precinct_id: precinct_id || null,
       active: true,
       is_vacant: false,
-      updated_at: FieldValue.serverTimestamp(),
+      updated_at: Date.now(),
     };
 
     // Execute Firestore writes
@@ -1815,3 +1815,133 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
     );
   }
 });
+
+// ================================================================
+//  CREATE GOALS THROUGH APP
+// ================================================================
+
+export const adminSetGoal = onCall({ cors: true }, async (request) => {
+  // 1. Security check: Ensure authenticated admin
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "You must be an admin to set goals."
+    );
+  }
+
+  // 2. Destructure data from request.data
+  const { precinct_id, targets, cycle, county_id, area_id } = request.data;
+
+  if (!precinct_id || !targets) {
+    throw new HttpsError("invalid-argument", "Missing precinct_id or targets.");
+  }
+
+  try {
+    const now = Date.now();
+
+    // 3. Document structure following your Goal interface
+    const newGoal = {
+      precinct_id,
+      cycle: cycle || "2025_PRIMARY",
+      county_id: county_id || "",
+      area_id: area_id || "",
+      targets: {
+        registrations: Number(targets.registrations) || 0,
+        mail_in: Number(targets.mail_in) || 0,
+        volunteers: Number(targets.volunteers) || 0,
+        user_activity: Number(targets.user_activity) || 0,
+      },
+      current: {
+        registrations: 0,
+        mail_in: 0,
+        volunteers: 0,
+        user_activity: 0,
+      },
+      created_at: now,
+      updated_at: now,
+      created_by: request.auth.uid,
+      updated_by: request.auth.uid,
+    };
+
+    // 4. Add to Firestore with AUTO-GENERATED ID
+    const docRef = await db.collection("goals").add(newGoal);
+
+    return {
+      success: true,
+      id: docRef.id,
+    };
+  } catch (error) {
+    console.error("Error setting goal:", error);
+    throw new HttpsError("internal", error.message);
+  }
+});
+
+// ================================================================
+//  GET USER BY PHONE_NUMBER THROUGH APP FOR DNC
+// ================================================================
+
+export const searchVotersByPhoneV2 = onCall(
+  {
+    cors: [/localhost:\d+$/, /127\.0\.0\.1:\d+$/, "https://groundgame26.com"],
+    region: "us-central1",
+    timeoutSeconds: 30,
+  },
+  async (request) => {
+    // 1. Authentication Check
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const { phone } = request.data || {};
+
+    // 2. Input Validation & Normalization
+    // Strip all non-digits from input (e.g., "(610) 555-1212" -> "6105551212")
+    if (!phone || typeof phone !== "string") {
+      throw new HttpsError("invalid-argument", "Phone number is required");
+    }
+
+    const normalizedPhone = phone.replace(/\D/g, "");
+
+    if (normalizedPhone.length < 10) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Please enter at least a 10-digit phone number"
+      );
+    }
+
+    const table = `groundgame26-v2.groundgame26_voters.chester_county`;
+
+    // 3. SQL Query with Normalization
+    // Use REGEXP_REPLACE to remove non-digits from the stored phone field for comparison
+    const sql = `
+      SELECT 
+        voter_id,
+        full_name,
+        age,
+        party,
+        precinct,
+        address,
+        phone_mobile,
+        modeled_party
+      FROM \`${table}\`
+      WHERE REGEXP_REPLACE(phone_mobile, r'[^0-9]', '') LIKE @phoneQuery
+      LIMIT 100
+    `;
+
+    try {
+      const [rows] = await bigquery.query({
+        query: sql,
+        params: { phoneQuery: `%${normalizedPhone}%` }, // Supports partial matches
+        location: "US",
+      });
+
+      console.log(
+        `Phone search for "${normalizedPhone}" returned ${rows.length} results`
+      );
+      return { voters: rows };
+    } catch (error) {
+      console.error("Phone search BigQuery error:", error);
+      throw new HttpsError("internal", "Search failed — please try again");
+    }
+  }
+);

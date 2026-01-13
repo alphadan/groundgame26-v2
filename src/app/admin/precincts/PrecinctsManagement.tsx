@@ -1,19 +1,14 @@
 // src/app/admin/precincts/PrecinctsManagement.tsx
-import React, { useEffect } from "react";
-import { useAuth } from "../../../context/AuthContext"; // adjust path as needed
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../../../context/AuthContext";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db as indexedDb } from "../../../lib/db"; // adjust path
-import { UserPermissions } from "../../../types"; // adjust path
+import { db as indexedDb } from "../../../lib/db";
+import { UserPermissions } from "../../../types";
+import { useNavigate } from "react-router-dom";
 
-// Import existing components
 import { CreatePrecinctForm } from "../components/CreatePrecinctForm";
 import { ImportPrecinctsForm } from "../components/ImportPrecinctsForm";
-
-// Navigation & back button
-import { useNavigate } from "react-router-dom";
-import IconButton from "@mui/material/IconButton";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import Tooltip from "@mui/material/Tooltip";
+import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
 
 import {
   Box,
@@ -22,172 +17,250 @@ import {
   Alert,
   CircularProgress,
   Divider,
-  Tabs,
-  Tab,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Stack,
+  Chip,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import SearchIcon from "@mui/icons-material/Search";
 
 export default function PrecinctsManagement() {
   const { user, isLoaded: authLoaded } = useAuth();
   const navigate = useNavigate();
 
-  // Fetch local user for permissions
-  const localUser = useLiveQuery(async () => {
-    if (!user?.uid) return null;
-    return await indexedDb.users.get(user.uid);
-  }, [user?.uid]);
+  const localUser = useLiveQuery(
+    async () => (user?.uid ? await indexedDb.users.get(user.uid) : null),
+    [user?.uid]
+  );
+  const permissions = (localUser?.permissions || {}) as UserPermissions;
 
-  const permissions: UserPermissions = (localUser?.permissions || {
-    can_create_documents: false,
-    can_upload_collections: false,
-    // ... other flags as needed
-  }) as UserPermissions;
+  const {
+    data: precincts,
+    loading,
+    error,
+    search,
+    remove,
+    fetchAll,
+  } = useAdminCRUD<any>({
+    collectionName: "precincts",
+    defaultOrderBy: "name",
+    orderDirection: "asc",
+  });
 
-  const canCreateDocuments = !!permissions.can_create_documents;
-  const canUploadCollections = !!permissions.can_upload_collections;
+  const [searchText, setSearchText] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedPrecinct, setSelectedPrecinct] = useState(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [paginationModel, setPaginationModel] = useState({
+    pageSize: 12,
+    page: 0,
+  });
 
-  const hasAccess = canCreateDocuments || canUploadCollections;
+  const handleOpenCreate = () => {
+    setSelectedPrecinct(null);
+    setDialogOpen(true);
+  };
+  const handleOpenEdit = (p: any) => {
+    setSelectedPrecinct(p);
+    setDialogOpen(true);
+  };
 
-  // Prevent cursor blinking after navigation
-  useEffect(() => {
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-  }, []);
+  const columns: GridColDef[] = [
+    { field: "precinct_code", headerName: "Code", width: 90 },
+    { field: "name", headerName: "Precinct Name", flex: 1 },
+    { field: "area_district", headerName: "Area", width: 100 },
+    { field: "senate_district", headerName: "Senate", width: 100 },
+    { field: "house_district", headerName: "House", width: 100 },
+    {
+      field: "active",
+      headerName: "Status",
+      width: 100,
+      renderCell: (params) => (
+        <Chip
+          label={params.value ? "Active" : "Inactive"}
+          color={params.value ? "success" : "error"}
+          size="small"
+        />
+      ),
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 120,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={0.5}>
+          <IconButton
+            size="small"
+            color="primary"
+            onClick={() => handleOpenEdit(params.row)}
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            color="error"
+            onClick={() => setDeleteId(params.row.id)}
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+      ),
+    },
+  ];
 
-  // Sub-tabs state: 0 = Create, 1 = Import
-  const [tabValue, setTabValue] = React.useState(0);
-
-  // Loading state
-  if (!authLoaded) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "70vh",
-        }}
-      >
-        <CircularProgress color="primary" size={60} />
-      </Box>
-    );
-  }
-
-  // Access denied
-  if (authLoaded && !hasAccess) {
-    return (
-      <Box p={6} textAlign="center">
-        <Alert severity="error" variant="filled">
-          <Typography variant="h6">Access Denied</Typography>
-          <Typography variant="body1" mt={1}>
-            You do not have permission to manage precincts.
-          </Typography>
-        </Alert>
-      </Box>
-    );
-  }
+  if (!authLoaded)
+    return <CircularProgress sx={{ display: "block", m: "auto", mt: 10 }} />;
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-      {/* Back Button + Header */}
+    <Box sx={{ p: { xs: 2, md: 4 } }}>
+      {/* Header */}
       <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-        <Tooltip title="Back to Admin Dashboard" arrow>
-          <IconButton
-            onClick={() => navigate("/admin")}
-            color="primary"
-            size="large"
-            sx={{ mr: 2 }}
-            aria-label="back to dashboard"
-          >
-            <ArrowBackIcon fontSize="large" />
-          </IconButton>
-        </Tooltip>
-
+        <IconButton
+          onClick={() => navigate("/admin")}
+          color="primary"
+          sx={{ mr: 2 }}
+        >
+          <ArrowBackIcon fontSize="large" />
+        </IconButton>
         <Box>
-          <Typography variant="h4" fontWeight="bold" color="primary">
+          <Typography variant="h4" fontWeight="bold">
             Manage Precincts
           </Typography>
-          <Typography variant="h6" color="text.secondary">
-            Create, import, and organize precincts
+          <Typography variant="subtitle1" color="text.secondary">
+            Precinct assignments and district mapping
           </Typography>
         </Box>
       </Box>
 
       <Divider sx={{ mb: 4 }} />
 
-      {/* Tabs - only show if user has any relevant permission */}
-      {hasAccess && (
-        <Box sx={{ mb: 4 }}>
-          <Tabs
-            value={tabValue}
-            onChange={(_, newValue) => setTabValue(newValue)}
-            variant="fullWidth"
-            indicatorColor="primary"
-            textColor="primary"
+      {/* Search and Add Action */}
+      <Stack direction="row" spacing={2} mb={3}>
+        <TextField
+          label="Search by Name"
+          size="small"
+          fullWidth
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          sx={{ bgcolor: "white" }}
+        />
+        <Button
+          variant="contained"
+          onClick={() => search("name", ">=", searchText)}
+          startIcon={<SearchIcon />}
+        >
+          Search
+        </Button>
+        <Button
+          variant="contained"
+          color="success"
+          onClick={handleOpenCreate}
+          startIcon={<AddIcon />}
+          sx={{ whiteSpace: "nowrap" }}
+        >
+          Add Precinct
+        </Button>
+      </Stack>
+
+      {/* Main Grid */}
+      <Paper elevation={2} sx={{ borderRadius: 3, mb: 5, overflow: "hidden" }}>
+        <DataGrid
+          rows={precincts}
+          columns={columns}
+          loading={loading}
+          // --- Pagination Config ---
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
+          pageSizeOptions={[10, 25, 50, 100]}
+          // -------------------------
+          autoHeight
+          disableRowSelectionOnClick
+          sx={{
+            border: "none",
+            "& .MuiDataGrid-footerContainer": {
+              borderTop: "1px solid #e0e0e0",
+            },
+          }}
+        />
+      </Paper>
+
+      {/* Bulk Import - White Paper Background */}
+      {permissions.can_upload_collections && (
+        <Box>
+          <Typography variant="h6" fontWeight="bold" gutterBottom>
+            Bulk Operations
+          </Typography>
+          <Paper
+            elevation={1}
+            sx={{
+              p: 4,
+              borderRadius: 3,
+              bgcolor: "white",
+              border: "1px solid #e0e0e0",
+            }}
           >
-            <Tab
-              label="Create Precinct"
-              disabled={!canCreateDocuments}
-              sx={{ fontWeight: tabValue === 0 ? "bold" : "normal" }}
-            />
-            <Tab
-              label="Import Precincts (Bulk)"
-              disabled={!canUploadCollections}
-              sx={{ fontWeight: tabValue === 1 ? "bold" : "normal" }}
-            />
-          </Tabs>
+            <ImportPrecinctsForm />
+          </Paper>
         </Box>
       )}
 
-      {/* Tab Content */}
-      <Paper
-        elevation={3}
-        sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: 3,
-          backgroundColor: "background.paper",
-        }}
+      {/* Edit/Create Dialog */}
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
       >
-        {tabValue === 0 && canCreateDocuments ? (
-          <CreatePrecinctForm />
-        ) : tabValue === 0 && !canCreateDocuments ? (
-          <Alert severity="info">
-            You do not have permission to create individual precincts.
-          </Alert>
-        ) : null}
+        <DialogTitle>
+          {selectedPrecinct ? "Edit Precinct" : "Create New Precinct"}
+        </DialogTitle>
+        <DialogContent dividers>
+          <CreatePrecinctForm
+            initialData={selectedPrecinct}
+            onSuccess={() => {
+              setDialogOpen(false);
+              fetchAll();
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
-        {tabValue === 1 && canUploadCollections ? (
-          <ImportPrecinctsForm />
-        ) : tabValue === 1 && !canUploadCollections ? (
-          <Alert severity="info">
-            You do not have permission to perform bulk precinct imports.
-          </Alert>
-        ) : null}
-      </Paper>
-
-      {/* Future features section */}
-      <Box sx={{ mt: 6 }}>
-        <Typography variant="h5" gutterBottom>
-          Planned Enhancements
-        </Typography>
-        <Box component="ul" sx={{ pl: 3, mt: 1 }}>
-          <Typography component="li" variant="body1">
-            Complete precinct list with search, filter, and assignment tools
+      {/* Delete Confirm */}
+      <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to remove this precinct?
           </Typography>
-          <Typography component="li" variant="body1">
-            Edit and delete existing precincts
-          </Typography>
-          <Typography component="li" variant="body1">
-            Export precinct data (CSV/JSON)
-          </Typography>
-          <Typography component="li" variant="body1">
-            Bulk assignment of users/teams to precincts
-          </Typography>
-          <Typography component="li" variant="body1">
-            Validation during import + error reporting
-          </Typography>
-        </Box>
-      </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteId(null)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={async () => {
+              if (deleteId) await remove(deleteId);
+              setDeleteId(null);
+            }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

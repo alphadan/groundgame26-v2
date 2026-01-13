@@ -6,8 +6,8 @@
 // --- Base Interface ---
 export interface BaseMetadata {
   id: string; // Maps to Firestore Document ID
-  created_at: any; // Firestore Timestamp or number
-  updated_at: any; // Standardized from last_updated
+  created_at: number; // Firestore Timestamp or number
+  updated_at: number; // Standardized from last_updated
   active: boolean;
 }
 
@@ -19,7 +19,7 @@ export interface Group extends Omit<BaseMetadata, "id"> {
   name: string;
   short_name: string;
   county_id: string;
-  category?: string; // Change to optional if not in all constants
+  category?: string;
   hq_phone?: string | null;
   website?: string | null;
   active: boolean;
@@ -208,6 +208,14 @@ export interface VoterNotesProps {
   address?: string;
 }
 
+export interface VoterNote {
+  id: string;
+  voter_id: string;
+  note: string;
+  created_by_name?: string;
+  created_at: number;
+}
+
 export interface CampaignResource {
   id: string;
   title: string;
@@ -227,4 +235,29 @@ export interface UsefulLink {
   phone?: string;
   email?: string;
   website: string;
+}
+
+export interface GoalTargets {
+  registrations: number;
+  mail_in: number;
+  volunteers: number;
+  user_activity: number;
+  [key: string]: number;
+}
+
+export interface Goal extends BaseMetadata {
+  precinct_id: string; // Maps to PA15-P-XXX
+  cycle: string; // e.g., "2025_PRIMARY"
+  county_id: string; // For scoped filtering
+  area_id: string; // For scoped filtering
+  targets: GoalTargets; // The target numbers
+  current?: Partial<GoalTargets>; // To track actual progress
+}
+
+export interface DncRecord extends BaseMetadata {
+  voter_id: string; // The unique voter identification number
+  phone?: string; // Normalized numeric string
+  email?: string; // Lowercase email string
+  reason?: string; // e.g., "Requested via SMS", "Hostile", "Email Bounce"
+  do_not_contact: boolean; // Always true for records in this collection
 }

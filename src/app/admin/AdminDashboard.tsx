@@ -18,6 +18,9 @@ import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import AnalyticsIcon from "@mui/icons-material/Analytics";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import GroupsIcon from "@mui/icons-material/Groups";
+import GpsFixedIcon from "@mui/icons-material/GpsFixed";
+import TheaterComedyIcon from '@mui/icons-material/TheaterComedy';
+import PhoneDisabledIcon from "@mui/icons-material/PhoneDisabled";
 
 // ... other icons
 import RouterButton from "../../components/navigation/RouterButton"; // Adjust path based on your folder structure
@@ -75,7 +78,7 @@ const cardConfigs = [
     icon: <AnalyticsIcon fontSize="large" color="primary" />,
     description: "View User Metrics",
     subActivities: ["Send Broadcast", "Schedule", "View History"],
-    metrics: 'Recent: 42 sent',
+    metrics: "Recent: 42 sent",
     path: "/admin/analytics",
   },
   {
@@ -129,6 +132,30 @@ const cardConfigs = [
     ],
     metrics: "3 Groups • 1 Active Groups",
     path: "/admin/groups",
+  },
+  {
+    title: "Manage Goals",
+    icon: <GpsFixedIcon fontSize="large" color="primary" />,
+    description: "Manage goals at precinct level",
+    subActivities: ["Create Goals", "Edit Goals", "Reset Goals"],
+    metrics: "4 Groups",
+    path: "/admin/goals",
+  },
+  {
+    title: "Manage Roles",
+    icon: <TheaterComedyIcon fontSize="large" color="primary" />,
+    description: "Manage user roles and permissions",
+    subActivities: ["Create Roles", "Edit Roles", "Reset Roles"],
+    metrics: "6 Roles, 3 Users",
+    path: "/admin/roles",
+  },
+  {
+    title: "Manage Do Not Contact",
+    icon: <PhoneDisabledIcon fontSize="large" color="primary" />,
+    description: "Manage DNC at precinct level",
+    subActivities: ["Add DNC", "Edit DNC", "Ban Users"],
+    metrics: "0 DNC, 0 Blacklist",
+    path: "/admin/dnc",
   },
   // ... add others (Areas, Precincts, Rewards stub, etc.)
 ];

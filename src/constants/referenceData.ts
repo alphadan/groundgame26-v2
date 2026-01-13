@@ -8077,7 +8077,7 @@ export const precincts = [
 
 export const groups = [
   {
-    id: "PA15-O-01",
+    id: "PA15-G-01",
     code: "gop",
     name: "Chester County Republican Committee",
     short_name: "Chester GOP",
@@ -8092,7 +8092,7 @@ export const groups = [
     updated_at: 1766155224,
   },
   {
-    id: "PA15-O-02",
+    id: "PA15-G-02",
     code: "pagop",
     name: "Pennsylvania State Republican Party",
     short_name: "PA GOP",
@@ -8107,7 +8107,7 @@ export const groups = [
     updated_at: 1766155224,
   },
   {
-    id: "PA15-O-03",
+    id: "PA15-G-03",
     code: "tpa",
     name: "Turning Point Action - Chester County",
     short_name: "TPA",
@@ -8122,7 +8122,7 @@ export const groups = [
     updated_at: 1766155224,
   },
   {
-    id: "PA15-O-04",
+    id: "PA15-G-04",
     code: "yp",
     name: "Chester County Young Republicans",
     short_name: "Chester YRs",
@@ -8136,8 +8136,8 @@ export const groups = [
     updated_at: 1766155224,
   },
   {
-    id: "PA15-O-05",
-    code: "women",
+    id: "PA15-G-05",
+    code: "ccfrw",
     name: "Chester County Federation of Republican Women",
     short_name: "Chester GOP Women",
     county_id: "PA-C-15",

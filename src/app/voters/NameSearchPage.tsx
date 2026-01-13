@@ -5,6 +5,7 @@ import { useCloudFunctions } from "../../hooks/useCloudFunctions";
 import { useQuery } from "@tanstack/react-query";
 import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
+import { useDncMap } from "../../hooks/useDncMap"; // Integrated DNC Hook
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../lib/firebase";
 import {
@@ -28,7 +29,7 @@ import {
   useMediaQuery,
   Snackbar,
 } from "@mui/material";
-import { Phone, Message } from "@mui/icons-material";
+import { Phone, Message, Block } from "@mui/icons-material";
 
 interface FilterValues {
   county: string;
@@ -71,37 +72,31 @@ const useDynamicVoters = (filters: FilterValues | null) => {
 export default function NameSearchPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const [showReturnHint, setShowReturnHint] = useState<boolean>(false);
-
   const { isLoaded } = useAuth();
+  const dncMap = useDncMap(); // Initialize the DNC protection layer
 
   const [filters, setFilters] = useState<FilterValues | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
-
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
   const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
 
-  // Extract voter IDs for batch note count fetch
   const voterIds = useMemo(
     () => voters.map((v: any) => v.voter_id).filter(Boolean),
     [voters]
   );
 
-  // Fetch note counts for all voters in results
   const { data: notesCounts = {} } = useQuery({
     queryKey: ["voterNotesCounts", voterIds],
     queryFn: async () => {
       if (voterIds.length === 0) return {};
-
       const result = await httpsCallable(
         functions,
         "getVoterNotes"
       )({ voterIds });
       const notesList = (result.data as any).notes || [];
-
       const counts: Record<string, number> = {};
       notesList.forEach((note: any) => {
         counts[note.voter_id] = (counts[note.voter_id] || 0) + 1;
@@ -113,9 +108,8 @@ export default function NameSearchPage() {
   });
 
   const handleSubmit = useCallback((submittedFilters: FilterValues) => {
-    if (!submittedFilters.name || submittedFilters.name.trim().length < 3) {
+    if (!submittedFilters.name || submittedFilters.name.trim().length < 3)
       return;
-    }
     setFilters(submittedFilters);
     setPage(0);
   }, []);
@@ -123,21 +117,16 @@ export default function NameSearchPage() {
   const handleCall = useCallback(
     (phone?: string) => {
       if (!phone || !isMobile) return;
-
       const cleaned = phone.replace(/\D/g, "");
       const normalized =
         cleaned.length === 11 && cleaned.startsWith("1")
           ? cleaned
           : "1" + cleaned;
-
-      setSnackbarMessage(
-        "Opens your Phone app — from the left swipe right to return back here."
-      );
+      setSnackbarMessage("Opening Phone app...");
       setSnackbarOpen(true);
-
       setTimeout(() => {
         window.location.href = `tel:${normalized}`;
-      }, 2000);
+      }, 1500);
     },
     [isMobile]
   );
@@ -145,34 +134,16 @@ export default function NameSearchPage() {
   const handleText = useCallback(
     async (phone?: string) => {
       if (!phone || !isMobile) return;
-
       const cleaned = phone.replace(/\D/g, "");
       const normalized =
         cleaned.length === 11 && cleaned.startsWith("1")
           ? cleaned
           : "1" + cleaned;
-
-      let messageBody = "";
-
-      try {
-        const clipboardText = await navigator.clipboard.readText();
-        if (clipboardText.trim()) {
-          messageBody = clipboardText.trim();
-        }
-      } catch (err) {
-        console.log("Clipboard access denied or empty");
-      }
-
-      setSnackbarMessage(
-        "Opens your Messages app — from the left swipe right to return back here."
-      );
+      setSnackbarMessage("Opening Messages app...");
       setSnackbarOpen(true);
-
       setTimeout(() => {
-        window.location.href = `sms:${normalized}?body=${encodeURIComponent(
-          messageBody
-        )}`;
-      }, 2000);
+        window.location.href = `sms:${normalized}`;
+      }, 1500);
     },
     [isMobile]
   );
@@ -199,31 +170,22 @@ export default function NameSearchPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-      {/* Header */}
       <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
         Name Search
       </Typography>
       <Typography variant="h6" color="text.secondary" gutterBottom>
-        Quickly find any voter by name or address
+        Find any voter by name or address
       </Typography>
 
-      {/* Filter Selector — Name + Street only */}
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isLoading}
         unrestrictedFilters={["name", "street"]}
       />
 
-      {/* Results */}
       {error && (
         <Alert severity="error" sx={{ mt: 3 }}>
           Search failed. Please try again.
-        </Alert>
-      )}
-
-      {filters && !isLoading && voters.length === 0 && (
-        <Alert severity="info" sx={{ mt: 3 }}>
-          No voters found matching your search. Try broadening your criteria.
         </Alert>
       )}
 
@@ -265,7 +227,11 @@ export default function NameSearchPage() {
               </TableHead>
               <TableBody>
                 {paginatedVoters.map((voter: any) => {
-                  const noteCount = notesCounts[voter.voter_id] || 0;
+                  // DNC Logic Check
+                  const normalizedPhone =
+                    voter.phone_mobile?.replace(/\D/g, "") || "";
+                  const isDnc =
+                    dncMap.has(voter.voter_id) || dncMap.has(normalizedPhone);
 
                   return (
                     <TableRow
@@ -278,14 +244,10 @@ export default function NameSearchPage() {
                           {voter.full_name || "Unknown"}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {voter.address || "No address on file"}
+                          {voter.address || "No address"}
                         </Typography>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body1">
-                          {voter.age ?? "?"}
-                        </Typography>
-                      </TableCell>
+                      <TableCell>{voter.age ?? "?"}</TableCell>
                       <TableCell>
                         <Chip
                           label={voter.party || "N/A"}
@@ -297,58 +259,61 @@ export default function NameSearchPage() {
                               ? "primary"
                               : "default"
                           }
-                          sx={{ minWidth: 60 }}
                         />
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {voter.precinct || "—"}
-                        </Typography>
-                      </TableCell>
+                      <TableCell>{voter.precinct || "—"}</TableCell>
                       <TableCell align="right">
                         <Stack
                           direction="row"
-                          spacing={0.5}
+                          spacing={1}
                           justifyContent="flex-end"
+                          alignItems="center"
                         >
-                          {/* Phone Call */}
-                          {(voter.phone_mobile || voter.phone_home) &&
-                            !isMobile && (
-                              <Typography variant="body2">
-                                {voter.phone_mobile || voter.phone_home || "—"}
-                              </Typography>
-                            )}
-                          {(voter.phone_mobile || voter.phone_home) &&
-                            isMobile && (
-                              <Tooltip title="Opens Phone app — tap back arrow in top-left to return">
+                          {isDnc ? (
+                            <Tooltip title="Do Not Contact Requested">
+                              <Chip
+                                icon={
+                                  <Block sx={{ fontSize: "14px !important" }} />
+                                }
+                                label="DNC"
+                                color="error"
+                                size="small"
+                                variant="outlined"
+                              />
+                            </Tooltip>
+                          ) : (
+                            <>
+                              {(voter.phone_mobile || voter.phone_home) &&
+                                !isMobile && (
+                                  <Typography variant="body2">
+                                    {voter.phone_mobile || voter.phone_home}
+                                  </Typography>
+                                )}
+                              {isMobile &&
+                                (voter.phone_mobile || voter.phone_home) && (
+                                  <IconButton
+                                    size="small"
+                                    color="success"
+                                    onClick={() =>
+                                      handleCall(
+                                        voter.phone_mobile || voter.phone_home
+                                      )
+                                    }
+                                  >
+                                    <Phone fontSize="small" />
+                                  </IconButton>
+                                )}
+                              {isMobile && voter.phone_mobile && (
                                 <IconButton
                                   size="small"
-                                  color="success"
-                                  onClick={() =>
-                                    handleCall(
-                                      voter.phone_mobile || voter.phone_home
-                                    )
-                                  }
+                                  color="info"
+                                  onClick={() => handleText(voter.phone_mobile)}
                                 >
-                                  <Phone fontSize="small" />
+                                  <Message fontSize="small" />
                                 </IconButton>
-                              </Tooltip>
-                            )}
-
-                          {/* Text Message */}
-                          {voter.phone_mobile && isMobile && (
-                            <Tooltip title="Opens Messages app — tap back arrow in top-left to return">
-                              <IconButton
-                                size="small"
-                                color="info"
-                                onClick={() => handleText(voter.phone_mobile)}
-                              >
-                                <Message fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
+                              )}
+                            </>
                           )}
-
-                          {/* Notes Icon with Count Badge */}
                           <VoterNotes
                             voterId={voter.voter_id}
                             fullName={voter.full_name}
@@ -362,49 +327,34 @@ export default function NameSearchPage() {
               </TableBody>
             </Table>
           </TableContainer>
-
           <TablePagination
-            rowsPerPageOptions={[10, 25, 50]}
             component="div"
             count={voters.length}
             rowsPerPage={rowsPerPage}
             page={page}
-            onPageChange={(_, newPage) => setPage(newPage)}
+            onPageChange={(_, p) => setPage(p)}
             onRowsPerPageChange={(e) => {
               setRowsPerPage(parseInt(e.target.value, 10));
               setPage(0);
-            }}
-            sx={{
-              borderTop: 1,
-              borderColor: "divider",
             }}
           />
         </Paper>
       )}
 
-      {/* Initial State */}
       {!filters && (
         <Box sx={{ textAlign: "center", py: 10, mt: 4 }}>
-          <Typography variant="h6" color="text.secondary" gutterBottom>
+          <Typography variant="h6" color="text.secondary">
             Enter a name to begin searching
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Use at least 3 characters for best results.
           </Typography>
         </Box>
       )}
+
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={4000}
         onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert
-          onClose={() => setSnackbarOpen(false)}
-          severity="info"
-          variant="filled"
-          sx={{ width: "100%" }}
-        >
+        <Alert severity="info" variant="filled">
           {snackbarMessage}
         </Alert>
       </Snackbar>
