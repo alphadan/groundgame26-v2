@@ -66,7 +66,7 @@ export type UserRole =
   | "state_rep_district"
   | "area_chair"
   | "candidate"
-  | "ambassador"
+  | "volunteer"
   | "committeeperson"
   | "user"
   | "base";
@@ -104,13 +104,16 @@ export interface UserProfile {
   role: UserRole;
   group_id: string | null;
   permissions: UserPermissions;
+  county_id?: string;
+  area_id?: string;
+  precinct_id?: string;
   access: {
     counties: string[];
     areas: string[];
     precincts: string[];
   };
   active: boolean;
-  last_claims_sync?: any; // Firestore Timestamp
+  last_claims_sync?: any;
 }
 
 // --- Org_Role ---
@@ -260,4 +263,60 @@ export interface DncRecord extends BaseMetadata {
   email?: string; // Lowercase email string
   reason?: string; // e.g., "Requested via SMS", "Hostile", "Email Bounce"
   do_not_contact: boolean; // Always true for records in this collection
+}
+
+export enum RewardStatus {
+  active = "active",
+  inactive = "inactive",
+  out_of_stock = "out_of_stock",
+}
+
+export enum RedemptionStatus {
+  pending = "pending",
+  completed = "completed",
+  cancelled = "cancelled",
+}
+
+/**
+ * The Reward Catalog Item
+ */
+export interface ireward {
+  id: string;
+  title: string;
+  description: string;
+  points_cost: number;
+  status: RewardStatus;
+  stock_quantity?: number;
+  image_url?: string;
+  expiry_date?: number;
+  created_at: number;
+  updated_at: number;
+}
+
+/**
+ * The Transaction Record
+ */
+export interface iredemption {
+  id: string;
+  user_id: string;
+  reward_id: string;
+
+  snapshot: {
+    title: string;
+    points_paid: number;
+  };
+
+  status: RedemptionStatus;
+  redeemed_at: number;
+
+  shipping_address?: {
+    street: string;
+    city: string;
+    zip_code: string;
+  };
+
+  fulfillment_data?: {
+    promo_code?: string;
+    download_url?: string;
+  };
 }

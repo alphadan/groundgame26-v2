@@ -66,7 +66,7 @@ export default function NotificationsManagement() {
     { value: "area_chairs", label: "Area Chairs" },
     { value: "committeepersons", label: "Committeepersons" },
     { value: "candidates", label: "Candidates" },
-    { value: "ambassadors", label: "Ambassadors" },
+    { value: "volunteers", label: "Volunteers" },
   ];
 
   // Filter options based on sender role
@@ -80,13 +80,13 @@ export default function NotificationsManagement() {
           "area_chairs",
           "committeepersons",
           "candidates",
-          "ambassadors",
+          "volunteers",
         ].includes(opt.value)
       );
     }
     if (senderRole === "area_chair") {
       return fullAudienceOptions.filter((opt) =>
-        ["committeepersons", "candidates", "ambassadors"].includes(opt.value)
+        ["committeepersons", "candidates", "volunteers"].includes(opt.value)
       );
     }
     // Fallback: no options (shouldn't reach here due to hasAccess)

@@ -19,7 +19,7 @@ import AnalyticsIcon from "@mui/icons-material/Analytics";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import GroupsIcon from "@mui/icons-material/Groups";
 import GpsFixedIcon from "@mui/icons-material/GpsFixed";
-import TheaterComedyIcon from '@mui/icons-material/TheaterComedy';
+import TheaterComedyIcon from "@mui/icons-material/TheaterComedy";
 import PhoneDisabledIcon from "@mui/icons-material/PhoneDisabled";
 
 // ... other icons
@@ -145,8 +145,8 @@ const cardConfigs = [
     title: "Manage Roles",
     icon: <TheaterComedyIcon fontSize="large" color="primary" />,
     description: "Manage user roles and permissions",
-    subActivities: ["Create Roles", "Edit Roles", "Reset Roles"],
-    metrics: "6 Roles, 3 Users",
+    subActivities: ["Create Roles", "Assign Roles", "Fill Vacancies"],
+    metrics: "4 Roles, 3 Users",
     path: "/admin/roles",
   },
   {

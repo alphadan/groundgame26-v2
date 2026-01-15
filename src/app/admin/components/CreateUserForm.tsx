@@ -89,15 +89,15 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
   // Filter roles based on admin rank
   const availableRoles = useMemo(() => {
     const roleMap: Record<string, string[]> = {
-      developer: ["committeeperson", "candidate", "ambassador"],
-      state_rep_district: ["candidate", "ambassador", "committeeperson"],
+      developer: ["committeeperson", "candidate", "volunteer"],
+      state_rep_district: ["candidate", "volunteer", "committeeperson"],
       county_chair: ["area_chair"],
-      area_chair: ["committeeperson", "ambassador"],
+      area_chair: ["committeeperson", "volunteer"],
     };
-    return roleMap[claims?.role] || ["ambassador"];
+    return roleMap[claims?.role] || ["volunteer"];
   }, [claims?.role]);
 
-  const isPrecinctRequired = ["committeeperson", "ambassador"].includes(
+  const isPrecinctRequired = ["committeeperson", "volunteer"].includes(
     form.role
   );
 

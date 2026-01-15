@@ -28,7 +28,7 @@ const ROLE_PRIORITY = [
   "state_rep_district",
   "area_chair",
   "committeeperson",
-  "ambassador",
+  "volunteer",
   "base",
 ];
 
@@ -1134,126 +1134,6 @@ export const adminCreatePrecinct = onCall(async (request) => {
 });
 
 // ================================================================
-//  CREATE ORGNIZATON ROLE
-// ================================================================
-
-export const adminCreateOrgRole = onCall(async (request) => {
-  // 1. Check authentication first
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "You must be logged in.");
-  }
-
-  const data = request.data;
-
-  try {
-    // 2. Correct way to get user info in 2nd Gen
-    const authUser = await getAuth().getUser(request.auth.uid);
-
-    // Safe destructuring FIRST (no logic inside)
-    const {
-      id,
-      uid,
-      area_district,
-      county_code,
-      is_vacant,
-      group_id,
-      precint_code,
-      role: roleName,
-      active = true,
-    } = data;
-
-    // Compute final values AFTER destructuring
-    const finalUid = is_vacant ? null : uid;
-
-    await db
-      .collection("org_roles")
-      .doc(id)
-      .set({
-        id: id || null,
-        uid: finalUid,
-        area_district: area_district || null,
-        county_code: county_code || "Unknown",
-        is_vacant: is_vacant ?? false,
-        group_id: group_id || null,
-        precinct_code: precint_code || null, // fixed typo: precint → precinct
-        role: roleName || "Unknown",
-        active,
-        created_at: Date.now(),
-        last_updated: Date.now(),
-      });
-
-    return { success: true };
-  } catch (error) {
-    console.error("Admin Create Org_Role failed:", error);
-    throw new HttpsError("internal", "Failed to create org_role record.");
-  }
-});
-
-// ================================================================
-// IMPORT BULK ORGNIZATON ROLE
-// ================================================================
-
-export const adminImportOrgRoles = onCall(async (request) => {
-  // 1. Check authentication first
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "You must be logged in.");
-  }
-
-  const roles = request.data.roles;
-
-  // Safety check to ensure it's actually an array
-  if (!Array.isArray(roles)) {
-    console.error("Received data is not an array:");
-    throw new HttpsError("invalid-argument", "Expected an array of roles.");
-  }
-
-  const authUser = await getAuth().getUser(request.auth.uid);
-
-  const batch = db.batch();
-  let successCount = 0;
-
-  for (const role of roles) {
-    const {
-      id,
-      uid = null,
-      role: roleName,
-      group_id,
-      county_code = null,
-      area_district = null,
-      precinct_code,
-      is_vacant = false,
-      active = true,
-    } = role;
-
-    const docRef = db.collection("org_roles").doc(id);
-
-    batch.set(docRef, {
-      id,
-      uid: is_vacant ? null : uid,
-      role: roleName,
-      group_id,
-      county_code,
-      area_district,
-      precinct_code,
-      is_vacant,
-      active,
-      created_at: Date.now(),
-      last_updated: Date.now(),
-    });
-
-    successCount++;
-  }
-
-  try {
-    await batch.commit();
-    return { success: successCount, total: roles.length };
-  } catch (error) {
-    logger.error("Batch import failed:", error);
-    throw new HttpsError("internal", "Batch write failed");
-  }
-});
-
-// ================================================================
 // IMPORT BULK PRECINCTS
 // ================================================================
 
@@ -1663,7 +1543,7 @@ export const getResourcesByLocation = onCall(
 );
 
 // ================================================================
-//  CREATE NEW USERS THROUGH APP
+//  CREATE NEW USERS THROUGH ADMIN
 // ================================================================
 
 export const adminCreateUser = onCall({ cors: true }, async (request) => {
@@ -1689,15 +1569,15 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
   } = request.data;
 
   // 2. Data Validation
-  if (!email || !display_name || !role || !group_id) {
+  if (!email || !display_name || !role || !group_id || !county_id) {
     throw new HttpsError(
       "invalid-argument",
-      "Missing required fields: email, display_name, role, or group_id."
+      "Missing required fields: email, display_name, role, group_id, or county_id."
     );
   }
 
   // 3. Authorization Logic: Verify the Creator's Rank
-  const adminRole = request.auth.token.role;
+  const adminRole = request.auth.token.role || "base";
   const adminName = request.auth.token.name || "A Campaign Lead";
 
   const allowedRanks = {
@@ -1709,17 +1589,26 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       "area_chair",
       "candidate",
       "committeeperson",
-      "ambassador",
+      "volunteer",
+      "base",
+    ],
+    state_admin: [
+      "county_chair",
+      "state_rep_district",
+      "area_chair",
+      "candidate",
+      "committeeperson",
+      "volunteer",
       "base",
     ],
     state_rep_district: [
       "area_chair",
       "candidate",
-      "ambassador",
+      "volunteer",
       "committeeperson",
     ],
-    county_chair: ["area_chair"],
-    area_chair: ["committeeperson", "ambassador"],
+    county_chair: ["area_chair", "committeeperson", "volunteer"],
+    area_chair: ["committeeperson", "volunteer"],
   };
 
   const canCreate = allowedRanks[adminRole]?.includes(role);
@@ -1731,7 +1620,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
   }
 
   try {
-    // 4. Generate Temporary Password (First 4 of Name + 123456)
+    // 4. Generate Temporary Password
     const cleanName = display_name.replace(/[^a-zA-Z]/g, "");
     const tempPassword = `${cleanName.substring(0, 4)}123456`;
 
@@ -1747,27 +1636,52 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
 
     const uid = userRecord.uid;
 
-    // 6. Create Firestore User Document (ID = UID)
+    // 6. Generate Deterministic Role ID
+    // Standardizes ID as: role_county_area_precinct
+    const roleDocId = [
+      role,
+      county_id,
+      area_id || "general",
+      precinct_id || "none",
+    ]
+      .map((p) =>
+        String(p)
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "-")
+      )
+      .join("_");
+
+    // 7. Prepare User Access Object
+    const access = {
+      counties: [county_id],
+      areas: area_id ? [area_id] : [],
+      precincts: precinct_id ? [precinct_id] : [],
+    };
+
+    // 8. Create Firestore User Document
     const userDoc = {
       uid: uid,
       display_name: display_name.trim(),
       preferred_name: preferred_name || display_name.split(" ")[0],
       email: email.toLowerCase().trim(),
       phone: phone || null,
-      photo_url: null,
+      role: role,
+      group_id: group_id,
+      access: access,
       active: active ?? true,
       created_by: request.auth.uid,
       created_at: Date.now(),
       updated_at: Date.now(),
+      last_claims_sync: FieldValue.serverTimestamp(), // Signals Frontend to refresh
     };
 
-    // 7. Create Org Role Document
-    // This will trigger the syncOrgRolesToClaims function automatically
+    // 9. Create/Update Org Role Position
     const roleDoc = {
+      id: roleDocId,
       uid: uid,
       role: role,
       group_id: group_id,
-      county_id: county_id || null,
+      county_id: county_id,
       area_id: area_id || null,
       precinct_id: precinct_id || null,
       active: true,
@@ -1775,21 +1689,33 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       updated_at: Date.now(),
     };
 
-    // Execute Firestore writes
+    // 10. Atomic Write Strategy
     const batch = db.batch();
     batch.set(db.collection("users").doc(uid), userDoc);
-    batch.add(db.collection("org_roles"), roleDoc);
+    // Use merge:true to preserve existing role metadata if the seat was previously vacant
+    batch.set(db.collection("org_roles").doc(roleDocId), roleDoc, {
+      merge: true,
+    });
     await batch.commit();
 
-    logger.info(`User ${uid} successfully provisioned by ${request.auth.uid}`);
+    // 11. Provision Custom Claims (Instant Security Sync)
+    await auth.setCustomUserClaims(uid, {
+      role: role,
+      group_id: group_id,
+      counties: access.counties,
+      areas: access.areas,
+      precincts: access.precincts,
+    });
 
-    // 8. Return data for the Frontend Welcome Email Template
+    logger.info(
+      `User ${uid} successfully provisioned and claims set by ${request.auth.uid}`
+    );
+
     return {
       success: true,
       uid: uid,
       email: email,
       display_name: display_name,
-      preferred_name: userDoc.preferred_name,
       tempPassword: tempPassword,
       created_by: adminName,
     };
@@ -1799,13 +1725,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
     if (error.code === "auth/email-already-exists") {
       throw new HttpsError(
         "already-exists",
-        "This email address is already registered in the system."
-      );
-    }
-    if (error.code === "auth/invalid-phone-number") {
-      throw new HttpsError(
-        "invalid-argument",
-        "The phone number provided is invalid."
+        "This email address is already registered."
       );
     }
 
@@ -1945,3 +1865,296 @@ export const searchVotersByPhoneV2 = onCall(
     }
   }
 );
+
+// ================================================================
+//  ASSIGN A USER TO A ROLE THROUGH ADMIN
+// ================================================================
+
+export const adminCreateOrgRole = onCall({ cors: true }, async (request) => {
+  // 1. Auth Check
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Authentication required.");
+  }
+
+  const { role, county_id, area_id, precinct_id, group_id } = request.data;
+
+  // 2. Data Validation
+  if (!role || !county_id || !group_id) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Missing required fields: role, county_id, or group_id."
+    );
+  }
+
+  try {
+    // 3. Generate a Deterministic Document ID
+    // We replace spaces/special chars to ensure a valid Firestore path
+    const parts = [
+      role,
+      county_id,
+      area_id || "general",
+      precinct_id || "none",
+    ].map((p) =>
+      String(p)
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "-")
+    );
+
+    const docId = parts.join("_");
+
+    // CRITICAL FIX: Ensure docId is a valid non-empty string
+    if (!docId || docId.length === 0) {
+      throw new Error("Generated document ID is invalid.");
+    }
+
+    logger.info(`Creating OrgRole: ${docId}`);
+
+    const roleRef = db.collection("org_roles").doc(docId);
+
+    // 4. Use a Transaction to check for duplicates
+    await db.runTransaction(async (transaction) => {
+      const snap = await transaction.get(roleRef);
+
+      if (snap.exists) {
+        throw new Error("This organizational position already exists.");
+      }
+
+      const newRole = {
+        id: docId,
+        role,
+        group_id,
+        county_id,
+        area_id: area_id || null,
+        precinct_id: precinct_id || null,
+        uid: null,
+        is_vacant: true,
+        active: true,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+        created_by: request.auth.uid,
+      };
+
+      transaction.set(roleRef, newRole);
+    });
+
+    return { success: true, id: docId };
+  } catch (error) {
+    logger.error("Admin Create Org_Role failed:", error);
+    throw new HttpsError(
+      "internal",
+      error.message || "Failed to create position."
+    );
+  }
+});
+
+// ================================================================
+//  ASSIGN USER TO ROLE THROUGH ADMIN
+// ================================================================
+
+export const adminAssignUserToRole = onCall({ cors: true }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Auth required.");
+
+  const { roleDocId, targetUid } = request.data;
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const roleRef = db.collection("org_roles").doc(roleDocId);
+      const userRef = db.collection("users").doc(targetUid);
+
+      const [roleSnap, userSnap] = await Promise.all([
+        transaction.get(roleRef),
+        transaction.get(userRef),
+      ]);
+
+      if (!roleSnap.exists) throw new Error("Role document not found.");
+      if (!userSnap.exists) throw new Error("User document not found.");
+
+      const roleData = roleSnap.data();
+      const userData = userSnap.data();
+
+      // 1. Update Role Position
+      transaction.update(roleRef, {
+        uid: targetUid,
+        is_vacant: false,
+        updated_at: Date.now(),
+      });
+
+      // 2. Merge Access (Prevent duplicates with Set)
+      const newAccess = {
+        counties: [
+          ...new Set([
+            ...(userData.access?.counties || []),
+            roleData.county_id,
+          ]),
+        ],
+        areas: [
+          ...new Set([...(userData.access?.areas || []), roleData.area_id]),
+        ].filter(Boolean),
+        precincts: [
+          ...new Set([
+            ...(userData.access?.precincts || []),
+            roleData.precinct_id,
+          ]),
+        ].filter(Boolean),
+      };
+
+      transaction.update(userRef, {
+        role: roleData.role, // Update primary role
+        group_id: roleData.group_id,
+        access: newAccess,
+        last_claims_sync: FieldValue.serverTimestamp(), // Signal AuthContext to refresh
+      });
+
+      // 3. Set Custom Claims (Security Layer)
+      await auth.setCustomUserClaims(targetUid, {
+        role: roleData.role,
+        group_id: roleData.group_id,
+        counties: newAccess.counties,
+        areas: newAccess.areas,
+        precincts: newAccess.precincts,
+      });
+
+      return { success: true };
+    });
+  } catch (err) {
+    throw new HttpsError("internal", err.message);
+  }
+});
+
+// ================================================================
+//  VACATE USER TO ROLE THROUGH ADMIN
+// ================================================================
+
+export const adminVacateOrgRole = onCall({ cors: true }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Auth required.");
+
+  const { roleDocId } = request.data;
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const roleRef = db.collection("org_roles").doc(roleDocId);
+      const roleSnap = await transaction.get(roleRef);
+
+      if (!roleSnap.exists) throw new Error("Role position not found.");
+      const roleData = roleSnap.data();
+      const targetUid = roleData.uid;
+
+      // 1. Clear the position
+      transaction.update(roleRef, {
+        uid: null,
+        is_vacant: true,
+        updated_at: Date.now(),
+      });
+
+      // 2. If someone was in the seat, update their profile
+      if (targetUid) {
+        const userRef = db.collection("users").doc(targetUid);
+
+        // Find ALL other roles this user still holds
+        const otherRolesSnap = await db
+          .collection("org_roles")
+          .where("uid", "==", targetUid)
+          .get();
+
+        // Filter out the one we just vacated in this transaction
+        const remainingRoles = otherRolesSnap.docs
+          .map((d) => d.data())
+          .filter((r) => r.id !== roleDocId);
+
+        // Recalculate access arrays from remaining roles
+        const newAccess = {
+          counties: [...new Set(remainingRoles.map((r) => r.county_id))],
+          areas: [...new Set(remainingRoles.map((r) => r.area_id))].filter(
+            Boolean
+          ),
+          precincts: [
+            ...new Set(remainingRoles.map((r) => r.precinct_id)),
+          ].filter(Boolean),
+        };
+
+        // Determine new primary role (usually the highest rank or 'base' if none left)
+        const newRoleLabel =
+          remainingRoles.length > 0 ? remainingRoles[0].role : "base";
+
+        transaction.update(userRef, {
+          role: newRoleLabel,
+          access: newAccess,
+          last_claims_sync: FieldValue.serverTimestamp(),
+        });
+
+        // 3. Update Custom Claims to reflect the loss of access
+        await auth.setCustomUserClaims(targetUid, {
+          role: newRoleLabel,
+          counties: newAccess.counties,
+          areas: newAccess.areas,
+          precincts: newAccess.precincts,
+        });
+      }
+
+      return { success: true };
+    });
+  } catch (err) {
+    throw new HttpsError("internal", err.message);
+  }
+});
+
+// ================================================================
+//  TOGGLE ACTIVE/DEACTIVE ROLE THROUGH ADMIN
+// ================================================================
+
+export const adminToggleRoleActive = onCall({ cors: true }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Auth required.");
+
+  const { roleDocId, active } = request.data;
+
+  try {
+    const roleRef = db.collection("org_roles").doc(roleDocId);
+    const roleSnap = await roleRef.get();
+
+    if (!roleSnap.exists) throw new Error("Role not found.");
+    const roleData = roleSnap.data();
+
+    // 1. Update the Role status
+    await roleRef.update({
+      active: active,
+      updated_at: Date.now(),
+    });
+
+    // 2. If the role has a user, we need to refresh their claims
+    if (roleData.uid) {
+      const userRef = db.collection("users").doc(roleData.uid);
+
+      // Fetch all ACTIVE roles for this user to rebuild claims
+      const activeRolesSnap = await db
+        .collection("org_roles")
+        .where("uid", "==", roleData.uid)
+        .where("active", "==", true)
+        .get();
+
+      const activeRoles = activeRolesSnap.docs.map((d) => d.data());
+
+      const newAccess = {
+        counties: [...new Set(activeRoles.map((r) => r.county_id))],
+        areas: [...new Set(activeRoles.map((r) => r.area_id))].filter(Boolean),
+        precincts: [...new Set(activeRoles.map((r) => r.precinct_id))].filter(
+          Boolean
+        ),
+      };
+
+      await userRef.update({
+        access: newAccess,
+        last_claims_sync: FieldValue.serverTimestamp(),
+      });
+
+      await auth.setCustomUserClaims(roleData.uid, {
+        counties: newAccess.counties,
+        areas: newAccess.areas,
+        precincts: newAccess.precincts,
+      });
+    }
+
+    return { success: true };
+  } catch (err) {
+    throw new HttpsError("internal", err.message);
+  }
+});

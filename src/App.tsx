@@ -12,6 +12,7 @@ import MainLayout from "./app/layout/MainLayout";
 // Components
 import LoginPage from "./components/auth/LoginPage";
 import EnrollMFAScreen from "./components/auth/EnrollMFAScreen";
+import LegalPage from "./pages/legal/LegalPage";
 
 // Page Imports
 import Dashboard from "./app/dashboard/Dashboard";
@@ -317,6 +318,7 @@ export default function App() {
 
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/legal" element={<LegalPage />} />
       </Routes>
     </MainLayout>
   );

@@ -75,7 +75,7 @@ const ROLE_ICONS: Record<string, string> = {
   county_chair: CountyChairCrown,
   area_chair: AreaChairBadge,
   committeeperson: CommitteepersonShield,
-  ambassador: CandidateRosette,
+  volunteer: CandidateRosette,
 };
 
 const ORG_ICONS: Record<string, string> = {

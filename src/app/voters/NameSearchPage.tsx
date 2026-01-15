@@ -73,7 +73,7 @@ export default function NameSearchPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { isLoaded } = useAuth();
-  const dncMap = useDncMap(); // Initialize the DNC protection layer
+  const dncMap = useDncMap();
 
   const [filters, setFilters] = useState<FilterValues | null>(null);
   const [page, setPage] = useState(0);

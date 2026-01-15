@@ -281,7 +281,7 @@ export default function LoginPage() {
         comment: volComment.trim(),
         recaptchaToken: token,
       });
-      
+
       setVolunteerOpen(false);
       setShowThankYou(true);
     } catch (error: any) {

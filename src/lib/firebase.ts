@@ -14,6 +14,7 @@ import {
 } from "firebase/app-check";
 
 import { getMessaging, Messaging } from "firebase/messaging";
+import { getAnalytics, logEvent } from "firebase/analytics";
 
 // === 1. Strict Config Validation ===
 const requiredConfigKeys = [
@@ -71,6 +72,15 @@ export const db: Firestore = initializeFirestore(app, {
   localCache: memoryLocalCache(),
   experimentalAutoDetectLongPolling: true,
 });
+
+export const analytics =
+  typeof window !== "undefined" ? getAnalytics(app) : null;
+
+export const recordEvent = (eventName: string, params?: object) => {
+  if (analytics) {
+    logEvent(analytics, eventName, params);
+  }
+};
 
 // === 4. App Check Initialization (Reliable & Secure) ===
 const RECAPTCHA_SITE_KEY = firebaseConfig.recaptchaSiteKey || "";

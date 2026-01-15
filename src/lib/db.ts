@@ -28,7 +28,7 @@ class GroundGame26DB extends Dexie {
       counties: "id, name",
       areas: "id, county_id",
       precincts: "id, area_id, county_id",
-      groups: "id, code, county_code",
+      groups: "id, county_id",
       users: "uid",
       app_control: "id",
     });
