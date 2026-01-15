@@ -7,6 +7,7 @@ import {
   addDoc,
   query,
   orderBy,
+  limit,
   deleteDoc,
   updateDoc,
 } from "firebase/firestore";
@@ -94,24 +95,17 @@ export const getAllRewards = async (): Promise<ireward[]> => {
   }
 };
 
-/**
- * Adds a new reward to the catalog
- */
 export const addReward = async (
-  rewardData: Omit<ireward, "id" | "created_at" | "updated_at">
+  data: Omit<ireward, "id" | "created_at" | "updated_at">
 ) => {
+  const rewardCol = collection(db, "rewards");
   const now = Date.now();
-  try {
-    const rewardsCol = collection(db, "rewards");
-    return await addDoc(rewardsCol, {
-      ...rewardData,
-      created_at: now,
-      updated_at: now,
-    });
-  } catch (error) {
-    console.error("Error adding reward:", error);
-    throw error;
-  }
+
+  return await addDoc(rewardCol, {
+    ...data,
+    created_at: now,
+    updated_at: now,
+  });
 };
 
 export const updateRewardStatus = async (
@@ -129,4 +123,38 @@ export const updateRewardStatus = async (
 export const deleteReward = async (rewardId: string) => {
   const rewardRef = doc(db, "rewards", rewardId);
   return await deleteDoc(rewardRef);
+};
+
+export const updateReward = async (
+  rewardId: string,
+  rewardData: Partial<ireward>
+) => {
+  const now = Date.now();
+  const rewardRef = doc(db, "rewards", rewardId);
+  return await updateDoc(rewardRef, {
+    ...rewardData,
+    updated_at: now,
+  });
+};
+
+export const updateRedemptionStatus = async (id: string, status: string) => {
+  const ref = doc(db, "redemptions", id);
+  return await updateDoc(ref, { status });
+};
+
+export const getAllRedemptions = async () => {
+  try {
+    const redemptionsCol = collection(db, "redemptions");
+    // Sort by most recent first
+    const q = query(redemptionsCol, orderBy("redeemed_at", "desc"));
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (error) {
+    console.error("Error fetching redemptions:", error);
+    throw error;
+  }
 };

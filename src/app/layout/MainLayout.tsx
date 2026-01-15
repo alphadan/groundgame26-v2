@@ -12,6 +12,7 @@ import { auth } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../../lib/db";
+import { subscribeToUserBadges } from "../../services/badgeService";
 import {
   Box,
   Drawer,
@@ -92,6 +93,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const location = useLocation();
 
   const { user, claims } = useAuth();
+  const [realBadges, setRealBadges] = useState<any[]>([]);
   const appControl = useLiveQuery(() =>
     db.app_control.toArray().then((arr) => arr[0])
   );
@@ -154,30 +156,17 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const handleDrawerToggle = () => setMobileOpen((prev) => !prev);
 
   // === Earned Badges with SVG icons and tooltips ===
-  const earnedBadges = [
-    {
-      id: 1,
-      name: "100 Doors Knocked",
-      icon: "🏆",
-      points: 100,
-      redeemed: true,
-    },
-    {
-      id: 2,
-      name: "Mail Ballot Master",
-      icon: "📬",
-      points: 150,
-      redeemed: false,
-    },
-    { id: 3, name: "Top Recruiter", icon: "🎯", points: 200, redeemed: false },
-    {
-      id: 4,
-      name: "Platinum Committeeperson",
-      icon: "💎",
-      points: 500,
-      redeemed: false,
-    },
-  ];
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    // Use the service instead of local Firestore logic
+    const unsubscribe = subscribeToUserBadges(user.uid, (badges) => {
+      setRealBadges(badges);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   const drawer = (
     <Box>
@@ -330,152 +319,39 @@ export default function MainLayout({ children }: MainLayoutProps) {
               </Typography>
             </Breadcrumbs>
 
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Stack
-                direction="row"
-                spacing={1.5}
-                alignItems="center"
-                sx={{ display: "inline-flex", pr: 4 }}
-              >
-                {/* Badges */}
-                {earnedBadges.map((badge) => (
-                  <Tooltip key={badge.id} title={badge.name} arrow>
-                    <Box
-                      sx={{
-                        fontSize: "1rem", // Size of the emoji
-                        lineHeight: 1,
-                        cursor: "default",
-                        // Optional subtle hover effect
-                        transition: "transform 0.2s",
-                        "&:hover": {
-                          transform: "scale(1.2)",
-                        },
-                      }}
-                    >
-                      {badge.icon}
-                    </Box>
-                  </Tooltip>
-                ))}
-
-                {earnedBadges.length === 0 && (
-                  <Typography variant="body2" color="text.secondary">
-                    Earn badges by completing goals!
-                  </Typography>
-                )}
-              </Stack>
-
-              {/* Role Icon */}
-              {userRole && ROLE_ICONS[userRole] && (
-                <Tooltip
-                  title={userRole
-                    .replace(/_/g, " ")
-                    .replace(/\b\w/g, (l) => l.toUpperCase())}
-                >
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{ display: "inline-flex", pr: 4 }}
+            >
+              {realBadges.map((badge) => (
+                <Tooltip key={badge.id} title={badge.badge_title} arrow>
                   <Box
-                    component="img"
-                    src={ROLE_ICONS[userRole]}
-                    alt={userRole}
-                    sx={{ height: 18 }}
-                  />
-                </Tooltip>
-              )}
-
-              {/* Org Icon */}
-              {userOrgId && ORG_ICONS[userOrgId] && (
-                <Tooltip
-                  title={userOrgId
-                    .replace(/_/g, " ")
-                    .replace(/\b\w/g, (l) => l.toUpperCase())}
-                >
-                  <Box
-                    component="img"
-                    src={ORG_ICONS[userOrgId]}
-                    alt="Org"
-                    sx={{ height: 36 }}
-                  />
-                </Tooltip>
-              )}
-
-              <Tooltip title="Settings">
-                <IconButton onClick={() => navigate("/settings")}>
-                  <Settings />
-                </IconButton>
-              </Tooltip>
-
-              <Tooltip title={user?.displayName || user?.email || "User"}>
-                <IconButton onClick={handleAvatarClick}>
-                  <Avatar
-                    src={user?.photoURL ?? ""}
                     sx={{
-                      width: 40,
-                      height: 40,
-                      bgcolor: user?.photoURL ? "transparent" : "gold.main",
-                      color: "gold.contrastText",
-                      fontWeight: "bold",
-                      fontSize: "1.1rem",
+                      fontSize: "1.2rem", // Slightly larger for better visibility
+                      lineHeight: 1,
+                      cursor: "default",
+                      transition: "transform 0.2s",
+                      "&:hover": {
+                        transform: "scale(1.3) rotate(10deg)",
+                      },
                     }}
                   >
-                    {(user?.displayName || user?.email || "U")
-                      .charAt(0)
-                      .toUpperCase()}
-                  </Avatar>
-                </IconButton>
-              </Tooltip>
+                    {badge.badge_unicode}
+                  </Box>
+                </Tooltip>
+              ))}
 
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleMenuClose}
-                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                transformOrigin={{ vertical: "top", horizontal: "right" }}
-              >
-                <MenuItem
-                  onClick={() => {
-                    handleMenuClose();
-                    navigate("/settings");
-                  }}
+              {realBadges.length === 0 && (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ opacity: 0.6 }}
                 >
-                  <Settings fontSize="small" sx={{ mr: 1 }} />
-                  Settings
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    handleMenuClose();
-                    handleSignOut();
-                  }}
-                >
-                  <Logout fontSize="small" sx={{ mr: 1 }} />
-                  Log Out
-                </MenuItem>
-
-                <Divider sx={{ my: 1 }} />
-
-                <MenuItem
-                  disableRipple
-                  disabled
-                  sx={{ opacity: 0.7, cursor: "default", py: 0.2 }}
-                >
-                  <Typography
-                    variant="caption"
-                    sx={{ width: "100%", textAlign: "left", fontWeight: 500 }}
-                  >
-                    Version: {appControl?.current_app_version || "—"}
-                  </Typography>
-                </MenuItem>
-
-                <MenuItem
-                  disableRipple
-                  disabled
-                  sx={{ opacity: 0.7, cursor: "default", py: 0.2 }}
-                >
-                  <Typography
-                    variant="caption"
-                    sx={{ width: "100%", textAlign: "left", fontWeight: 500 }}
-                  >
-                    Database: {appControl?.current_db_version || "—"}
-                  </Typography>
-                </MenuItem>
-              </Menu>
+                  No badges yet
+                </Typography>
+              )}
             </Stack>
           </Toolbar>
         </Box>

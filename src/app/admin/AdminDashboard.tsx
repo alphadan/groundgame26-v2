@@ -82,17 +82,17 @@ const cardConfigs = [
     path: "/admin/analytics",
   },
   {
-    title: "Manage Rewards",
+    title: "Engagement Center",
     icon: <EmojiEventsIcon fontSize="large" color="primary" />,
     description: "Manage Rewards",
     subActivities: [
       "Add Rewards",
       "Edit Rewards",
-      "Reset Rewards",
-      "Delete Rewards",
+      "Create Badges",
+      "Manage Badges",
     ],
-    metrics: "100 Rewards • 98 Rewards",
-    path: "/admin/rewards",
+    metrics: "4 Rewards • 15 Badges",
+    path: "/admin/engagement",
   },
   {
     title: "Manage Areas",

@@ -277,6 +277,16 @@ export enum RedemptionStatus {
   cancelled = "cancelled",
 }
 
+export enum RewardCategory {
+  giftcard = "Gift Card",
+  merchandise = "Merchandise",
+  experience = "Experience",
+  discount = "Discount",
+  swag = "Swag",
+  digital = "Digital",
+  event = "Event",
+}
+
 /**
  * The Reward Catalog Item
  */
@@ -286,6 +296,9 @@ export interface ireward {
   description: string;
   points_cost: number;
   status: RewardStatus;
+  category: RewardCategory;
+  sponsor?: string | null;
+  is_digital: boolean;
   stock_quantity?: number;
   image_url?: string;
   expiry_date?: number;
@@ -319,4 +332,37 @@ export interface iredemption {
     promo_code?: string;
     download_url?: string;
   };
+}
+
+export interface ibadge {
+  id?: string;
+  title: string;
+  description: string;
+  unicode: string;
+  status: "active" | "inactive";
+  sponsor?: string | null;
+  created_at?: number;
+}
+
+// User-specific badge assignment
+export interface iuserBadge {
+  id?: string;
+  user_id: string;
+  badge_id: string;
+  earned_at: number;
+}
+
+export interface iuserBadgeDenormalized {
+  id: string;
+  // User Snapshot
+  user_id: string;
+  user_name: string; // Flattened
+  user_email: string; // Flattened
+  // Badge Snapshot
+  badge_id: string;
+  badge_title: string; // Flattened
+  badge_unicode: string; // Flattened
+  badge_sponsor: string; // Flattened
+  // Metadata
+  earned_at: number;
 }
