@@ -149,7 +149,7 @@ export const getVotersByPrecinct = onCall(async (request) => {
     SELECT * FROM \`groundgame26-v2.groundgame26_voters.chester_county\` 
     WHERE precinct = @precinctCode 
     AND active = TRUE 
-    LIMIT 1000`;
+    `;
 
   const options = {
     query: sql,
@@ -363,7 +363,6 @@ export const getVotersByPrecinctV2 = onCall(
       FROM \`${table}\`
       WHERE precinct = @normalizedPrecinct
       ORDER BY turnout_score_general DESC
-      LIMIT 1000
     `;
 
     try {
@@ -488,7 +487,10 @@ export const queryVotersDynamic = onCall(
       }
     }
 
-    sql += ` ORDER BY full_name LIMIT 2000`;
+    sql += ` ORDER BY 
+        REGEXP_REPLACE(address, r'^[0-9]+', '') ASC,
+        SAFE_CAST(REGEXP_EXTRACT(address, r'^[0-9]+') AS INT64) ASC,
+        full_name ASC `;
 
     console.log("Final SQL:", sql);
     logger.log("Final SQL:", sql);

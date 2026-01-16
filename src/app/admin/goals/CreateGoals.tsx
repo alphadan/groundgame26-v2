@@ -27,6 +27,7 @@ export default function CreateGoals({
 
   const [form, setForm] = useState({
     precinct_id: "",
+    precinct_name: "",
     targets: {
       registrations: 0,
       mail_in: 0,
@@ -39,6 +40,7 @@ export default function CreateGoals({
     if (initialData) {
       setForm({
         precinct_id: initialData.precinct_id,
+        precinct_name: initialData.precinct_name || "",
         targets: { ...initialData.targets },
       });
     }
@@ -51,6 +53,7 @@ export default function CreateGoals({
       // Use standard Cloud Function for strict server-side timestamping
       await callFunction("adminSetGoal", {
         precinct_id: form.precinct_id,
+        precinct_name: form.precinct_name,
         targets: form.targets,
         cycle: "2026_GENERAL",
         county_id: "PA-C-15",
@@ -73,6 +76,13 @@ export default function CreateGoals({
         disabled={!!initialData}
         value={form.precinct_id}
         onChange={(e) => setForm({ ...form, precinct_id: e.target.value })}
+      />
+      <TextField
+        label="Precinct Name"
+        fullWidth
+        disabled={!!initialData}
+        value={form.precinct_name}
+        onChange={(e) => setForm({ ...form, precinct_name: e.target.value })}
       />
       <Grid container spacing={2}>
         {(

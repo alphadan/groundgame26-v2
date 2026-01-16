@@ -142,9 +142,10 @@ export interface AppControl {
 }
 
 export interface FilterValues {
-  county: string;
-  area: string;
-  precinct: string;
+  precinct_id?: string;
+  county?: string;
+  area?: string;
+  precinct?: string;
   name?: string;
   street?: string;
   modeledParty?: string;
@@ -250,6 +251,7 @@ export interface GoalTargets {
 
 export interface Goal extends BaseMetadata {
   precinct_id: string; // Maps to PA15-P-XXX
+  precinct_name: string;
   cycle: string; // e.g., "2025_PRIMARY"
   county_id: string; // For scoped filtering
   area_id: string; // For scoped filtering
@@ -365,4 +367,38 @@ export interface iuserBadgeDenormalized {
   badge_sponsor: string; // Flattened
   // Metadata
   earned_at: number;
+}
+
+// src/types.ts add to existing types
+// src/types.ts
+
+export interface PrecinctMonthlyStats {
+  // Metadata & ID: {precinct_id}_{month}_{year}
+  id: string;
+  precinct_id: string;
+  month: number;
+  year: number;
+  county_id: string;
+
+  // === STATUS (Official County Data - Lagging Indicators) ===
+  // Current snapshots of the voter file provided by the county
+  gop_registrations: number;
+  dem_registrations: number;
+  indep_registrations: number;
+
+  gop_has_mail_ballots: number;
+  dem_has_mail_ballots: number;
+  indep_has_mail_ballots: number;
+
+  // === ACTIVITY (Volunteer Data - Leading Indicators) ===
+  // Aggregated real-time counts of what your team is doing
+  doors_knocked: number;
+  texts_sent: number;
+  emails_sent: number;
+  surveys_completed: number;
+  volunteers_active_count: number; // Unique UIDs that contributed this month
+
+  // System Metadata
+  last_updated: number; // Timestamp of the most recent activity or status sync
+  updated_by: string; // UID of the admin or system process that last modified it
 }

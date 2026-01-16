@@ -1,10 +1,9 @@
-// src/app/voters/WalkListPage.tsx
 import React, { useState, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useDynamicVoters } from "../../hooks/useDynamicVoters";
 import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
-import { useDncMap } from "../../hooks/useDncMap"; // Integrated DNC Hook
+import { useDncMap } from "../../hooks/useDncMap";
 import {
   Box,
   Typography,
@@ -19,6 +18,7 @@ import {
   useMediaQuery,
   Snackbar,
   Chip,
+  Divider,
 } from "@mui/material";
 import {
   Phone,
@@ -26,15 +26,15 @@ import {
   Download as DownloadIcon,
   MailOutline,
   Block,
+  Home as HomeIcon,
 } from "@mui/icons-material";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "../../lib/firebase";
 import { FilterValues } from "../../types";
 import {
   DataGrid,
   GridColDef,
   GridToolbarContainer,
   GridToolbarQuickFilter,
+  GridRenderCellParams,
 } from "@mui/x-data-grid";
 
 interface Voter {
@@ -47,14 +47,24 @@ interface Voter {
   phone_mobile?: string;
   phone_home?: string;
   email?: string;
+  city?: string;
+  zip_code?: number | string;
 }
 
+/**
+ * Custom Toolbar with corrected QuickFilter props
+ */
 function CustomToolbar() {
   return (
-    <GridToolbarContainer sx={{ p: 2, justifyContent: "space-between" }}>
-      <Typography variant="h6" fontWeight="bold">
-        Walk List
-      </Typography>
+    <GridToolbarContainer
+      sx={{ p: 2, justifyContent: "space-between", bgcolor: "grey.50" }}
+    >
+      <Stack direction="row" spacing={1} alignItems="center">
+        <HomeIcon color="primary" />
+        <Typography variant="h6" fontWeight="bold">
+          Canvassing Walk List
+        </Typography>
+      </Stack>
       <GridToolbarQuickFilter />
     </GridToolbarContainer>
   );
@@ -63,219 +73,184 @@ function CustomToolbar() {
 export default function WalkListPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const { user, isLoaded: authLoaded } = useAuth();
-
-  // 1. Initialize the DNC protection Layer
+  const { isLoaded: authLoaded } = useAuth();
   const dncMap = useDncMap();
 
   const [filters, setFilters] = useState<FilterValues | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
+  // Fetch voters (Sorted by Address in Cloud Function)
   const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
 
   const handleSubmit = useCallback((submittedFilters: FilterValues) => {
     if (!submittedFilters.precinct) {
-      setSnackbarMessage("Please select a precinct to generate a walk list");
+      setSnackbarMessage(
+        "Precinct selection is required for a valid walk list."
+      );
       setSnackbarOpen(true);
       return;
     }
     setFilters(submittedFilters);
   }, []);
 
-  const handleCall = useCallback(
-    (phone?: string) => {
-      if (!phone || !isMobile) return;
-      const cleaned = phone.replace(/\D/g, "");
-      const normalized =
-        cleaned.length === 11 && cleaned.startsWith("1")
-          ? cleaned
-          : "1" + cleaned;
-      setSnackbarMessage("Opening Phone app — tap back when finished!");
-      setSnackbarOpen(true);
-      setTimeout(() => {
-        window.location.href = `tel:${normalized}`;
-      }, 2000);
-    },
-    [isMobile]
-  );
+  const handleCall = (phone?: string) => {
+    if (!phone) return;
+    window.location.href = `tel:${phone.replace(/\D/g, "")}`;
+  };
 
-  const handleText = useCallback(
-    async (phone?: string) => {
-      if (!phone || !isMobile) return;
-      const cleaned = phone.replace(/\D/g, "");
-      const normalized =
-        cleaned.length === 11 && cleaned.startsWith("1")
-          ? cleaned
-          : "1" + cleaned;
-      setSnackbarMessage("Opening Messages app — swipe right to return!");
-      setSnackbarOpen(true);
-      setTimeout(() => {
-        window.location.href = `sms:${normalized}?body=`;
-      }, 2000);
-    },
-    [isMobile]
-  );
+  const handleText = (phone?: string) => {
+    if (!phone) return;
+    window.location.href = `sms:${phone.replace(/\D/g, "")}`;
+  };
 
   const handleDownloadCSV = useCallback(() => {
-    if (!voters || voters.length === 0) return;
+    if (!voters.length) return;
     const headers = [
       "Full Name",
-      "Age",
-      "Party",
       "Address",
-      "City",
-      "Zip Code",
-      "Phone Mobile",
-      "Phone Home",
-      "Email",
-      "Precinct",
+      "Party",
+      "Age",
+      "Phone",
       "DNC Status",
     ];
-
-    const rows = voters.map((voter: any) => {
-      // Logic for CSV Status column
-      const phoneNorm = voter.phone_mobile?.replace(/\D/g, "") || "";
-      const isDnc = dncMap.has(voter.voter_id) || dncMap.has(phoneNorm);
-
-      return [
-        voter.full_name || "",
-        voter.age || "",
-        voter.party || "",
-        voter.address || "",
-        voter.city || "",
-        voter.zip_code || "",
-        voter.phone_mobile || "",
-        voter.phone_home || "",
-        voter.email || "",
-        voter.precinct || "",
-        isDnc ? "DO NOT CONTACT" : "Active",
-      ];
-    });
-
     const csvContent = [
       headers.join(","),
-      ...rows.map((row) =>
-        row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(",")
-      ),
+      ...voters.map((v: any) => {
+        const phoneNorm = v.phone_mobile?.replace(/\D/g, "") || "";
+        const isDnc =
+          dncMap.has(v.voter_id) || (phoneNorm !== "" && dncMap.has(phoneNorm));
+        return [
+          `"${v.full_name}"`,
+          `"${v.address}"`,
+          `"${v.party}"`,
+          v.age,
+          `"${v.phone_mobile || v.phone_home || ""}"`,
+          isDnc ? "DO NOT CONTACT" : "Active",
+        ].join(",");
+      }),
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `walk_list_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `walklist_${filters?.precinct}_${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
     link.click();
-  }, [voters, dncMap]);
+  }, [voters, dncMap, filters]);
 
-  // 2. Updated columns with DNC logic
+  // Column Definitions
   const columns: GridColDef<Voter>[] = [
     {
+      field: "address",
+      headerName: "Household / Address",
+      flex: 1.5,
+      minWidth: 220,
+      renderCell: (params: GridRenderCellParams<Voter>) => {
+        const { row, api, id } = params;
+        const rowIndex = api.getRowIndexRelativeToVisibleRows(id);
+        const prevRow =
+          rowIndex > 0
+            ? api.getRowModels().get(api.getRowIdFromRowIndex(rowIndex - 1))
+            : null;
+
+        const isNewHouse = !prevRow || prevRow.address !== row.address;
+
+        return (
+          <Box sx={{ py: 1 }}>
+            {isNewHouse ? (
+              <Typography variant="body2" fontWeight="900" color="primary.main">
+                {row.address}
+              </Typography>
+            ) : (
+              <Typography
+                variant="caption"
+                color="text.disabled"
+                sx={{ pl: 2, fontStyle: "italic" }}
+              >
+                (Same Household)
+              </Typography>
+            )}
+          </Box>
+        );
+      },
+    },
+    {
       field: "full_name",
-      headerName: "Voter",
+      headerName: "Voter Name",
       flex: 1.2,
       minWidth: 180,
       renderCell: ({ row }) => {
+        const voterId = row.voter_id || "";
         const phoneNorm = row.phone_mobile?.replace(/\D/g, "") || "";
         const isDnc =
-          dncMap.has(row.voter_id) ||
-          dncMap.has(phoneNorm) ||
-          (row.email && dncMap.has(row.email.toLowerCase()));
+          dncMap.has(voterId) || (phoneNorm !== "" && dncMap.has(phoneNorm));
 
         return (
-          <Stack>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Typography
-                variant="body1"
-                fontWeight="medium"
-                color={isDnc ? "error.main" : "text.primary"}
-              >
-                {row.full_name || "Unknown"}
-              </Typography>
-              {isDnc && (
-                <Tooltip title="Requested No Contact">
-                  <Chip
-                    label="DNC"
-                    size="small"
-                    color="error"
-                    variant="outlined"
-                    sx={{ height: 18, fontSize: "0.6rem" }}
-                  />
-                </Tooltip>
-              )}
-            </Stack>
-            <Typography variant="body2" color="text.secondary">
-              {row.address || "No address on file"}
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography
+              variant="body2"
+              fontWeight="medium"
+              color={isDnc ? "error.main" : "text.primary"}
+            >
+              {row.full_name}
             </Typography>
+            {isDnc && (
+              <Chip
+                label="DNC"
+                size="small"
+                color="error"
+                variant="outlined"
+                sx={{ height: 16, fontSize: "0.6rem" }}
+              />
+            )}
           </Stack>
         );
       },
     },
     {
-      field: "age",
-      headerName: "Age",
-      width: 80,
-      align: "center",
-      valueGetter: (_v, row) => row.age ?? "?",
-    },
-    {
       field: "party",
       headerName: "Party",
-      width: 100,
+      width: 80,
       renderCell: ({ value }) => (
         <Chip
-          label={value || "N/A"}
+          label={value || "U"}
           size="small"
           sx={{
-            minWidth: 60,
+            fontWeight: "bold",
             bgcolor:
               value === "R"
-                ? theme.palette.voter.hardR
+                ? theme.palette.error.light
                 : value === "D"
-                ? theme.palette.voter.hardD
-                : undefined,
-            color: value === "R" || value === "D" ? "#FFFFFF" : "text.primary",
-            fontWeight: "bold",
+                ? theme.palette.info.light
+                : "grey.300",
+            color: "white",
           }}
         />
       ),
     },
     {
-      field: "precinct",
-      headerName: "Precinct",
-      flex: 1,
-      minWidth: 140,
-      valueGetter: (_v, row) => row.precinct || "—",
-    },
-    {
-      field: "contact",
-      headerName: "Contact",
+      field: "actions",
+      headerName: "Contact & Notes",
       width: 220,
-      align: "right",
+      sortable: false,
       renderCell: ({ row }) => {
-        // 3. Contact Visibility Protection
+        const phone = row.phone_mobile || row.phone_home;
+        const voterId = row.voter_id || "";
         const phoneNorm = row.phone_mobile?.replace(/\D/g, "") || "";
         const isDnc =
-          dncMap.has(row.voter_id) ||
-          dncMap.has(phoneNorm) ||
-          (row.email && dncMap.has(row.email.toLowerCase()));
+          dncMap.has(voterId) || (phoneNorm !== "" && dncMap.has(phoneNorm));
 
         return (
-          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-            {isDnc ? (
-              <Tooltip title="Blocked by DNC Registry">
-                <IconButton size="small" color="error" disabled>
-                  <Block fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            ) : (
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            {!isDnc && (
               <>
-                {(row.phone_mobile || row.phone_home) && isMobile && (
+                {phone && isMobile && (
                   <IconButton
                     size="small"
                     color="success"
-                    onClick={() =>
-                      handleCall(row.phone_mobile || row.phone_home)
-                    }
+                    onClick={() => handleCall(phone)}
                   >
                     <Phone fontSize="small" />
                   </IconButton>
@@ -293,55 +268,40 @@ export default function WalkListPage() {
                   <IconButton
                     size="small"
                     color="primary"
-                    component="a"
                     href={`mailto:${row.email}`}
-                    target="_blank"
                   >
                     <MailOutline fontSize="small" />
                   </IconButton>
                 )}
               </>
             )}
+            {isDnc && <Block color="error" sx={{ fontSize: 18, mx: 1 }} />}
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+            <VoterNotes
+              voterId={row.voter_id}
+              fullName={row.full_name}
+              address={row.address}
+            />
           </Stack>
         );
       },
-    },
-    {
-      field: "note",
-      headerName: "Note",
-      width: 100,
-      align: "center",
-      renderCell: ({ row }) => (
-        <VoterNotes
-          voterId={row.voter_id}
-          fullName={row.full_name}
-          address={row.address}
-        />
-      ),
     },
   ];
 
   if (!authLoaded)
     return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "70vh",
-        }}
-      >
-        <CircularProgress size={60} />
+      <Box sx={{ display: "flex", justifyContent: "center", mt: 10 }}>
+        <CircularProgress />
       </Box>
     );
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-      <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
-        Walk Lists
+    <Box sx={{ p: { xs: 2, sm: 4 } }}>
+      <Typography variant="h4" fontWeight="bold" gutterBottom color="primary">
+        Household Walk List
       </Typography>
-      <Typography variant="h6" color="text.secondary" gutterBottom>
-        Generate targeted walk lists for door-to-door canvassing
+      <Typography variant="body1" color="text.secondary" mb={4}>
+        Sorted by address for optimized canvassing.
       </Typography>
 
       <FilterSelector
@@ -358,60 +318,84 @@ export default function WalkListPage() {
       />
 
       {error && (
-        <Alert severity="error" sx={{ mt: 3 }}>
-          Failed to load voters. Please try again.
+        <Alert severity="error" sx={{ mt: 2 }}>
+          Error loading walk list. Please refresh the page.
         </Alert>
       )}
+
       {filters && voters.length > 0 && (
-        <>
-          <Box sx={{ textAlign: "right", mt: 5, mb: 4 }}>
+        <Box sx={{ mt: 4 }}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            mb={2}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Found <strong>{voters.length}</strong> voters in{" "}
+              <strong>{new Set(voters.map((v) => v.address)).size}</strong>{" "}
+              households.
+            </Typography>
             <Button
-              variant="contained"
+              variant="outlined"
               startIcon={<DownloadIcon />}
               onClick={handleDownloadCSV}
-              size="large"
-              sx={{ fontWeight: "bold", px: 4 }}
             >
-              Download CSV ({voters.length} voters)
+              Export CSV
             </Button>
-          </Box>
-          <Box sx={{ height: { xs: 700, md: 800 }, width: "100%" }}>
+          </Stack>
+
+          <Paper
+            sx={{
+              height: 800,
+              width: "100%",
+              borderRadius: 3,
+              overflow: "hidden",
+              boxShadow: 3,
+            }}
+          >
             <DataGrid
               rows={voters}
               getRowId={(row) => row.voter_id}
               columns={columns}
-              initialState={{
-                pagination: { paginationModel: { pageSize: 25 } },
-              }}
-              pageSizeOptions={[10, 25, 50, 100]}
+              rowHeight={65}
               disableRowSelectionOnClick
               slots={{ toolbar: CustomToolbar }}
+              initialState={{
+                pagination: { paginationModel: { pageSize: 50 } },
+              }}
               sx={{
+                border: "none",
+                "& .MuiDataGrid-cell:focus": { outline: "none" },
                 "& .MuiDataGrid-columnHeaders": {
-                  bgcolor: "secondary.main",
-                  color: "secondary.contrastText",
+                  bgcolor: "grey.100",
                   fontWeight: "bold",
                 },
-                borderRadius: 3,
-                boxShadow: 4,
               }}
             />
-          </Box>
-        </>
+          </Paper>
+        </Box>
       )}
 
       {!filters && (
-        <Box sx={{ textAlign: "center", py: 10 }}>
+        <Paper
+          sx={{
+            p: 10,
+            textAlign: "center",
+            bgcolor: "grey.50",
+            border: "1px dashed grey",
+          }}
+        >
           <Typography variant="h6" color="text.secondary">
-            Select filters to generate a walk list
+            Apply filters to generate your walking route
           </Typography>
-        </Box>
+        </Paper>
       )}
+
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={4000}
         onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert severity="info" variant="filled" sx={{ width: "100%" }}>
           {snackbarMessage}

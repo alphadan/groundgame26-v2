@@ -43,6 +43,13 @@ export default function GoalsManagement() {
     () => [
       { field: "precinct_id", headerName: "Precinct ID", width: 150 },
       {
+        field: "precinct_name",
+        headerName: "Precinct Name",
+        width: 200,
+        // Fallback in case name is missing in older docs
+        valueGetter: (_, row) => row.precinct_name || "N/A",
+      },
+      {
         field: "registrations",
         headerName: "Registrations Target",
         width: 180,

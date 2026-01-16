@@ -31,7 +31,7 @@ export default function AnalyticsDashboard() {
   };
 
   const baseId = "5692f89d-a550-478b-b267-667afd91353d";
-  const pageId = "p_ev5o6t54bd";
+  const pageId = "kIV1C";
 
   const encodedParams = encodeURIComponent(
     JSON.stringify({
