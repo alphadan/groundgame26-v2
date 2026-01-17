@@ -307,7 +307,7 @@ export default function WalkListPage() {
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isLoading}
-        unrestrictedFilters={[
+        demographicFilters={[
           "zipCode",
           "street",
           "party",

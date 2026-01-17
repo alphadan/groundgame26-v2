@@ -1,4 +1,4 @@
-// src/components/UnrestrictedFilters.tsx
+// src/components/DemographicFilters.tsx
 import React from "react";
 import {
   Grid,
@@ -22,12 +22,12 @@ type FilterKey =
   | "mailBallot"
   | "zipCode";
 
-interface UnrestrictedFiltersProps {
+interface DemographicFiltersProps {
   control: Control<any>;
   filtersToShow: FilterKey[];
 }
 
-export const UnrestrictedFilters: React.FC<UnrestrictedFiltersProps> = ({
+export const DemographicFilters: React.FC<DemographicFiltersProps> = ({
   control,
   filtersToShow,
 }) => {

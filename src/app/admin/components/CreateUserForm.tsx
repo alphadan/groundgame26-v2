@@ -49,7 +49,9 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  const [precinctOptions, setPrecinctOptions] = useState<string[]>([]);
+  const [precinctOptions, setPrecinctOptions] = useState<
+    { id: string; name: string }[]
+  >([]);
   const [precinctLoading, setPrecinctLoading] = useState(false);
 
   const [form, setForm] = useState({
@@ -76,7 +78,12 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
           .where("area_id")
           .equals(areaId)
           .toArray();
-        setPrecinctOptions(data.map((p) => p.id));
+        setPrecinctOptions(
+          data.map((p) => ({
+            id: p.id,
+            name: p.name,
+          })),
+        );
       } catch (err) {
         console.error("Failed to load precincts:", err);
       } finally {
@@ -98,7 +105,7 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
   }, [claims?.role]);
 
   const isPrecinctRequired = ["committeeperson", "volunteer"].includes(
-    form.role
+    form.role,
   );
 
   const handleProvision = async () => {
@@ -234,9 +241,6 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
   // Form View
   return (
     <Box>
-      <Typography variant="h6" fontWeight="bold" gutterBottom>
-        Create New User
-      </Typography>
       <Typography variant="body2" color="text.secondary" mb={4}>
         Fill out the details. A new user will be provisioned with a temporary
         password.
@@ -329,18 +333,31 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
             <Autocomplete
               options={precinctOptions}
               loading={precinctLoading}
-              value={form.precinct_id}
+              value={
+                precinctOptions.find((opt) => opt.id === form.precinct_id) ||
+                null
+              }
+              getOptionLabel={(option) => `${option.name} (${option.id})`}
               onChange={(_, newValue) =>
-                setForm({ ...form, precinct_id: newValue || "" })
+                setForm({ ...form, precinct_id: newValue ? newValue.id : "" })
               }
               renderInput={(params) => (
                 <TextField
                   {...params}
-                  label="Assigned Precinct ID *"
+                  label="Assigned Precinct *"
                   required
                   fullWidth
-                  helperText="Must match database ID (e.g. PA15-P-235)"
+                  helperText="Select the precinct for this user"
                 />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  <Box>
+                    <Typography variant="body2">
+                      {option.name} {", ("} {option.id} {")"}
+                    </Typography>
+                  </Box>
+                </li>
               )}
             />
           </Grid>

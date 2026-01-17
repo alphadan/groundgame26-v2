@@ -180,7 +180,7 @@ export default function NameSearchPage() {
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isLoading}
-        unrestrictedFilters={["name", "street"]}
+        demographicFilters={["name", "street"]}
       />
 
       {error && (

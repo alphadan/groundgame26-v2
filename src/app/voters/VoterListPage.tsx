@@ -306,7 +306,7 @@ export default function VoterListPage() {
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isLoading}
-        unrestrictedFilters={["party", "turnout", "ageGroup", "mailBallot"]}
+        demographicFilters={["party", "turnout", "ageGroup", "mailBallot"]}
       />
 
       {error && (

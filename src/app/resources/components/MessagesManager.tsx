@@ -155,7 +155,7 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isSubmitting}
-        unrestrictedFilters={["party", "ageGroup", "mailBallot", "turnout"]}
+        demographicFilters={["party", "ageGroup", "mailBallot", "turnout"]}
         showLocationFilters={false}
       />
 

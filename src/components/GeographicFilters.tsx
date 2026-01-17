@@ -1,4 +1,4 @@
-// src/components/RestrictedFilters.tsx
+// src/components/GeographicFilters.tsx
 import React, { useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db as indexedDb } from "../lib/db";
@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { Control, Controller, UseFormSetValue } from "react-hook-form";
 
-interface RestrictedFiltersProps {
+interface GeographicFiltersProps {
   control: Control<any>;
   setValue: UseFormSetValue<any>;
   selectedCounty: string;
@@ -41,7 +41,7 @@ const cleanPrecinctForBigQuery = (code: string): string => {
   return isNaN(numeric) ? code : String(numeric);
 };
 
-export const RestrictedFilters: React.FC<RestrictedFiltersProps> = ({
+export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
   control,
   setValue,
   selectedCounty,

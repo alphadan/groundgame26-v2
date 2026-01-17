@@ -1,8 +1,8 @@
 // src/components/FilterSelector.tsx
 import React from "react";
 import { useForm } from "react-hook-form";
-import { RestrictedFilters } from "./RestrictedFilters";
-import { UnrestrictedFilters } from "./UnrestrictedFilters";
+import { GeographicFilters } from "./GeographicFilters";
+import { DemographicFilters } from "./DemographicFilters";
 import {
   Paper,
   Typography,
@@ -41,7 +41,7 @@ interface FilterSelectorProps {
   defaultValues?: Partial<FilterValues>;
   isLoading?: boolean;
   disabled?: boolean;
-  unrestrictedFilters?: FilterKey[];
+  demographicFilters?: FilterKey[];
   showLocationFilters?: boolean;
   showAdditionalCriteria?: boolean;
 }
@@ -51,7 +51,7 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
   defaultValues = {},
   isLoading = false,
   disabled = false,
-  unrestrictedFilters = [],
+  demographicFilters = [],
   showLocationFilters = true,
   showAdditionalCriteria = true
 }) => {
@@ -100,13 +100,13 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
 
       <form onSubmit={handleSubmit(onSubmitForm)}>
         <Stack spacing={4}>
-          {/* Restricted Location Filters */}
+          {/* Geographic Filters */}
           {showLocationFilters && (
             <Box>
               <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                 Location
               </Typography>
-              <RestrictedFilters
+              <GeographicFilters
                 control={control}
                 setValue={setValue as any}
                 selectedCounty={selectedCounty}
@@ -126,16 +126,16 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
             </Box>
           )}
 
-          {showAdditionalCriteria && unrestrictedFilters.length > 0 && (
+          {showAdditionalCriteria && demographicFilters.length > 0 && (
             <>
               {showLocationFilters && <Divider sx={{ mb: 3 }} />}
               <Box>
                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                   Demographics
                 </Typography>
-                <UnrestrictedFilters
+                <DemographicFilters
                   control={control}
-                  filtersToShow={unrestrictedFilters}
+                  filtersToShow={demographicFilters}
                 />
               </Box>
             </>

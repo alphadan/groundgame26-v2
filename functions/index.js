@@ -8,6 +8,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore, FieldValue, Filter } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { onObjectFinalized } from "firebase-functions/v2/storage";
+import { randomBytes } from "crypto";
 
 initializeApp();
 
@@ -93,7 +94,7 @@ export const queryVoters = onRequest(
       const lowerSql = sql.toLowerCase();
       const isValidTable =
         lowerSql.includes(
-          "from `groundgame26-v2.groundgame26_voters.chester_county`"
+          "from `groundgame26-v2.groundgame26_voters.chester_county`",
         ) || lowerSql.includes("from `groundgame26_voters.chester_county`"); // Fallback for local testing
 
       if (!isValidTable) {
@@ -117,7 +118,7 @@ export const queryVoters = onRequest(
       console.error("QUERY FAILED:", err);
       res.status(500).send("Server error: " + err.message);
     }
-  }
+  },
 );
 
 // ================================================================
@@ -129,7 +130,7 @@ export const getVotersByPrecinct = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError(
       "unauthenticated",
-      "The function must be called while authenticated."
+      "The function must be called while authenticated.",
     );
   }
 
@@ -139,7 +140,7 @@ export const getVotersByPrecinct = onCall(async (request) => {
   if (!precinctCode) {
     throw new HttpsError(
       "invalid-argument",
-      "The function must be called with a precinctCode."
+      "The function must be called with a precinctCode.",
     );
   }
 
@@ -185,7 +186,7 @@ export const searchVotersByNameV2 = onCall(
     if (!name || typeof name !== "string" || name.trim().length < 3) {
       throw new HttpsError(
         "invalid-argument",
-        "Name must be at least 3 characters"
+        "Name must be at least 3 characters",
       );
     }
 
@@ -222,7 +223,7 @@ export const searchVotersByNameV2 = onCall(
       console.error("Name search BigQuery error:", error);
       throw new HttpsError("internal", "Search failed — please try again");
     }
-  }
+  },
 );
 
 // ================================================================
@@ -255,7 +256,7 @@ export const getDashboardStats = onCall(
     ) {
       throw new HttpsError(
         "invalid-argument",
-        "precinctCodes must be an array of strings"
+        "precinctCodes must be an array of strings",
       );
     }
 
@@ -325,7 +326,7 @@ export const getDashboardStats = onCall(
       console.error("BigQuery query failed:", error);
       throw new HttpsError("internal", "Failed to load dashboard stats");
     }
-  }
+  },
 );
 
 // ================================================================
@@ -373,14 +374,14 @@ export const getVotersByPrecinctV2 = onCall(
       });
 
       console.log(
-        `Loaded ${rows.length} voters for precinct "${precinctCode}" (normalized: "${normalizedPrecinct}")`
+        `Loaded ${rows.length} voters for precinct "${precinctCode}" (normalized: "${normalizedPrecinct}")`,
       );
       return { voters: rows };
     } catch (error) {
       console.error("Precinct query failed:", error);
       throw new HttpsError("internal", "Failed to load voter list");
     }
-  }
+  },
 );
 
 // ================================================================
@@ -510,7 +511,7 @@ export const queryVotersDynamic = onCall(
       console.error("Dynamic query failed:", error);
       throw new HttpsError("internal", "Query failed — check server logs");
     }
-  }
+  },
 );
 
 export const queryVotersDynamicRNC = onCall(
@@ -631,7 +632,7 @@ export const queryVotersDynamicRNC = onCall(
       console.error("Dynamic query failed:", error);
       throw new HttpsError("internal", "Query failed — check server logs");
     }
-  }
+  },
 );
 
 // ================================================================
@@ -663,8 +664,8 @@ export const getMessageIdeas = onCall(async (request) => {
       data.party === "R"
         ? "Republican"
         : data.party === "D"
-        ? "Democratic"
-        : data.party;
+          ? "Democratic"
+          : data.party;
 
     // Helper to safely apply OR filters
     const applyOrFilter = (queryRef, field, value) => {
@@ -674,8 +675,8 @@ export const getMessageIdeas = onCall(async (request) => {
       return queryRef.where(
         Filter.or(
           Filter.where(field, "==", value),
-          Filter.where(field, "==", null)
-        )
+          Filter.where(field, "==", null),
+        ),
       );
     };
 
@@ -698,7 +699,7 @@ export const getMessageIdeas = onCall(async (request) => {
     console.error("Query Execution Error:", error);
     throw new HttpsError(
       "internal",
-      error.message || "Failed to fetch templates."
+      error.message || "Failed to fetch templates.",
     );
   }
 });
@@ -806,53 +807,8 @@ export const getUserProfile = onCall(
       console.error("Error in getUserProfile:", error);
       throw new HttpsError("internal", error.message);
     }
-  }
+  },
 );
-
-// ================================================================
-// CREATE USER PROFILE
-// ================================================================
-
-export const createUserProfile = functions.auth
-  .user()
-  .onCreate(async (user) => {
-    const uid = user.uid;
-    const email = user.email?.toLowerCase() || "";
-    const displayName = user.displayName || email.split("@")[0];
-
-    try {
-      // Aligned with UserProfile interface
-      await db.doc(`users/${uid}`).set({
-        uid,
-        display_name: displayName,
-        preferred_name: displayName.split(" ")[0], // Default to first name
-        email,
-        phone: user.phoneNumber || null,
-        photo_url: user.photoURL || null,
-        primary_county: "15",
-        primary_precinct: "",
-        role: "base",
-        group_id: "pending",
-        notifications_enabled: true,
-        login_count: 1,
-        last_ip: "auth-trigger",
-        created_at: Date.now(),
-        updated_at: Date.now(),
-        last_login: Date.now(),
-      });
-
-      await db.collection("login_attempts").add({
-        uid,
-        email,
-        success: true,
-        type: "initial_registration",
-        ip: "auth-trigger",
-        timestamp: Date.now(),
-      });
-    } catch (err) {
-      console.error("createUserProfile failed:", err);
-    }
-  });
 
 // ================================================================
 //  SYNC ORG ROLES — CENTRALIZED & CLEAN
@@ -920,18 +876,18 @@ export const syncOrgRolesToClaims = onDocumentWritten(
           last_claims_sync: Date.now(),
           updated_at: Date.now(),
         },
-        { merge: true }
+        { merge: true },
       );
 
       console.log(
-        `Claims synced for UID: ${uid}. Primary Role: ${primaryRole}`
+        `Claims synced for UID: ${uid}. Primary Role: ${primaryRole}`,
       );
       return null;
     } catch (error) {
       console.error("Error in syncOrgRolesToClaims:", error);
       return null;
     }
-  }
+  },
 );
 
 // ================================================================
@@ -1060,7 +1016,7 @@ export const adminCreateArea = onCall(async (request) => {
   if (!data.id || !data.name || !data.area_district) {
     throw new HttpsError(
       "invalid-argument",
-      "Missing required fields: id, name, or area_district."
+      "Missing required fields: id, name, or area_district.",
     );
   }
 
@@ -1218,7 +1174,7 @@ export const adminImportAreas = onCall(async (request) => {
   if (!Array.isArray(areas) || areas.length === 0) {
     throw new HttpsError(
       "invalid-argument",
-      "Expected a non-empty array of areas."
+      "Expected a non-empty array of areas.",
     );
   }
 
@@ -1233,8 +1189,8 @@ export const adminImportAreas = onCall(async (request) => {
     if (!id || !name || !area_district) {
       errors.push(
         `Area missing required fields (id, name, area_district): ${JSON.stringify(
-          area
-        )}`
+          area,
+        )}`,
       );
       continue;
     }
@@ -1277,7 +1233,7 @@ export const adminImportAreas = onCall(async (request) => {
     logger.error("adminImportAreas batch failed:", error);
     throw new HttpsError(
       "internal",
-      "Batch import failed: " + (error.message || "Unknown error")
+      "Batch import failed: " + (error.message || "Unknown error"),
     );
   }
 });
@@ -1444,7 +1400,7 @@ export const adminGenerateResourceUploadUrl = onCall(
     });
 
     return { uploadUrl: url, filePath };
-  }
+  },
 );
 
 // ================================================================
@@ -1492,7 +1448,7 @@ export const getResourcesByLocation = onCall(
     const { county, area, precinct } = request.data;
 
     logger.info(
-      `Searching for: County=${county}, Area=${area}, Precinct=${precinct}`
+      `Searching for: County=${county}, Area=${area}, Precinct=${precinct}`,
     );
 
     try {
@@ -1504,17 +1460,17 @@ export const getResourcesByLocation = onCall(
           // Search using the _code fields that match your frontend/BigQuery values
           Filter.and(
             Filter.where("county_code", "==", county),
-            Filter.where("scope", "==", "county")
+            Filter.where("scope", "==", "county"),
           ),
           Filter.and(
             Filter.where("area_code", "==", area),
-            Filter.where("scope", "==", "area")
+            Filter.where("scope", "==", "area"),
           ),
           Filter.and(
             Filter.where("precinct_code", "==", precinct),
-            Filter.where("scope", "==", "precinct")
-          )
-        )
+            Filter.where("scope", "==", "precinct"),
+          ),
+        ),
       );
 
       logger.info("getResourcesByLocation query", query);
@@ -1541,7 +1497,7 @@ export const getResourcesByLocation = onCall(
       logger.error("Resource Query Error:", error); // Using the 'logger' you imported
       throw new HttpsError("internal", error.message);
     }
-  }
+  },
 );
 
 // ================================================================
@@ -1553,7 +1509,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError(
       "unauthenticated",
-      "You must be logged in to provision users."
+      "You must be logged in to provision users.",
     );
   }
 
@@ -1574,7 +1530,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
   if (!email || !display_name || !role || !group_id || !county_id) {
     throw new HttpsError(
       "invalid-argument",
-      "Missing required fields: email, display_name, role, group_id, or county_id."
+      "Missing required fields: email, display_name, role, group_id, or county_id.",
     );
   }
 
@@ -1617,14 +1573,20 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
   if (!canCreate) {
     throw new HttpsError(
       "permission-denied",
-      `A ${adminRole} is not authorized to create a ${role}.`
+      `A ${adminRole} is not authorized to create a ${role}.`,
     );
   }
 
   try {
     // 4. Generate Temporary Password
-    const cleanName = display_name.replace(/[^a-zA-Z]/g, "");
-    const tempPassword = `${cleanName.substring(0, 4)}123456`;
+    const randomSuffix = randomBytes(2).toString("hex");
+    const cleanName = display_name.replace(/[^a-zA-Z]/g, "").toLowerCase();
+    const namePart =
+      cleanName.length >= 4
+        ? cleanName.substring(0, 4)
+        : cleanName.padEnd(4, "x");
+
+    const tempPassword = `${namePart}-${randomSuffix}-!`;
 
     logger.info(`Provisioning new ${role}: ${email}`);
 
@@ -1633,7 +1595,6 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       email: email.trim(),
       password: tempPassword,
       displayName: display_name.trim(),
-      phoneNumber: phone ? phone.trim() : undefined,
     });
 
     const uid = userRecord.uid;
@@ -1649,7 +1610,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       .map((p) =>
         String(p)
           .toLowerCase()
-          .replace(/[^a-z0-9]/g, "-")
+          .replace(/[^a-z0-9]/g, "-"),
       )
       .join("_");
 
@@ -1674,7 +1635,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       created_by: request.auth.uid,
       created_at: Date.now(),
       updated_at: Date.now(),
-      last_claims_sync: FieldValue.serverTimestamp(), // Signals Frontend to refresh
+      last_claims_sync: Date.now(), // Signals Frontend to refresh
     };
 
     // 9. Create/Update Org Role Position
@@ -1710,7 +1671,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
     });
 
     logger.info(
-      `User ${uid} successfully provisioned and claims set by ${request.auth.uid}`
+      `User ${uid} successfully provisioned and claims set by ${request.auth.uid}`,
     );
 
     return {
@@ -1727,13 +1688,13 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
     if (error.code === "auth/email-already-exists") {
       throw new HttpsError(
         "already-exists",
-        "This email address is already registered."
+        "This email address is already registered.",
       );
     }
 
     throw new HttpsError(
       "internal",
-      error.message || "An unexpected error occurred during user provisioning."
+      error.message || "An unexpected error occurred during user provisioning.",
     );
   }
 });
@@ -1747,7 +1708,7 @@ export const adminSetGoal = onCall({ cors: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError(
       "unauthenticated",
-      "You must be an admin to set goals."
+      "You must be an admin to set goals.",
     );
   }
 
@@ -1827,7 +1788,7 @@ export const searchVotersByPhoneV2 = onCall(
     if (normalizedPhone.length < 10) {
       throw new HttpsError(
         "invalid-argument",
-        "Please enter at least a 10-digit phone number"
+        "Please enter at least a 10-digit phone number",
       );
     }
 
@@ -1858,14 +1819,14 @@ export const searchVotersByPhoneV2 = onCall(
       });
 
       console.log(
-        `Phone search for "${normalizedPhone}" returned ${rows.length} results`
+        `Phone search for "${normalizedPhone}" returned ${rows.length} results`,
       );
       return { voters: rows };
     } catch (error) {
       console.error("Phone search BigQuery error:", error);
       throw new HttpsError("internal", "Search failed — please try again");
     }
-  }
+  },
 );
 
 // ================================================================
@@ -1884,7 +1845,7 @@ export const adminCreateOrgRole = onCall({ cors: true }, async (request) => {
   if (!role || !county_id || !group_id) {
     throw new HttpsError(
       "invalid-argument",
-      "Missing required fields: role, county_id, or group_id."
+      "Missing required fields: role, county_id, or group_id.",
     );
   }
 
@@ -1899,7 +1860,7 @@ export const adminCreateOrgRole = onCall({ cors: true }, async (request) => {
     ].map((p) =>
       String(p)
         .toLowerCase()
-        .replace(/[^a-z0-9]/g, "-")
+        .replace(/[^a-z0-9]/g, "-"),
     );
 
     const docId = parts.join("_");
@@ -1944,7 +1905,7 @@ export const adminCreateOrgRole = onCall({ cors: true }, async (request) => {
     logger.error("Admin Create Org_Role failed:", error);
     throw new HttpsError(
       "internal",
-      error.message || "Failed to create position."
+      error.message || "Failed to create position.",
     );
   }
 });
@@ -2067,7 +2028,7 @@ export const adminVacateOrgRole = onCall({ cors: true }, async (request) => {
         const newAccess = {
           counties: [...new Set(remainingRoles.map((r) => r.county_id))],
           areas: [...new Set(remainingRoles.map((r) => r.area_id))].filter(
-            Boolean
+            Boolean,
           ),
           precincts: [
             ...new Set(remainingRoles.map((r) => r.precinct_id)),
@@ -2139,7 +2100,7 @@ export const adminToggleRoleActive = onCall({ cors: true }, async (request) => {
         counties: [...new Set(activeRoles.map((r) => r.county_id))],
         areas: [...new Set(activeRoles.map((r) => r.area_id))].filter(Boolean),
         precincts: [...new Set(activeRoles.map((r) => r.precinct_id))].filter(
-          Boolean
+          Boolean,
         ),
       };
 

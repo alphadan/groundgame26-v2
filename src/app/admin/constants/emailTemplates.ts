@@ -10,13 +10,13 @@ export interface WelcomeEmailData {
 
 export const getWelcomeEmailTemplate = (data: WelcomeEmailData) => {
   const loginUrl = `https://groundgame26.com?email=${encodeURIComponent(
-    data.email
+    data.email,
   )}`;
 
   return {
     subject: `${data.created_by} has invited you to the GroundGame26 app`,
     body: `
-Dear ${data.preferred_name},
+Dear ${data.display_name},
 
 ${data.created_by} has invited you to use the GroundGame26 app.
 
@@ -26,11 +26,11 @@ To get started, here's a simple step-by-step guide to set up your account:
 
 1. Visit the portal: ${loginUrl}
 2. Enter your email (${data.email}) and the temporary password: ${data.tempPassword}
-3. A pop-up will ask for your mobile phone number. You will also be asked to confirm your email address. (You may be asked to complete a RECAPTCHA to prevent bot attacks.)
+3. A pop-up will ask for your mobile phone number. You will also be asked to confirm your email address. (You may also be asked to complete a RECAPTCHA to prevent bot attacks.)
 4. Check your email inbox for a message from GroundGame26 and click on the "Verify" link. (PLEASE CHECK YOUR SPAM FOLDER).
 5. The link will bring you to a secure page. Enter a new password (minimum 8 characters) and submit. Your account is now secure; we never have access to your password.
-6. Return to groundgame26.com and log in with your email and your NEW password.
-7. A popup will ask for your cell phone number. Enter your mobile number and click ‘Verify’. You will be texted a six-digit code.
+6. Return to https://groundgame26.com and log in with your email and your NEW password.
+7. A popup will ask for your cell phone number. Enter your mobile number and click 'Verify'. You will be texted a six-digit code.
 8. Enter the six-digit code and submit.
 
 That's it! Once logged in, you'll have access to voter data and analysis for your area. If you run into any issues during setup, please reply to this email for support.

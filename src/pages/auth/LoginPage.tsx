@@ -13,7 +13,7 @@ import { auth } from "../../lib/firebase";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { useActivityLogger } from "../../hooks/useActivityLogger";
 import { useTheme } from "@mui/material/styles";
-
+import { useSearchParams } from "react-router-dom";
 import {
   Box,
   Button,
@@ -42,8 +42,9 @@ export default function LoginPage() {
 
   const recaptchaContainerRef = useRef<HTMLDivElement>(null);
   const verifierRef = useRef<RecaptchaVerifier | null>(null);
-
-  const [email, setEmail] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const emailFromUrl = searchParams.get("email") || "";
+  const [email, setEmail] = useState(emailFromUrl);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -77,7 +78,7 @@ export default function LoginPage() {
         recaptchaContainerRef.current,
         {
           size: "invisible",
-        }
+        },
       );
 
       verifierRef.current = verifier;
@@ -121,14 +122,14 @@ export default function LoginPage() {
       const credential = await signInWithEmailAndPassword(
         auth,
         email.trim(),
-        password
+        password,
       );
 
       const user = credential.user;
       if (user && !user.emailVerified) {
         await sendEmailVerification(user);
         setError(
-          "Check your email for the verification link. You have been signed out."
+          "Check your email for the verification link. You have been signed out.",
         );
         setTimeout(() => auth.signOut(), 4000);
         return;
@@ -161,7 +162,7 @@ export default function LoginPage() {
       const resolver = getMultiFactorResolver(auth, error);
 
       const phoneHint = resolver.hints.find(
-        (hint: any) => hint.factorId === PhoneMultiFactorGenerator.FACTOR_ID
+        (hint: any) => hint.factorId === PhoneMultiFactorGenerator.FACTOR_ID,
       );
 
       if (!phoneHint) {
@@ -183,7 +184,7 @@ export default function LoginPage() {
           multiFactorHint: phoneHint,
           session: resolver.session,
         },
-        verifierRef.current
+        verifierRef.current,
       );
 
       setMfaResolver({ resolver, verificationId });
@@ -205,7 +206,7 @@ export default function LoginPage() {
     try {
       const cred = PhoneAuthProvider.credential(
         mfaResolver.verificationId,
-        mfaCode.trim()
+        mfaCode.trim(),
       );
       const assertion = PhoneMultiFactorGenerator.assertion(cred);
       await mfaResolver.resolver.resolveSignIn(assertion);
@@ -218,7 +219,7 @@ export default function LoginPage() {
         setError("Invalid code. Please try again.");
       } else {
         setError(
-          "MFA verification failed: " + (error.message || "Unknown error")
+          "MFA verification failed: " + (error.message || "Unknown error"),
         );
       }
     } finally {
@@ -271,7 +272,7 @@ export default function LoginPage() {
         "Submitting volunteer with token:",
         volName,
         volEmail,
-        volComment
+        volComment,
       );
 
       // IMPORTANT: Note the key name 'recaptchaToken' matches your Cloud Function body check
