@@ -7,7 +7,7 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "../../lib/firebase";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useVoterStats, type VoterStats } from "../../hooks/useVoterStats";
-import ManageTeamPage from "../precincts/ManageTeamPage"; // ← ADD THIS IMPORT
+import ManageTeamPage from "../precincts/ManageTeamPage";
 import {
   Box,
   Typography,
@@ -21,6 +21,7 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { BarChart } from "@mui/x-charts/BarChart";
+import { LineChart } from "@mui/x-charts/LineChart";
 
 export default function Dashboard() {
   const theme = useTheme();
@@ -36,7 +37,7 @@ export default function Dashboard() {
 
   const profile = useLiveQuery(
     () => (user?.uid ? indexedDb.users.get(user.uid) : undefined),
-    [user?.uid]
+    [user?.uid],
   );
 
   const preferredName =
@@ -47,6 +48,21 @@ export default function Dashboard() {
 
   const { data: turnoutStats = {} as VoterStats, isLoading: turnoutLoading } =
     useVoterStats({}); // adjust params as needed
+
+  const outreachTrendData = [
+    { month: "Oct", sms: 1200, email: 800, surveys: 150, doors: 400 },
+    { month: "Nov", sms: 2800, email: 1900, surveys: 380, doors: 950 },
+    { month: "Dec", sms: 4500, email: 3200, surveys: 720, doors: 1800 },
+    { month: "Jan", sms: 6200, email: 4800, surveys: 1100, doors: 2900 },
+  ];
+
+  // Stub data for Volunteer Recruitment (Cumulative +8/mo)
+  const volunteerTrendData = [
+    { month: "Oct", total: 42 },
+    { month: "Nov", total: 50 },
+    { month: "Dec", total: 58 },
+    { month: "Jan", total: 66 },
+  ];
 
   if (!isLoaded) {
     return (
@@ -110,125 +126,137 @@ export default function Dashboard() {
       </Paper>
 
       {/* Charts */}
-      <Grid container spacing={2}>
+      <Grid container spacing={3}>
+        {/* 1. Voter Registration by Age Group */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: { xs: 3, sm: 4 }, borderRadius: 3 }}>
+          <Paper sx={{ p: 3, borderRadius: 3, height: "100%" }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
               Voter Registration by Age Group
             </Typography>
             <BarChart
               dataset={[
                 {
-                  age_group: "18–25",
-                  R: turnoutStats.age_18_25_r || 0,
-                  D: turnoutStats.age_18_25_d || 0,
+                  age: "18-25",
+                  R: turnoutStats.age_18_25_r,
+                  I: turnoutStats.age_18_25_i,
+                  D: turnoutStats.age_18_25_d,
                 },
                 {
-                  age_group: "26–40",
-                  R: turnoutStats.age_26_40_r || 0,
-                  D: turnoutStats.age_26_40_d || 0,
+                  age: "26-40",
+                  R: turnoutStats.age_26_40_r,
+                  I: turnoutStats.age_26_40_i,
+                  D: turnoutStats.age_26_40_d,
                 },
                 {
-                  age_group: "41–70",
-                  R: turnoutStats.age_41_70_r || 0,
-                  D: turnoutStats.age_41_70_d || 0,
+                  age: "41-70",
+                  R: turnoutStats.age_41_70_r,
+                  I: turnoutStats.age_41_70_i,
+                  D: turnoutStats.age_41_70_d,
                 },
                 {
-                  age_group: "71+",
-                  R: turnoutStats.age_71_plus_r || 0,
-                  D: turnoutStats.age_71_plus_d || 0,
+                  age: "71+",
+                  R: turnoutStats.age_71_plus_r,
+                  I: turnoutStats.age_71_plus_i,
+                  D: turnoutStats.age_71_plus_d,
                 },
               ]}
-              xAxis={[{ scaleType: "band", dataKey: "age_group" }]}
+              xAxis={[{ scaleType: "band", dataKey: "age" }]}
               series={[
-                { dataKey: "R", label: "Republican", color: "#B22234" }, // fallback red
-                { dataKey: "D", label: "Democrat", color: "#1976D2" },
+                { dataKey: "R", label: "Rep", color: "#B22234" },
+                { dataKey: "I", label: "Ind (NF)", color: "#E0E0E0" },
+                { dataKey: "D", label: "Dem", color: "#1976D2" },
               ]}
-              height={isMobile ? 280 : 320}
+              height={300}
+              margin={{ top: 50, bottom: 30, left: 40, right: 10 }}
             />
           </Paper>
         </Grid>
 
+        {/* 2. Mail-In Ballot Holders by Age Group */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: { xs: 3, sm: 4 }, borderRadius: 3 }}>
+          <Paper sx={{ p: 3, borderRadius: 3, height: "100%" }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
-              Mail Ballot Holders by Age Group
+              Mail-In Ballot Holders by Age Group
             </Typography>
             <BarChart
               dataset={[
                 {
-                  age_group: "18–25",
-                  R: turnoutStats.mail_age_18_25_r || 0,
-                  D: turnoutStats.mail_age_18_25_d || 0,
+                  age: "18–25",
+                  R: turnoutStats.mail_age_18_25_r,
+                  I: turnoutStats.mail_age_18_25_i,
+                  D: turnoutStats.mail_age_18_25_d,
                 },
                 {
-                  age_group: "26–40",
-                  R: turnoutStats.mail_age_26_40_r || 0,
-                  D: turnoutStats.mail_age_26_40_d || 0,
+                  age: "26–40",
+                  R: turnoutStats.mail_age_26_40_r,
+                  I: turnoutStats.mail_age_26_40_i,
+                  D: turnoutStats.mail_age_26_40_d,
                 },
                 {
-                  age_group: "41–70",
-                  R: turnoutStats.mail_age_41_70_r || 0,
-                  D: turnoutStats.mail_age_41_70_d || 0,
+                  age: "41–70",
+                  R: turnoutStats.mail_age_41_70_r,
+                  I: turnoutStats.mail_age_41_70_i,
+                  D: turnoutStats.mail_age_41_70_d,
                 },
                 {
-                  age_group: "71+",
-                  R: turnoutStats.mail_age_71_plus_r || 0,
-                  D: turnoutStats.mail_age_71_plus_d || 0,
+                  age: "71+",
+                  R: turnoutStats.mail_age_71_plus_r,
+                  I: turnoutStats.mail_age_71_plus_i,
+                  D: turnoutStats.mail_age_71_plus_d,
                 },
               ]}
-              xAxis={[{ scaleType: "band", dataKey: "age_group" }]}
+              xAxis={[{ scaleType: "band", dataKey: "age" }]}
               series={[
-                { dataKey: "R", label: "Republican", color: "#B22234" },
-                { dataKey: "D", label: "Democrat", color: "#1976D2" },
+                { dataKey: "R", label: "Rep", color: "#B22234" },
+                { dataKey: "I", label: "Ind (NF)", color: "#E0E0E0" },
+                { dataKey: "D", label: "Dem", color: "#1976D2" },
               ]}
-              height={isMobile ? 280 : 320}
+              height={300}
+              margin={{ top: 50, bottom: 30, left: 40, right: 10 }}
             />
           </Paper>
         </Grid>
 
+        {/* 3. Voter Outreach Activity Trend */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: { xs: 3, sm: 4 }, borderRadius: 3 }}>
+          <Paper sx={{ p: 3, borderRadius: 3, height: "100%" }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
-              Daily Active Committeepersons (Last 30 Days)
+              Voter Outreach Activity (Cumulative) (***SAMPLE***)
             </Typography>
-            <BarChart
-              dataset={[
-                { week: "Week 1", active: 42 },
-                { week: "Week 2", active: 51 },
-                { week: "Week 3", active: 48 },
-                { week: "Week 4", active: 63 },
-              ]}
-              xAxis={[{ scaleType: "band", dataKey: "week" }]}
+            <LineChart
+              dataset={outreachTrendData}
+              xAxis={[{ scaleType: "point", dataKey: "month" }]}
               series={[
-                { dataKey: "active", label: "Active", color: "#43A047" }, // fallback green
+                { dataKey: "sms", label: "SMS", color: "#9c27b0" },
+                { dataKey: "email", label: "Email", color: "#03a9f4" },
+                { dataKey: "surveys", label: "Surveys", color: "#ff9800" },
+                { dataKey: "doors", label: "Doors", color: "#4caf50" },
               ]}
-              height={280}
+              height={300}
+              margin={{ top: 50, bottom: 30, left: 60, right: 20 }}
             />
           </Paper>
         </Grid>
 
+        {/* 4. Volunteer Recruitment Trend */}
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: { xs: 3, sm: 4 }, borderRadius: 3 }}>
+          <Paper sx={{ p: 3, borderRadius: 3, height: "100%" }}>
             <Typography variant="h6" gutterBottom fontWeight="bold">
-              New Volunteers Added (Last 90 Days)
+              Total Volunteers Recruited (Cumulative) (***SAMPLE***)
             </Typography>
-            <BarChart
-              dataset={[
-                { source: "Door Knocking", volunteers: 87 },
-                { source: "Phone Banking", volunteers: 34 },
-                { source: "Events", volunteers: 56 },
-                { source: "Digital", volunteers: 29 },
-              ]}
-              xAxis={[{ scaleType: "band", dataKey: "source" }]}
+            <LineChart
+              dataset={volunteerTrendData}
+              xAxis={[{ scaleType: "point", dataKey: "month" }]}
               series={[
                 {
-                  dataKey: "volunteers",
-                  label: "Volunteers",
+                  dataKey: "total",
+                  label: "Total Volunteers",
                   color: "#66BB6A",
-                }, // fallback
+                  area: true,
+                },
               ]}
-              height={280}
+              height={300}
+              margin={{ top: 50, bottom: 30, left: 60, right: 20 }}
             />
           </Paper>
         </Grid>
@@ -373,8 +401,6 @@ export default function Dashboard() {
           </Box>
         </Stack>
       </Paper>
-
-
     </Box>
   );
 }

@@ -47,10 +47,7 @@ export default function LegalPage() {
       <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 4 }}>
         Last Updated: January 14, 2026
       </Typography>
-      <Typography
-        variant="caption"
-        sx={{ fontStyle: "italic", color: "text.disabled" }}
-      >
+      <Typography variant="h6" sx={{ mb: 4 }}>
         "I understand that voter data is sensitive and I agree to use this
         application solely for authorized campaign activities."
       </Typography>

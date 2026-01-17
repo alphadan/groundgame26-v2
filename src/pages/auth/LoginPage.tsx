@@ -377,7 +377,7 @@ export default function LoginPage() {
         /* === Main Login Screen === */
         <Box
           sx={{
-            minHeight: "100vh",
+            minHeight: "80vh", // Reduced from 100vh to account for header/footer
             bgcolor: "background.default",
             display: "flex",
             alignItems: "center",
@@ -387,52 +387,53 @@ export default function LoginPage() {
         >
           <Box
             sx={{
-              width: { xs: "100%", sm: 460 },
-              maxWidth: 460,
-              p: { xs: 4, sm: 6 },
+              width: { xs: "100%", sm: 420 }, // Slightly narrower
+              maxWidth: 420,
+              p: { xs: 3, sm: 4 }, // Reduced padding from 6
               bgcolor: "background.paper",
               borderRadius: 4,
               boxShadow: 6,
             }}
           >
-            <Stack spacing={4} alignItems="center">
+            <Stack spacing={2.5} alignItems="center">
+              {" "}
+              {/* Reduced spacing from 4 */}
               <Box
                 component="img"
                 src={LogoSvg}
                 alt="GroundGame26"
                 sx={{
-                  width: "80%",
-                  maxWidth: 320,
+                  width: "60%", // Reduced from 80%
+                  maxWidth: 240,
                 }}
               />
-
               <Typography
-                variant="h6"
+                variant="body2" // Changed from h6 to be more compact
                 color="text.secondary"
                 textAlign="center"
                 fontStyle="italic"
               >
                 A Republican Get Out The Vote App
               </Typography>
-
               <Stack
                 component="form"
                 onSubmit={handleLogin}
-                spacing={3}
+                spacing={2} // Reduced spacing from 3
                 width="100%"
               >
                 <TextField
                   label="Email"
                   type="email"
+                  size="small" // Added small variant
                   fullWidth
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  autoFocus
                 />
                 <TextField
                   label="Password"
                   type="password"
+                  size="small" // Added small variant
                   fullWidth
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -441,19 +442,25 @@ export default function LoginPage() {
 
                 <Link
                   component="button"
-                  variant="body2"
+                  type="button"
+                  variant="caption" // Smaller font
                   onClick={() => setForgotOpen(true)}
                   sx={{
                     alignSelf: "flex-end",
                     color: "primary.main",
                     fontWeight: 500,
+                    mt: -1, // Pull closer to password field
                   }}
                 >
                   Forgot Password?
                 </Link>
 
                 {error && (
-                  <Alert severity="error" onClose={() => setError("")}>
+                  <Alert
+                    severity="error"
+                    sx={{ py: 0, "& .MuiAlert-icon": { py: "8px" } }}
+                    onClose={() => setError("")}
+                  >
                     {error}
                   </Alert>
                 )}
@@ -465,27 +472,27 @@ export default function LoginPage() {
                   fullWidth
                   disabled={loading}
                   sx={{
-                    py: 2,
-                    fontSize: "1.1rem",
+                    py: 1.5, // Reduced padding
+                    fontSize: "1rem",
                     fontWeight: "bold",
+                    mt: 1,
                   }}
                 >
                   {loading ? (
-                    <CircularProgress size={28} color="inherit" />
+                    <CircularProgress size={24} color="inherit" />
                   ) : (
                     "Sign In"
                   )}
                 </Button>
               </Stack>
-
-              <Typography variant="body1" textAlign="center">
+              <Typography variant="body2" textAlign="center">
                 <Link
                   component="button"
+                  type="button"
                   onClick={() => setVolunteerOpen(true)}
                   sx={{
                     color: "primary.main",
                     fontWeight: "bold",
-                    fontSize: "1.05rem",
                   }}
                 >
                   Want to Volunteer?

@@ -279,21 +279,29 @@ export const getDashboardStats = onCall(
         COUNTIF(modeled_party = '5 - Hard Democrat') AS hard_d,
 
         COUNTIF(age_group = '18-25' AND party = 'R') AS age_18_25_r,
+        COUNTIF(age_group = '18-25' AND party = 'NF') AS age_18_25_i,
         COUNTIF(age_group = '18-25' AND party = 'D') AS age_18_25_d,
         COUNTIF(age_group = '26-40' AND party = 'R') AS age_26_40_r,
+        COUNTIF(age_group = '26-40' AND party = 'NF') AS age_26_40_i,
         COUNTIF(age_group = '26-40' AND party = 'D') AS age_26_40_d,
         COUNTIF(age_group = '41-70' AND party = 'R') AS age_41_70_r,
+        COUNTIF(age_group = '41-70' AND party = 'NF') AS age_41_70_i,
         COUNTIF(age_group = '41-70' AND party = 'D') AS age_41_70_d,
         COUNTIF(age_group = '71+' AND party = 'R') AS age_71_plus_r,
+        COUNTIF(age_group = '71+' AND party = 'NF') AS age_71_plus_i,
         COUNTIF(age_group = '71+' AND party = 'D') AS age_71_plus_d,
 
         COUNTIF(has_mail_ballot = TRUE AND age_group = '18-25' AND party = 'R') AS mail_age_18_25_r,
+        COUNTIF(has_mail_ballot = TRUE AND age_group = '18-25' AND party = 'NF') AS mail_age_18_25_i,
         COUNTIF(has_mail_ballot = TRUE AND age_group = '18-25' AND party = 'D') AS mail_age_18_25_d,
         COUNTIF(has_mail_ballot = TRUE AND age_group = '26-40' AND party = 'R') AS mail_age_26_40_r,
+        COUNTIF(has_mail_ballot = TRUE AND age_group = '26-40' AND party = 'NF') AS mail_age_26_40_i,
         COUNTIF(has_mail_ballot = TRUE AND age_group = '26-40' AND party = 'D') AS mail_age_26_40_d,
         COUNTIF(has_mail_ballot = TRUE AND age_group = '41-70' AND party = 'R') AS mail_age_41_70_r,
+        COUNTIF(has_mail_ballot = TRUE AND age_group = '41-70' AND party = 'NF') AS mail_age_41_70_i,
         COUNTIF(has_mail_ballot = TRUE AND age_group = '41-70' AND party = 'D') AS mail_age_41_70_d,
         COUNTIF(has_mail_ballot = TRUE AND age_group = '71+' AND party = 'R') AS mail_age_71_plus_r,
+        COUNTIF(has_mail_ballot = TRUE AND age_group = '71+' AND party = 'NF') AS mail_age_71_plus_i,
         COUNTIF(has_mail_ballot = TRUE AND age_group = '71+' AND party = 'D') AS mail_age_71_plus_d
       FROM \`${table}\`
       WHERE 1=1
