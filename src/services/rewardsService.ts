@@ -1,160 +1,113 @@
 import {
-  getFirestore,
-  collection,
   doc,
-  runTransaction,
-  getDocs,
+  updateDoc,
+  increment,
+  arrayUnion,
+  collection,
   addDoc,
+  getDocs,
+  deleteDoc,
   query,
   orderBy,
-  limit,
-  deleteDoc,
-  updateDoc,
+  serverTimestamp,
 } from "firebase/firestore";
-import { ireward, iredemption, RedemptionStatus, RewardStatus } from "../types";
+import { db } from "../lib/firebase";
+import { ireward } from "../types";
 
-const db = getFirestore();
+export type RewardAction = "sms" | "email" | "walk" | "survey" | "admin_adj";
 
 /**
- * Processes a reward redemption using a Firestore Transaction.
- * This ensures the user has enough points and the reward is in stock
- * before the "purchase" goes through.
+ * ATOMIC POINTS AWARDS
  */
-export const redeemReward = async (userId: string, reward: ireward) => {
-  const userRef = doc(db, "users", userId);
-  const rewardRef = doc(db, "rewards", reward.id);
-  const redemptionRef = doc(collection(db, "redemptions"));
-
+export const awardPoints = async (
+  uid: string,
+  action: RewardAction,
+  amount: number = 1,
+) => {
+  if (!uid) return;
+  const userRef = doc(db, "users", uid);
   try {
-    const now = Date.now();
-    await runTransaction(db, async (transaction) => {
-      // 1. Get user data
-      const userDoc = await transaction.get(userRef);
-      if (!userDoc.exists()) throw "User does not exist!";
+    await updateDoc(userRef, {
+      points_balance: increment(amount),
+      points_history: arrayUnion({
+        action,
+        amount,
+        timestamp: Date.now(),
+      }),
+    });
+  } catch (err) {
+    console.error("awardPoints Error:", err);
+    throw err;
+  }
+};
 
-      const userData = userDoc.data();
-      const currentPoints = userData.points_balance || 0;
+/**
+ * REWARDS CATALOG MANAGEMENT
+ */
+export const getAllRewards = async (): Promise<ireward[]> => {
+  const colRef = collection(db, "rewards_catalog");
+  const q = query(colRef, orderBy("points_cost", "asc")); // Updated to points_cost
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as ireward);
+};
 
-      // 2. Check points sufficiency
-      if (currentPoints < reward.points_cost) {
-        throw "Insufficient points balance.";
-      }
+// Fixed to handle the Omit type mismatch by spreading and adding default timestamps
+export const addReward = async (rewardData: any) => {
+  return await addDoc(collection(db, "rewards_catalog"), {
+    ...rewardData,
+    created_at: Date.now(),
+    updated_at: Date.now(),
+  });
+};
 
-      // 3. (Optional) Check stock if you're tracking it
-      if (reward.stock_quantity !== undefined && reward.stock_quantity <= 0) {
-        throw "Reward is out of stock.";
-      }
+export const updateReward = async (id: string, updates: any) => {
+  await updateDoc(doc(db, "rewards_catalog", id), {
+    ...updates,
+    updated_at: Date.now(),
+  });
+};
 
-      // 4. Create the redemption record
-      const redemptionData: Omit<iredemption, "id"> = {
-        user_id: userId,
-        reward_id: reward.id,
-        snapshot: {
-          title: reward.title,
-          points_paid: reward.points_cost,
-        },
-        status: RedemptionStatus.completed,
-        redeemed_at: now,
-      };
+export const deleteReward = async (id: string) => {
+  await deleteDoc(doc(db, "rewards_catalog", id));
+};
 
-      transaction.set(redemptionRef, redemptionData);
+/**
+ * REDEMPTION FLOW
+ * Updated to return a result object { success: boolean, error?: string }
+ */
+export const redeemReward = async (uid: string, reward: ireward) => {
+  try {
+    // 1. Create the pending redemption record
+    await addDoc(collection(db, "redemptions"), {
+      userId: uid,
+      rewardId: reward.id,
+      rewardTitle: reward.title,
+      points_cost: reward.points_cost, // Updated to points_cost
+      status: "pending",
+      redeemedAt: serverTimestamp(),
+    });
 
-      // 5. Update user points balance
-      transaction.update(userRef, {
-        points_balance: currentPoints - reward.points_cost,
-      });
-
-      // 6. Update reward stock (if applicable)
-      if (reward.stock_quantity !== undefined) {
-        transaction.update(rewardRef, {
-          stock_quantity: reward.stock_quantity - 1,
-        });
-      }
+    // 2. Deduct points from user balance
+    await updateDoc(doc(db, "users", uid), {
+      points_balance: increment(-reward.points_cost), // Updated to points_cost
     });
 
     return { success: true };
-  } catch (e) {
-    console.error("Redemption failed: ", e);
-    return { success: false, error: e };
+  } catch (err: any) {
+    console.error("Redemption Service Error:", err);
+    return { success: false, error: err.message };
   }
-};
-
-export const getAllRewards = async (): Promise<ireward[]> => {
-  try {
-    const rewardsCol = collection(db, "rewards");
-    const q = query(rewardsCol, orderBy("created_at", "desc"));
-    const snapshot = await getDocs(q);
-
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as ireward[];
-  } catch (error) {
-    console.error("Error fetching rewards:", error);
-    throw error;
-  }
-};
-
-export const addReward = async (
-  data: Omit<ireward, "id" | "created_at" | "updated_at">
-) => {
-  const rewardCol = collection(db, "rewards");
-  const now = Date.now();
-
-  return await addDoc(rewardCol, {
-    ...data,
-    created_at: now,
-    updated_at: now,
-  });
-};
-
-export const updateRewardStatus = async (
-  rewardId: string,
-  newStatus: RewardStatus
-) => {
-  const now = Date.now();
-  const rewardRef = doc(db, "rewards", rewardId);
-  return await updateDoc(rewardRef, {
-    status: newStatus,
-    updated_at: now,
-  });
-};
-
-export const deleteReward = async (rewardId: string) => {
-  const rewardRef = doc(db, "rewards", rewardId);
-  return await deleteDoc(rewardRef);
-};
-
-export const updateReward = async (
-  rewardId: string,
-  rewardData: Partial<ireward>
-) => {
-  const now = Date.now();
-  const rewardRef = doc(db, "rewards", rewardId);
-  return await updateDoc(rewardRef, {
-    ...rewardData,
-    updated_at: now,
-  });
-};
-
-export const updateRedemptionStatus = async (id: string, status: string) => {
-  const ref = doc(db, "redemptions", id);
-  return await updateDoc(ref, { status });
 };
 
 export const getAllRedemptions = async () => {
-  try {
-    const redemptionsCol = collection(db, "redemptions");
-    // Sort by most recent first
-    const q = query(redemptionsCol, orderBy("redeemed_at", "desc"));
+  const q = query(collection(db, "redemptions"), orderBy("redeemedAt", "desc"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+};
 
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-  } catch (error) {
-    console.error("Error fetching redemptions:", error);
-    throw error;
-  }
+export const updateRedemptionStatus = async (id: string, status: string) => {
+  await updateDoc(doc(db, "redemptions", id), {
+    status,
+    updated_at: serverTimestamp(),
+  });
 };

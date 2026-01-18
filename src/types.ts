@@ -102,6 +102,7 @@ export interface UserProfile {
   phone: string | null;
   photo_url: string | null;
   role: UserRole;
+  points_balance?: number;
   has_agreed_to_terms?: boolean;
   terms_agreed_at?: number;
   legal_consent?: {
