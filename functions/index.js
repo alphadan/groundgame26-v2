@@ -1640,6 +1640,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       group_id: group_id,
       access: access,
       active: active ?? true,
+      has_agreed_to_terms: false,
       created_by: request.auth.uid,
       created_at: Date.now(),
       updated_at: Date.now(),

@@ -102,6 +102,13 @@ export interface UserProfile {
   phone: string | null;
   photo_url: string | null;
   role: UserRole;
+  has_agreed_to_terms?: boolean;
+  terms_agreed_at?: number;
+  legal_consent?: {
+    version: string;
+    agreed_at_ms: number;
+    user_agent: string;
+  };
   group_id: string | null;
   permissions: UserPermissions;
   county_id?: string;

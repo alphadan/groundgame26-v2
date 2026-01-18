@@ -137,7 +137,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
               console.error("❌ Profile Sync Error:", err);
               setIsLoading(false);
               setIsLoaded(true);
-            }
+            },
           );
         } else {
           // Reset state and Analytics on Logout
