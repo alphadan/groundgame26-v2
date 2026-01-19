@@ -8,7 +8,6 @@ import { awardPoints } from "../../services/rewardsService";
 import {
   Box,
   Typography,
-  Paper,
   IconButton,
   Tooltip,
   Stack,
@@ -19,8 +18,16 @@ import {
   useTheme,
   Divider,
   useMediaQuery,
+  AlertTitle,
+  Button,
 } from "@mui/material";
-import { Phone, Message, MailOutline, Block } from "@mui/icons-material";
+import {
+  Phone,
+  Message,
+  MailOutline,
+  Block,
+  Download as DownloadIcon,
+} from "@mui/icons-material";
 import { FilterValues } from "../../types";
 import {
   DataGrid,
@@ -35,19 +42,23 @@ interface Voter {
   age?: number | string;
   party?: string;
   address?: string;
+  city?: string;
+  zip_code?: string;
   precinct?: string;
   phone_mobile?: string;
   phone_home?: string;
   email?: string;
+  modeled_party?: string;
+  turnout_score_general?: string;
+  has_mail_ballot?: boolean;
 }
 
-// Points color constant
 const REWARD_PURPLE = "#673ab7";
 
 export default function VoterListPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const { user, isLoaded: authLoaded } = useAuth();
+  const { user, claims, isLoaded: authLoaded } = useAuth();
   const dncMap = useDncMap();
 
   const [filters, setFilters] = useState<FilterValues | null>(null);
@@ -57,6 +68,68 @@ export default function VoterListPage() {
 
   const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
 
+  // Permission Check - Updated to can_manage_resources
+  const canDownload = !!claims?.permissions?.can_manage_resources;
+
+  // --- CSV DOWNLOAD HANDLER ---
+  const handleDownloadCSV = useCallback(() => {
+    if (!voters || voters.length === 0) return;
+
+    const headers = [
+      "Full Name",
+      "Age",
+      "Party",
+      "Address",
+      "City",
+      "Zip Code",
+      "Phone Mobile",
+      "Phone Home",
+      "Precinct",
+      "Modeled Party",
+      "Turnout Score",
+      "Has Mail Ballot",
+    ];
+
+    const rows = voters.map((voter: any) => [
+      voter.full_name || "",
+      voter.age || "",
+      voter.party || "",
+      voter.address || "",
+      voter.city || "",
+      voter.zip_code || "",
+      voter.phone_mobile || "",
+      voter.phone_home || "",
+      voter.precinct || "",
+      voter.modeled_party || "",
+      voter.turnout_score_general || "",
+      voter.has_mail_ballot ? "Yes" : "No",
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        row.map((field) => `"${(field + "").replace(/"/g, '""')}"`).join(","),
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `voter_list_${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setIsRewardToast(false);
+    setSnackbarMessage(`Downloaded ${voters.length} voters as CSV`);
+    setSnackbarOpen(true);
+  }, [voters]);
+
   // --- REWARDED ACTION HANDLER ---
   const handleContactAction = async (
     type: "sms" | "email" | "phone",
@@ -64,16 +137,11 @@ export default function VoterListPage() {
     protocolUrl: string,
   ) => {
     if (!user?.uid) return;
-
     try {
-      // Award 1 point for digital outreach
       await awardPoints(user.uid, type === "phone" ? "sms" : type, 1);
-
       setIsRewardToast(true);
       setSnackbarMessage(`+1 point earned for contacting ${voterName}!`);
       setSnackbarOpen(true);
-
-      // Brief delay so they see the purple toast before the app switches context
       setTimeout(() => {
         window.location.href = protocolUrl;
       }, 1000);
@@ -92,6 +160,7 @@ export default function VoterListPage() {
     setFilters(submittedFilters);
   }, []);
 
+  // Simple Toolbar without the download button
   const CustomToolbar = useCallback(
     () => (
       <GridToolbarContainer
@@ -152,7 +221,6 @@ export default function VoterListPage() {
             size="small"
             sx={{
               fontWeight: "bold",
-              // Original red/blue scheme
               bgcolor:
                 value === "R"
                   ? theme.palette.error.main
@@ -173,7 +241,6 @@ export default function VoterListPage() {
           const phone = row.phone_mobile || row.phone_home;
           const normalizedPhone = phone?.replace(/\D/g, "");
           const isDnc = dncMap.has(row.voter_id);
-
           if (isDnc) return <Block color="error" sx={{ mr: 2 }} />;
 
           return (
@@ -250,7 +317,7 @@ export default function VoterListPage() {
         },
       },
     ],
-    [dncMap, theme.palette, handleContactAction],
+    [dncMap, theme.palette, handleContactAction, isMobile],
   );
 
   if (!authLoaded)
@@ -273,16 +340,58 @@ export default function VoterListPage() {
       />
 
       {voters.length > 0 && (
-        <Box sx={{ height: 800, width: "100%", mt: 4 }}>
-          <DataGrid
-            rows={voters}
-            getRowId={(row) => row.voter_id}
-            columns={columns}
-            rowHeight={70}
-            slots={{ toolbar: CustomToolbar }}
-            sx={{ borderRadius: 3, boxShadow: 2, border: "none" }}
-          />
-        </Box>
+        <>
+          <Alert
+            severity="error"
+            variant="outlined"
+            sx={{
+              mt: 3,
+              mb: 3,
+              borderColor: "error.main",
+              backgroundColor: "white",
+            }}
+          >
+            <AlertTitle sx={{ fontWeight: "bold" }}>
+              SMS Messaging Warning
+            </AlertTitle>
+            <Typography variant="body2">
+              <strong>Carrier Suspension:</strong> Sending more than 10 messages
+              per hour can cause providers to flag your number as automated
+              spam.
+            </Typography>
+          </Alert>
+
+          {/* DOWNLOAD ACTION ROW - Just above DataGrid */}
+          {canDownload && (
+            <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
+              <Button
+                variant="contained"
+                startIcon={<DownloadIcon />}
+                onClick={handleDownloadCSV}
+                sx={{
+                  bgcolor: "#B22234",
+                  px: 3,
+                  py: 1,
+                  fontWeight: "bold",
+                  "&:hover": { bgcolor: "#8B1A1A" },
+                }}
+              >
+                Download Voter Export (CSV)
+              </Button>
+            </Box>
+          )}
+
+          <Box sx={{ height: 800, width: "100%" }}>
+            <DataGrid
+              rows={voters}
+              getRowId={(row) => row.voter_id}
+              columns={columns}
+              rowHeight={70}
+              slots={{ toolbar: CustomToolbar }}
+              sx={{ borderRadius: 3, boxShadow: 2, border: "none" }}
+            />
+          </Box>
+        </>
       )}
 
       <Snackbar

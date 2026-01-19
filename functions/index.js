@@ -45,6 +45,7 @@ const getPermissionsForRole = (role) => {
     can_upload_collections: false,
     can_create_collections: false,
     can_create_documents: false,
+    can_download_records: false,
   };
 
   switch (role) {
@@ -57,6 +58,7 @@ const getPermissionsForRole = (role) => {
         can_upload_collections: true,
         can_create_collections: true,
         can_create_documents: true,
+        can_download_records: true,
       };
     case "state_admin":
     case "county_chair":
@@ -67,6 +69,7 @@ const getPermissionsForRole = (role) => {
         can_manage_team: true,
         can_create_users: true,
         can_manage_resources: true,
+        can_download_records: true,
       };
     default:
       return base;

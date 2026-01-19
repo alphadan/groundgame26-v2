@@ -2,6 +2,7 @@ import {
   createTheme,
   PaletteColor,
   PaletteColorOptions,
+  Theme,
 } from "@mui/material/styles";
 import { red, grey, blueGrey } from "@mui/material/colors";
 
@@ -148,6 +149,28 @@ const baseTheme = {
       },
       defaultProps: {
         size: "small" as const,
+      },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root: ({ theme }: { theme: Theme }) => ({
+          borderRadius: 12,
+          fontWeight: 500,
+        }),
+        outlinedError: ({ theme }: { theme: Theme }) => ({
+          color:
+            theme.palette.mode === "light"
+              ? navy
+              : theme.palette.primary.contrastText,
+          backgroundColor:
+            theme.palette.mode === "light"
+              ? "#fff"
+              : theme.palette.background.paper,
+          borderColor: primaryRed,
+          "& .MuiAlert-icon": {
+            color: primaryRed,
+          },
+        }),
       },
     },
   },

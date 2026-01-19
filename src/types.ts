@@ -80,6 +80,7 @@ export interface UserPermissions {
   can_upload_collections: boolean;
   can_create_collections: boolean;
   can_create_documents: boolean;
+  can_download_records: boolean;
 }
 
 export interface CustomClaims {
@@ -103,6 +104,7 @@ export interface UserProfile {
   photo_url: string | null;
   role: UserRole;
   points_balance?: number;
+  points_history?: PointsHistoryEntry[];
   has_agreed_to_terms?: boolean;
   terms_agreed_at?: number;
   legal_consent?: {
@@ -409,4 +411,17 @@ export interface PrecinctMonthlyStats {
   // System Metadata
   last_updated: number; // Timestamp of the most recent activity or status sync
   updated_by: string; // UID of the admin or system process that last modified it
+}
+
+export interface PointsHistoryEntry {
+  action: "sms" | "email" | "walk" | "survey" | "admin_adj";
+  amount: number;
+  timestamp: number;
+}
+
+export interface LegalConsent {
+  agreed_at_ms: number;
+  ip_verified: boolean;
+  user_agent: string;
+  version: string;
 }

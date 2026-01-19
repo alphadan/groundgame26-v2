@@ -34,34 +34,34 @@ export const PublicFooter = () => {
           alignItems={{ xs: "center", md: "flex-start" }}
           textAlign={{ xs: "center", md: "left" }}
         >
-          {/* Quick Links */}            
-            <Link
-              component={RouterLink}
-              to="/volunteer"
-              variant="body2"
-              color="inherit"
-              underline="hover"
-            >
-              Volunteer
-            </Link>
-            <Link
-              component={RouterLink}
-              to="/about"
-              variant="body2"
-              color="inherit"
-              underline="hover"
-            >
-              About Our Mission
-            </Link>
-            <Link
-              component={RouterLink}
-              to="/contact"
-              variant="body2"
-              color="inherit"
-              underline="hover"
-            >
-              Contact Us
-            </Link>
+          {/* Quick Links */}
+          <Link
+            component={RouterLink}
+            to="/volunteer"
+            variant="body2"
+            color="inherit"
+            underline="hover"
+          >
+            Want to Volunteer?
+          </Link>
+          <Link
+            component={RouterLink}
+            to="/about"
+            variant="body2"
+            color="inherit"
+            underline="hover"
+          >
+            About Our Mission
+          </Link>
+          <Link
+            component={RouterLink}
+            to="/contact"
+            variant="body2"
+            color="inherit"
+            underline="hover"
+          >
+            Contact Us
+          </Link>
         </Stack>
       </Container>
     </Box>

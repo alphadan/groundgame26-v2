@@ -1,4 +1,3 @@
-// src/components/auth/LoginPage.tsx
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   signInWithEmailAndPassword,
@@ -10,7 +9,6 @@ import {
   getMultiFactorResolver,
 } from "firebase/auth";
 import { auth } from "../../lib/firebase";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import { useActivityLogger } from "../../hooks/useActivityLogger";
 import { useTheme } from "@mui/material/styles";
 import { useSearchParams } from "react-router-dom";
@@ -53,13 +51,6 @@ export default function LoginPage() {
   const [forgotOpen, setForgotOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetSent, setResetSent] = useState(false);
-
-  // Volunteer Form
-  const [volunteerOpen, setVolunteerOpen] = useState(false);
-  const [volName, setVolName] = useState("");
-  const [volEmail, setVolEmail] = useState("");
-  const [volComment, setVolComment] = useState("");
-  const [showThankYou, setShowThankYou] = useState(false);
 
   // MFA Code Input Modal
   const [mfaOpen, setMfaOpen] = useState(false);
@@ -243,265 +234,122 @@ export default function LoginPage() {
     }
   };
 
-  // === Volunteer Submission ===
-  const handleVolunteerSubmit = async () => {
-    if (!volName.trim() || !volEmail.trim()) {
-      setError("Name and email are required");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      if (!verifierRef.current) {
-        throw new Error("reCAPTCHA not initialized. Please refresh.");
-      }
-
-      // 1. Manually trigger the invisible reCAPTCHA challenge
-      const token = await verifierRef.current.verify();
-
-      // 2. Log the token to verify it's working (optional, for debugging)
-      console.log("Captured Token:", token);
-
-      // 3. Call your function via HTTPS Callable
-      const functions = getFunctions(undefined, "us-central1");
-      const submitVolunteer = httpsCallable(functions, "submitVolunteer");
-
-      console.log(
-        "Submitting volunteer with token:",
-        volName,
-        volEmail,
-        volComment,
-      );
-
-      // IMPORTANT: Note the key name 'recaptchaToken' matches your Cloud Function body check
-      await submitVolunteer({
-        name: volName.trim(),
-        email: volEmail.trim().toLowerCase(),
-        comment: volComment.trim(),
-        recaptchaToken: token,
-      });
-
-      setVolunteerOpen(false);
-      setShowThankYou(true);
-    } catch (error: any) {
-      console.error("Volunteer submission failed:", error);
-      // If the error comes from the function, it will be in err.message
-      setError(error.message || "Submission failed. Please try again later.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <>
       {/* Hidden reCAPTCHA container */}
       <div ref={recaptchaContainerRef} style={{ display: "none" }} />
 
-      {/* === Thank You Screen === */}
-      {showThankYou ? (
+      <Box
+        sx={{
+          minHeight: "80vh",
+          bgcolor: "background.default",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: 2,
+        }}
+      >
         <Box
           sx={{
-            minHeight: "100vh",
-            bgcolor: "background.default",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            p: 3,
+            width: { xs: "100%", sm: 420 },
+            maxWidth: 420,
+            p: { xs: 3, sm: 4 },
+            bgcolor: "background.paper",
+            borderRadius: 4,
+            boxShadow: 6,
           }}
         >
-          <Box
-            sx={{
-              width: { xs: "95%", sm: 520 },
-              p: { xs: 5, sm: 7 },
-              bgcolor: "background.paper",
-              borderRadius: 4,
-              boxShadow: 8,
-              textAlign: "center",
-            }}
-          >
+          <Stack spacing={2.5} alignItems="center">
             <Box
               component="img"
               src={LogoSvg}
               alt="GroundGame26"
               sx={{
-                width: "70%",
-                maxWidth: 300,
-                mb: 4,
+                width: "60%",
+                maxWidth: 240,
               }}
             />
-
             <Typography
-              variant="h3"
-              fontWeight="bold"
-              color="primary"
-              gutterBottom
-              sx={{ fontSize: { xs: "2.2rem", sm: "2.8rem" } }}
-            >
-              Thank You!
-            </Typography>
-
-            <Typography
-              variant="h6"
+              variant="body2"
               color="text.secondary"
-              sx={{ mb: 5, lineHeight: 1.8 }}
+              textAlign="center"
+              fontStyle="italic"
             >
-              Thank you for your interest in volunteering.
-              <br />
-              An Area Captain will reach out within one business day.
+              A Republican Get Out The Vote App
             </Typography>
-
-            <Button
-              variant="contained"
-              size="large"
-              onClick={() => {
-                setShowThankYou(false);
-                setVolunteerOpen(false);
-                setVolName("");
-                setVolEmail("");
-                setVolComment("");
-              }}
-              sx={{
-                px: 8,
-                py: 2,
-                fontSize: "1.2rem",
-                fontWeight: "bold",
-              }}
+            <Stack
+              component="form"
+              onSubmit={handleLogin}
+              spacing={2}
+              width="100%"
             >
-              Return to Login
-            </Button>
-          </Box>
-        </Box>
-      ) : (
-        /* === Main Login Screen === */
-        <Box
-          sx={{
-            minHeight: "80vh", // Reduced from 100vh to account for header/footer
-            bgcolor: "background.default",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            p: 2,
-          }}
-        >
-          <Box
-            sx={{
-              width: { xs: "100%", sm: 420 }, // Slightly narrower
-              maxWidth: 420,
-              p: { xs: 3, sm: 4 }, // Reduced padding from 6
-              bgcolor: "background.paper",
-              borderRadius: 4,
-              boxShadow: 6,
-            }}
-          >
-            <Stack spacing={2.5} alignItems="center">
-              {" "}
-              {/* Reduced spacing from 4 */}
-              <Box
-                component="img"
-                src={LogoSvg}
-                alt="GroundGame26"
-                sx={{
-                  width: "60%", // Reduced from 80%
-                  maxWidth: 240,
-                }}
+              <TextField
+                label="Email"
+                type="email"
+                size="small"
+                fullWidth
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
               />
-              <Typography
-                variant="body2" // Changed from h6 to be more compact
-                color="text.secondary"
-                textAlign="center"
-                fontStyle="italic"
-              >
-                A Republican Get Out The Vote App
-              </Typography>
-              <Stack
-                component="form"
-                onSubmit={handleLogin}
-                spacing={2} // Reduced spacing from 3
-                width="100%"
-              >
-                <TextField
-                  label="Email"
-                  type="email"
-                  size="small" // Added small variant
-                  fullWidth
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <TextField
-                  label="Password"
-                  type="password"
-                  size="small" // Added small variant
-                  fullWidth
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
+              <TextField
+                label="Password"
+                type="password"
+                size="small"
+                fullWidth
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
 
-                <Link
-                  component="button"
-                  type="button"
-                  variant="caption" // Smaller font
-                  onClick={() => setForgotOpen(true)}
-                  sx={{
-                    alignSelf: "flex-end",
-                    color: "primary.main",
-                    fontWeight: 500,
-                    mt: -1, // Pull closer to password field
-                  }}
+              <Link
+                component="button"
+                type="button"
+                variant="caption"
+                onClick={() => setForgotOpen(true)}
+                sx={{
+                  alignSelf: "flex-end",
+                  color: "primary.main",
+                  fontWeight: 500,
+                  mt: -1,
+                }}
+              >
+                Forgot Password?
+              </Link>
+
+              {error && (
+                <Alert
+                  severity="error"
+                  sx={{ py: 0, "& .MuiAlert-icon": { py: "8px" } }}
+                  onClose={() => setError("")}
                 >
-                  Forgot Password?
-                </Link>
+                  {error}
+                </Alert>
+              )}
 
-                {error && (
-                  <Alert
-                    severity="error"
-                    sx={{ py: 0, "& .MuiAlert-icon": { py: "8px" } }}
-                    onClose={() => setError("")}
-                  >
-                    {error}
-                  </Alert>
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                fullWidth
+                disabled={loading}
+                sx={{
+                  py: 1.5,
+                  fontSize: "1rem",
+                  fontWeight: "bold",
+                  mt: 1,
+                }}
+              >
+                {loading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  "Sign In"
                 )}
-
-                <Button
-                  type="submit"
-                  variant="contained"
-                  size="large"
-                  fullWidth
-                  disabled={loading}
-                  sx={{
-                    py: 1.5, // Reduced padding
-                    fontSize: "1rem",
-                    fontWeight: "bold",
-                    mt: 1,
-                  }}
-                >
-                  {loading ? (
-                    <CircularProgress size={24} color="inherit" />
-                  ) : (
-                    "Sign In"
-                  )}
-                </Button>
-              </Stack>
-              <Typography variant="body2" textAlign="center">
-                <Link
-                  component="button"
-                  type="button"
-                  onClick={() => setVolunteerOpen(true)}
-                  sx={{
-                    color: "primary.main",
-                    fontWeight: "bold",
-                  }}
-                >
-                  Want to Volunteer?
-                </Link>
-              </Typography>
+              </Button>
             </Stack>
-          </Box>
+          </Stack>
         </Box>
-      )}
+      </Box>
 
       {/* === Forgot Password Dialog === */}
       <Dialog
@@ -515,7 +363,7 @@ export default function LoginPage() {
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           {resetSent ? (
-            <Alert severity="success">
+            <Alert severity="success" sx={{ mt: 2 }}>
               If an account exists with that email, a password reset link has
               been sent.
             </Alert>
@@ -527,7 +375,7 @@ export default function LoginPage() {
               value={resetEmail}
               onChange={(e) => setResetEmail(e.target.value)}
               autoFocus
-              sx={{ mt: 1 }}
+              sx={{ mt: 2 }}
             />
           )}
         </DialogContent>
@@ -545,54 +393,6 @@ export default function LoginPage() {
         </DialogActions>
       </Dialog>
 
-      {/* === Volunteer Form Dialog === */}
-      <Dialog
-        open={volunteerOpen}
-        onClose={() => setVolunteerOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle sx={{ bgcolor: "primary.main", color: "white" }}>
-          Want to Volunteer?
-        </DialogTitle>
-        <DialogContent sx={{ pt: 3, mt: 4 }}>
-          <Stack spacing={3} sx={{ pt: 1, mt: 1 }}>
-            <TextField
-              label="Full Name *"
-              fullWidth
-              value={volName}
-              onChange={(e) => setVolName(e.target.value)}
-            />
-            <TextField
-              label="Email *"
-              type="email"
-              fullWidth
-              value={volEmail}
-              onChange={(e) => setVolEmail(e.target.value)}
-            />
-            <TextField
-              label="How would you like to help?"
-              multiline
-              rows={4}
-              fullWidth
-              value={volComment}
-              onChange={(e) => setVolComment(e.target.value)}
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setVolunteerOpen(false)}>Cancel</Button>
-          <Button
-            onClick={handleVolunteerSubmit}
-            variant="contained"
-            color="primary"
-            disabled={loading || !volName.trim() || !volEmail.trim()}
-          >
-            {loading ? "Submitting..." : "Submit"}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
       {/* === MFA Dialog === */}
       <Dialog
         open={mfaOpen}
@@ -602,7 +402,7 @@ export default function LoginPage() {
       >
         <DialogTitle>Enter Verification Code</DialogTitle>
         <DialogContent>
-          <Typography gutterBottom>
+          <Typography gutterBottom sx={{ mt: 1 }}>
             A 6-digit code was sent to your phone. Enter it below:
           </Typography>
           <TextField

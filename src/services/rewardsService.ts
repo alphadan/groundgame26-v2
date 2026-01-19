@@ -45,7 +45,7 @@ export const awardPoints = async (
  * REWARDS CATALOG MANAGEMENT
  */
 export const getAllRewards = async (): Promise<ireward[]> => {
-  const colRef = collection(db, "rewards_catalog");
+  const colRef = collection(db, "rewards");
   const q = query(colRef, orderBy("points_cost", "asc")); // Updated to points_cost
   const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as ireward);
@@ -53,7 +53,7 @@ export const getAllRewards = async (): Promise<ireward[]> => {
 
 // Fixed to handle the Omit type mismatch by spreading and adding default timestamps
 export const addReward = async (rewardData: any) => {
-  return await addDoc(collection(db, "rewards_catalog"), {
+  return await addDoc(collection(db, "rewards"), {
     ...rewardData,
     created_at: Date.now(),
     updated_at: Date.now(),
@@ -61,14 +61,14 @@ export const addReward = async (rewardData: any) => {
 };
 
 export const updateReward = async (id: string, updates: any) => {
-  await updateDoc(doc(db, "rewards_catalog", id), {
+  await updateDoc(doc(db, "rewards", id), {
     ...updates,
     updated_at: Date.now(),
   });
 };
 
 export const deleteReward = async (id: string) => {
-  await deleteDoc(doc(db, "rewards_catalog", id));
+  await deleteDoc(doc(db, "rewards", id));
 };
 
 /**

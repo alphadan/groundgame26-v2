@@ -23,7 +23,6 @@ import {
   ListItemIcon,
   ListItemText,
   useMediaQuery,
-  Breadcrumbs,
   Tooltip,
   Stack,
   Divider,
@@ -31,6 +30,7 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  CssBaseline,
 } from "@mui/material";
 import {
   Analytics,
@@ -53,34 +53,21 @@ const drawerWidth = 280;
 export default function MainLayout({ children }: { children?: ReactNode }) {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("lg"));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Get live profile data from Context
   const { user, userProfile, claims } = useAuth();
-
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [realBadges, setRealBadges] = useState<any[]>([]);
 
-  // Permissions check
   const canManageTeam = !!claims?.permissions?.can_manage_team;
 
   const [appControl] = useState({
     current_app_version: "2.1.0",
     current_db_version: "2026.Q1",
   });
-
-  const breadcrumbName = useMemo(() => {
-    const path = location.pathname;
-    if (path.includes("dashboard")) return "Dashboard";
-    if (path.includes("voters")) return "Voter Contact";
-    if (path.includes("walk-lists")) return "Walk Lists";
-    if (path.includes("name-search")) return "Name Search";
-    if (path.includes("settings")) return "Settings";
-    if (path.includes("admin")) return "Admin";
-    return "Ground Game";
-  }, [location.pathname]);
 
   const handleSignOut = useCallback(async () => {
     await signOut(auth);
@@ -113,7 +100,7 @@ export default function MainLayout({ children }: { children?: ReactNode }) {
       items.push({ text: "Admin", icon: <DataObjectIcon />, path: "/admin" });
     }
     return items;
-  }, [canManageTeam]); // Fixed: Added missing canManageTeam to dependency array
+  }, [canManageTeam]);
 
   const drawerContent = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -167,7 +154,16 @@ export default function MainLayout({ children }: { children?: ReactNode }) {
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "grey.50" }}>
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        bgcolor: "background.default",
+      }}
+    >
+      {/* CssBaseline ensures the background color is applied to the body */}
+      <CssBaseline />
+
       <Box
         component="nav"
         sx={{ width: { lg: drawerWidth }, flexShrink: { lg: 0 } }}
@@ -180,6 +176,9 @@ export default function MainLayout({ children }: { children?: ReactNode }) {
             "& .MuiDrawer-paper": {
               width: drawerWidth,
               boxSizing: "border-box",
+              bgcolor: "background.paper", // Theme aware drawer
+              borderRight: "1px solid",
+              borderColor: "divider",
             },
           }}
         >
@@ -194,133 +193,135 @@ export default function MainLayout({ children }: { children?: ReactNode }) {
           width: "100%",
           display: "flex",
           flexDirection: "column",
+          bgcolor: "background.default", // Theme aware main background
         }}
       >
-        <Box
+        <AppBar
+          position="static"
+          color="inherit"
+          elevation={0}
           sx={{
-            bgcolor: "background.paper",
             borderBottom: "1px solid",
             borderColor: "divider",
+            bgcolor: "background.paper", // Theme aware AppBar
           }}
         >
-          <Toolbar
-            sx={{ justifyContent: "space-between", px: { xs: 2, sm: 3 } }}
-          >
-            <Stack direction="row" alignItems="center" spacing={1}>
-              {!isDesktop && (
-                <IconButton
-                  color="inherit"
-                  edge="start"
-                  onClick={() => setMobileOpen(true)}
-                  sx={{ mr: 1 }}
-                >
-                  <MenuIcon />
-                </IconButton>
-              )}
-              <Breadcrumbs aria-label="breadcrumb">
-                <IconButton
-                  size="small"
-                  onClick={() => navigate("/dashboard")}
-                  sx={{ color: "primary.main" }}
-                >
-                  <HomeWork />
-                </IconButton>
-                <Typography variant="h6" fontWeight="bold" color="text.primary">
-                  {breadcrumbName}
-                </Typography>
-              </Breadcrumbs>
-            </Stack>
+          <Toolbar sx={{ py: isMobile ? 1.5 : 0 }}>
+            <Stack
+              direction={isMobile ? "column" : "row"}
+              spacing={isMobile ? 2 : 0}
+              sx={{ width: "100%" }}
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent={isMobile ? "space-between" : "flex-start"}
+                sx={{ width: isMobile ? "100%" : "auto" }}
+              >
+                {!isDesktop && (
+                  <IconButton
+                    color="inherit"
+                    edge="start"
+                    onClick={() => setMobileOpen(true)}
+                  >
+                    <MenuIcon />
+                  </IconButton>
+                )}
 
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              {/* GAMIFIED POINTS HUD */}
-              <Tooltip title="Your Total Rewards Points" arrow>
-                <Box
+                <Stack
+                  direction="row"
+                  spacing={1}
                   sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1.5,
-                    bgcolor: "primary.50",
-                    px: { xs: 1.5, sm: 2 },
-                    py: 0.75,
-                    borderRadius: "24px",
-                    border: "2px solid",
-                    borderColor: "#4527a0", // Dark Purple border
-                    boxShadow: "0px 2px 4px rgba(0,0,0,0.05)",
-                    transition: "transform 0.2s, background-color 0.2s",
-                    cursor: "pointer",
-                    "&:hover": {
-                      transform: "scale(1.05)",
-                      bgcolor: "primary.100",
-                    },
+                    flexGrow: isMobile ? 1 : 0,
+                    justifyContent: isMobile ? "center" : "flex-start",
+                    ml: isDesktop ? 0 : 1,
                   }}
-                  onClick={() => navigate("/settings")}
                 >
-                  <Stack direction="row" alignItems="baseline" spacing={1}>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        fontWeight: 900,
-                        textTransform: "uppercase",
-                        fontSize: "0.7rem",
-                        color: "#4527a0", // Matching Dark Purple text
-                        letterSpacing: 1,
-                      }}
-                    >
-                      Points:
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 900,
-                        color: "text.primary",
-                        fontFamily: "'Roboto Mono', monospace",
-                        fontSize: "1.1rem",
-                      }}
-                    >
-                      {userProfile?.points_balance?.toLocaleString() || 0}
-                    </Typography>
-                  </Stack>
-                </Box>
-              </Tooltip>
+                  {realBadges.map((badge) => (
+                    <Tooltip key={badge.id} title={badge.badge_title}>
+                      <Typography
+                        sx={{
+                          fontSize: isMobile ? "1.8rem" : "1.5rem",
+                          cursor: "default",
+                          transition: "transform 0.2s",
+                          "&:hover": { transform: "scale(1.3) rotate(10deg)" },
+                        }}
+                      >
+                        {badge.badge_unicode}
+                      </Typography>
+                    </Tooltip>
+                  ))}
+                </Stack>
+                {isMobile && <Box sx={{ width: 40 }} />}
+              </Stack>
 
               <Stack
                 direction="row"
-                spacing={1}
-                sx={{ mx: 1, display: { xs: "none", sm: "flex" } }}
+                spacing={2}
+                alignItems="center"
+                justifyContent={isMobile ? "center" : "flex-end"}
               >
-                {realBadges.map((badge) => (
-                  <Tooltip key={badge.id} title={badge.badge_title}>
-                    <Typography
-                      sx={{
-                        fontSize: "1.5rem",
-                        cursor: "default",
-                        transition: "transform 0.2s",
-                        "&:hover": { transform: "scale(1.3) rotate(10deg)" },
-                      }}
-                    >
-                      {badge.badge_unicode}
-                    </Typography>
-                  </Tooltip>
-                ))}
-              </Stack>
+                <Tooltip title="Your Rewards Points" arrow>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      bgcolor: "primary.50",
+                      px: 2,
+                      py: 0.5,
+                      borderRadius: "24px",
+                      border: "2px solid",
+                      borderColor: "#4527a0",
+                      boxShadow: "0px 2px 4px rgba(0,0,0,0.05)",
+                      cursor: "pointer",
+                      "&:hover": { bgcolor: "primary.100" },
+                    }}
+                    onClick={() => navigate("/settings")}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontWeight: 900,
+                          textTransform: "uppercase",
+                          fontSize: "0.7rem",
+                          color: "#4527a0",
+                          letterSpacing: 0.5,
+                        }}
+                      >
+                        Points:
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 900,
+                          color: "text.primary",
+                          fontFamily: "'Roboto Mono', monospace",
+                          fontSize: "1.1rem",
+                        }}
+                      >
+                        {userProfile?.points_balance?.toLocaleString() || 0}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                </Tooltip>
 
-              <Tooltip title="Settings">
-                <IconButton onClick={() => navigate("/settings")}>
+                <IconButton size="small" onClick={() => navigate("/settings")}>
                   <Settings />
                 </IconButton>
-              </Tooltip>
 
-              <Tooltip title={user?.displayName || user?.email || "User"}>
-                <IconButton onClick={handleAvatarClick}>
+                <IconButton onClick={handleAvatarClick} sx={{ p: 0 }}>
                   <Avatar
                     src={user?.photoURL ?? ""}
                     sx={{
-                      width: 40,
-                      height: 40,
+                      width: 38,
+                      height: 38,
                       bgcolor: "gold.main",
-                      color: "#000",
+                      color: "gold.contrastText",
                       fontWeight: "bold",
-                      fontSize: "1.1rem",
+                      fontSize: "1rem",
                       border: "2px solid white",
                       boxShadow: 2,
                     }}
@@ -330,48 +331,52 @@ export default function MainLayout({ children }: { children?: ReactNode }) {
                       .toUpperCase()}
                   </Avatar>
                 </IconButton>
-              </Tooltip>
-
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleMenuClose}
-                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-                transformOrigin={{ vertical: "top", horizontal: "right" }}
-              >
-                <MenuItem
-                  onClick={() => {
-                    handleMenuClose();
-                    navigate("/settings");
-                  }}
-                >
-                  <Settings fontSize="small" sx={{ mr: 1 }} /> Settings
-                </MenuItem>
-                <MenuItem
-                  onClick={() => {
-                    handleMenuClose();
-                    handleSignOut();
-                  }}
-                >
-                  <Logout fontSize="small" sx={{ mr: 1 }} /> Log Out
-                </MenuItem>
-                <Divider />
-                <MenuItem disabled sx={{ opacity: 0.7, py: 0.2 }}>
-                  <Typography variant="caption" fontWeight={600}>
-                    Version: {appControl.current_app_version}
-                  </Typography>
-                </MenuItem>
-                <MenuItem disabled sx={{ opacity: 0.7, py: 0.2 }}>
-                  <Typography variant="caption" fontWeight={600}>
-                    Database: {appControl.current_db_version}
-                  </Typography>
-                </MenuItem>
-              </Menu>
+              </Stack>
             </Stack>
           </Toolbar>
-        </Box>
+        </AppBar>
 
-        <Box sx={{ flexGrow: 1, p: { xs: 2, md: 4 } }}>
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleMenuClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+        >
+          <MenuItem
+            onClick={() => {
+              handleMenuClose();
+              navigate("/settings");
+            }}
+          >
+            <Settings fontSize="small" sx={{ mr: 1 }} /> Settings
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              handleMenuClose();
+              handleSignOut();
+            }}
+          >
+            <Logout fontSize="small" sx={{ mr: 1 }} /> Log Out
+          </MenuItem>
+          <Divider />
+          <MenuItem disabled sx={{ opacity: 0.7, py: 0.5 }}>
+            <Typography variant="caption">
+              v{appControl.current_app_version}
+            </Typography>
+          </MenuItem>
+        </Menu>
+
+        {/* This container area holds the Outlet and is now theme-sensitive */}
+        <Box
+          sx={{
+            flexGrow: 1,
+            p: { xs: 2, md: 4 },
+            bgcolor: "background.default",
+            color: "text.primary",
+            overflowY: "auto",
+          }}
+        >
           {children || <Outlet />}
         </Box>
       </Box>
