@@ -428,6 +428,7 @@ export default function WalkListPage() {
       {!filters && (
         <Paper
           sx={{
+            mt: 4,
             p: 10,
             textAlign: "center",
             bgcolor: "grey.50",

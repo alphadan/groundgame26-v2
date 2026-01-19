@@ -1,4 +1,3 @@
-// src/app/guide/HowToUsePage.tsx
 import React from "react";
 import {
   Box,
@@ -12,6 +11,8 @@ import {
   Divider,
   useTheme,
   Container,
+  Alert,
+  AlertTitle,
 } from "@mui/material";
 import {
   Dashboard,
@@ -22,6 +23,7 @@ import {
   DirectionsWalk,
   Settings,
   EmojiEvents,
+  Info,
 } from "@mui/icons-material";
 
 export default function HowToUsePage() {
@@ -74,13 +76,13 @@ export default function HowToUsePage() {
       icon: <Settings color="primary" />,
       title: "8. Manage Your Profile",
       description:
-        "Update your photo, name, email, toggle dark mode, and view app version in Settings.",
+        "Update your display name, toggle dark mode, and view your points history in Settings.",
     },
   ];
 
   return (
-    <Container maxWidth="md" sx={{ py: 6 }}>
-      <Paper sx={{ p: { xs: 4, sm: 6 }, borderRadius: 4, boxShadow: 6 }}>
+    <Container sx={{ py: 6 }}>
+      <Paper sx={{ p: { xs: 4 }, borderRadius: 4, boxShadow: 6 }}>
         <Stack spacing={5} alignItems="center" textAlign="center">
           {/* Hero */}
           <Box>
@@ -100,11 +102,33 @@ export default function HowToUsePage() {
 
           <Divider
             sx={{
-              width: "60%",
+              width: "80%",
               borderColor: "primary.main",
               borderBottomWidth: 3,
             }}
           />
+
+          {/* NEW: PRO TIP ALERT */}
+          <Alert
+            severity="info"
+            variant="outlined"
+            icon={<Info fontSize="inherit" />}
+            sx={{
+              width: "100%",
+              textAlign: "left",
+              borderRadius: 3,
+              bgcolor: "info.50",
+              borderColor: "info.light",
+            }}
+          >
+            <AlertTitle sx={{ fontWeight: "bold" }}>Pro Tip</AlertTitle>
+            We advise new users to take small steps in learning the app and then
+            add additional skills to become a power user.
+            <strong> Start by sending a text to a friend</strong> to earn your
+            first point! Then, go to the Message Center, copy a message, and
+            send it to another friend. You'll be on your way to winning Chester
+            County while earning more points and rewards in no time!
+          </Alert>
 
           {/* Main Steps */}
           <List sx={{ width: "100%" }}>
@@ -144,7 +168,7 @@ export default function HowToUsePage() {
             ))}
           </List>
 
-          {/* Pro Tips */}
+          {/* Pro Tips Section */}
           <Box sx={{ width: "100%" }}>
             <Typography
               variant="h5"
