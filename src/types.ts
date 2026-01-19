@@ -425,3 +425,25 @@ export interface LegalConsent {
   user_agent: string;
   version: string;
 }
+
+export type AgeGroup = "18-24" | "25-40" | "41-70" | "71+";
+export type PartyAffiliation = "Republican" | "Democratic" | "Independent";
+export type Sex = "M" | "F" | "Other";
+
+// Main Survey interface
+export interface Survey {
+  id: string;
+  embed_id: string;
+  demographics: {
+    age_group?: AgeGroup;
+    area_id?: string;
+    sex?: Sex;
+    party_affiliation?: PartyAffiliation;
+  };
+  name: string;
+  survey_id: string;
+  created_at?: any;
+  updated_at?: any;
+  description?: string;
+  active?: boolean;
+}

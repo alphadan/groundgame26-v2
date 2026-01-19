@@ -2133,3 +2133,43 @@ export const adminToggleRoleActive = onCall({ cors: true }, async (request) => {
     throw new HttpsError("internal", err.message);
   }
 });
+
+// ================================================================
+//  CREATE SURVEY META THROUGH ADMIN
+// ================================================================
+
+export const adminCreateSurvey = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const data = request.data;
+
+  if (!data.survey_id || !data.name || !data.embed_id) {
+    throw new HttpsError("invalid-argument", "Missing required fields");
+  }
+
+  try {
+    await db
+      .collection("surveys")
+      .doc(data.survey_id)
+      .set({
+        survey_id: data.survey_id.trim(),
+        name: data.name.trim(),
+        description: data.description?.trim() || null,
+        embed_id: data.embed_id.trim(),
+        demographics: data.demographics || {},
+        active: data.active ?? true,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        created_by: request.auth.uid,
+      });
+
+    return { success: true };
+  } catch (error) {
+    throw new HttpsError(
+      "internal",
+      error.message || "Failed to create survey",
+    );
+  }
+});

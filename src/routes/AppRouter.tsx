@@ -37,6 +37,7 @@ import AnalyticsManagement from "../app/admin/analytics/AnalyticsManagement";
 import GoalsManagement from "../app/admin/goals/GoalsManagement";
 import RolesManagement from "../app/admin/roles/RolesManagement";
 import DncManagement from "../app/admin/dnc/DncManagement";
+import SurveysManagement from "../app/admin/surveys/SurveysManagement";
 
 export default function AppRouter() {
   const { user } = useAuth();
@@ -52,7 +53,7 @@ export default function AppRouter() {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/volunteer" element={<VolunteerPage />} />
-      <Route path="/surveys" element={<SurveysPage />} />
+      <Route path="/surveys/:id" element={<SurveysPage />} />
 
       {/* 2. AUTHENTICATION ENTRY POINT
           If NO user: Show LoginPage at both "/" and "/login"
@@ -99,6 +100,7 @@ export default function AppRouter() {
         <Route path="/admin/goals" element={<GoalsManagement />} />
         <Route path="/admin/roles" element={<RolesManagement />} />
         <Route path="/admin/dnc" element={<DncManagement />} />
+        <Route path="/admin/surveys" element={<SurveysManagement />} />
       </Route>
 
       {/* 5. DYNAMIC ROOT & CATCH-ALL

@@ -21,6 +21,7 @@ import GroupsIcon from "@mui/icons-material/Groups";
 import GpsFixedIcon from "@mui/icons-material/GpsFixed";
 import TheaterComedyIcon from "@mui/icons-material/TheaterComedy";
 import PhoneDisabledIcon from "@mui/icons-material/PhoneDisabled";
+import ScienceIcon from "@mui/icons-material/Science";
 
 // ... other icons
 import RouterButton from "../../components/navigation/RouterButton"; // Adjust path based on your folder structure
@@ -156,6 +157,18 @@ const cardConfigs = [
     subActivities: ["Add DNC", "Edit DNC", "Ban Users"],
     metrics: "0 DNC, 0 Blacklist",
     path: "/admin/dnc",
+  },
+  {
+    title: "Manage Surveys",
+    icon: <ScienceIcon fontSize="large" color="primary" />,
+    description: "Manage Survey codes and demographics",
+    subActivities: [
+      "Add survey",
+      "Edit survey code",
+      "Get survey demograohics",
+    ],
+    metrics: "1 Survey, 2 Demographics",
+    path: "/admin/surveys",
   },
   // ... add others (Areas, Precincts, Rewards stub, etc.)
 ];
