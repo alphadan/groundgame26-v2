@@ -1,6 +1,10 @@
 import * as functions from "firebase-functions/v1";
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
-import { onDocumentWritten } from "firebase-functions/v2/firestore";
+import { setGlobalOptions } from "firebase-functions/v2";
+import {
+  onDocumentWritten,
+  onDocumentUpdated
+} from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions/v2";
 import { BigQuery } from "@google-cloud/bigquery";
 import { initializeApp } from "firebase-admin/app";
@@ -9,6 +13,11 @@ import { getFirestore, FieldValue, Filter } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { randomBytes } from "crypto";
+
+setGlobalOptions({
+  region: "us-central1",
+  maxInstances: 10,
+});
 
 initializeApp();
 
@@ -481,12 +490,26 @@ export const queryVotersDynamic = onCall(
       params.ageGroup = filters.ageGroup.trim();
     }
 
+    // === Gender ===
+    if (filters.gender && filters.gender.trim() !== "") {
+      sql += ` AND gender = @gender`;
+      params.gender = filters.gender.trim();
+    }
+
     // === Mail Ballot ===
-    if (filters.mailBallot && filters.mailBallot.trim() !== "") {
-      if (filters.mailBallot === "true") {
+    if (
+      filters.mailBallot !== undefined &&
+      filters.mailBallot !== null &&
+      filters.mailBallot !== ""
+    ) {
+      // Convert string "true"/"false" to actual boolean
+      const isMailBallot = String(filters.mailBallot).toLowerCase() === "true";
+
+      if (isMailBallot) {
         sql += ` AND has_mail_ballot = TRUE`;
-      } else if (filters.mailBallot === "false") {
-        sql += ` AND has_mail_ballot = FALSE`;
+      } else {
+        // Captures records explicitly set to false OR records that are null
+        sql += ` AND (has_mail_ballot = FALSE OR has_mail_ballot IS NULL)`;
       }
     }
 
@@ -696,8 +719,9 @@ export const getMessageIdeas = onCall(async (request) => {
     query = applyOrFilter(query, "party", partyValue);
     query = applyOrFilter(query, "turnout_score_general", data.turnout);
     query = applyOrFilter(query, "has_mail_ballot", data.mailBallot);
+    query = applyOrFilter(query, "gender", data.gender);
 
-    const snapshot = await query.limit(50).get();
+    const snapshot = await query.limit(96).get();
 
     const templates = snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -759,17 +783,18 @@ export const incrementCopyCount = onCall(async (request) => {
 export const getUserProfile = onCall(
   { region: "us-central1" },
   async (request) => {
+    // 1. Authentication Check
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "User must be logged in.");
     }
     const uid = request.auth.uid;
 
     try {
-      // 2. Fetch User Identity
+      // 2. Fetch Base User Identity (Firestore)
       const userDoc = await db.collection("users").doc(uid).get();
       const userData = userDoc.data() || {};
 
-      // 3. Query all active role assignments from the new org_roles structure
+      // 3. Query all active role assignments
       const rolesSnap = await db
         .collection("org_roles")
         .where("uid", "==", uid)
@@ -777,14 +802,13 @@ export const getUserProfile = onCall(
         .where("active", "==", true)
         .get();
 
-      logger.log("rolesSnap", rolesSnap);
-
       const counties = new Set();
       const areas = new Set();
       const precincts = new Set();
       const roles = new Set();
       const groupIds = new Set();
 
+      // 4. Collect raw data from assignments
       rolesSnap.forEach((doc) => {
         const d = doc.data();
         if (d.role) roles.add(d.role);
@@ -794,29 +818,60 @@ export const getUserProfile = onCall(
         if (d.precinct_id) precincts.add(d.precinct_id);
       });
 
+      // 5. Determine Primary Role (using your priority constants)
       const primaryRole = ROLE_PRIORITY.find((r) => roles.has(r)) || "base";
+      const permissions = getPermissionsForRole(primaryRole);
 
-      logger.log("primaryRole", primaryRole);
+      // 6. WILDCARD EXPANSION (The "God Mode" logic)
+      // This is crucial for matching your referenceDataSync frontend logic
+      if (primaryRole === "developer" || primaryRole === "state_admin") {
+        counties.add("ALL");
+        areas.add("ALL");
+        precincts.add("ALL");
+      } else if (primaryRole === "county_chair") {
+        // County Chairs unlock all children within their county
+        areas.add("ALL");
+        precincts.add("ALL");
+      } else if (
+        primaryRole === "area_chair" ||
+        primaryRole === "state_rep_district" ||
+        primaryRole === "candidate"
+      ) {
+        // Area Chairs/Candidates unlock all precincts within their area
+        precincts.add("ALL");
+      }
 
-      // 4. Return profile matching your frontend syncReferenceData requirements
+      // 7. Cleanup & Format (Filter out nulls/undefined)
+      const finalCounties = Array.from(counties).filter((c) => !!c);
+      const finalAreas = Array.from(areas).filter((a) => !!a);
+      const finalPrecincts = Array.from(precincts).filter((p) => !!p);
+
+      logger.info(
+        `✅ [getUserProfile] UID: ${uid} | Role: ${primaryRole} | Areas: ${finalAreas.length}`,
+      );
+
+      // 8. Return the computed profile
       return {
         profile: {
           uid,
           display_name: userData.display_name || null,
           email: userData.email || request.auth.token.email || null,
           role: primaryRole,
-          permissions: getPermissionsForRole(primaryRole),
+          permissions: permissions,
           group_id: Array.from(groupIds)[0] || null,
           access: {
-            counties: Array.from(counties),
-            areas: Array.from(areas),
-            precincts: Array.from(precincts),
+            counties: finalCounties,
+            areas: finalAreas,
+            precincts: finalPrecincts,
           },
         },
       };
     } catch (error) {
-      console.error("Error in getUserProfile:", error);
-      throw new HttpsError("internal", error.message);
+      logger.error("❌ Error in getUserProfile:", error);
+      throw new HttpsError(
+        "internal",
+        error.message || "Internal server error.",
+      );
     }
   },
 );
@@ -829,21 +884,22 @@ export const getUserProfile = onCall(
 export const syncOrgRolesToClaims = onDocumentWritten(
   "org_roles/{docId}",
   async (event) => {
-    // In v2, the 'event' object contains 'data', which has 'before' and 'after' snapshots
     const snapshotAfter = event.data?.after;
     const snapshotBefore = event.data?.before;
 
     const data = snapshotAfter ? snapshotAfter.data() : null;
     const prevData = snapshotBefore ? snapshotBefore.data() : null;
 
+    // Use either the new owner or the previous owner to ensure the correct user is synced
     const uid = data?.uid || prevData?.uid;
+
     if (!uid) {
       logger.info("No UID found for role change, skipping.");
-      return;
+      return null;
     }
 
     try {
-      // 1. Re-calculate the current state for this user
+      // 1. Fetch all active roles assigned to this specific UID
       const rolesSnap = await db
         .collection("org_roles")
         .where("uid", "==", uid)
@@ -866,36 +922,72 @@ export const syncOrgRolesToClaims = onDocumentWritten(
         if (d.precinct_id) precincts.add(d.precinct_id);
       });
 
+      // 2. Resolve the Primary Role based on your priority constants
       const primaryRole = ROLE_PRIORITY.find((r) => roles.has(r)) || "base";
       const permissions = getPermissionsForRole(primaryRole);
 
-      // 2. Set Custom Claims for security rules and AuthContext
+      // 3. APPLY HIERARCHICAL EXPANSION (Wildcard Logic)
+      // This is the core fix for the "Only seeing one area" issue
+      if (primaryRole === "developer" || primaryRole === "state_admin") {
+        counties.add("ALL");
+        areas.add("ALL");
+        precincts.add("ALL");
+      } else if (primaryRole === "county_chair") {
+        // Keeps the specific county, but unlocks all areas/precincts within it
+        areas.add("ALL");
+        precincts.add("ALL");
+      } else if (
+        primaryRole === "area_chair" ||
+        primaryRole === "state_rep_district" ||
+        primaryRole === "candidate"
+      ) {
+        // Keeps specific area, but unlocks all precincts within it
+        precincts.add("ALL");
+      }
+
+      // 4. Clean Data: Remove nulls/undefined and convert to Arrays
+      const finalCounties = Array.from(counties).filter((c) => !!c);
+      const finalAreas = Array.from(areas).filter((a) => !!a);
+      const finalPrecincts = Array.from(precincts).filter((p) => !!p);
+
+      // 5. SET CUSTOM CLAIMS (For Security Rules & Immediate Auth State)
       const claims = {
         role: primaryRole,
         permissions: permissions,
-        counties: Array.from(counties),
-        areas: Array.from(areas),
-        precincts: Array.from(precincts),
+        counties: finalCounties,
+        areas: finalAreas,
+        precincts: finalPrecincts,
         group_id: Array.from(groupIds)[0] || null,
       };
 
       await auth.setCustomUserClaims(uid, claims);
 
-      // 3. Update sync timestamp to signal frontend update
-      await db.collection("users").doc(uid).set(
-        {
-          last_claims_sync: Date.now(),
-          updated_at: Date.now(),
-        },
-        { merge: true },
-      );
+      // 6. SYNC FIRESTORE USER DOCUMENT
+      // Crucial: This is what getUserProfile() reads in the syncReferenceData function
+      await db
+        .collection("users")
+        .doc(uid)
+        .set(
+          {
+            role: primaryRole,
+            access: {
+              counties: finalCounties,
+              areas: finalAreas,
+              precincts: finalPrecincts,
+            },
+            last_claims_sync: Date.now(),
+            updated_at: Date.now(),
+          },
+          { merge: true },
+        );
 
       console.log(
-        `Claims synced for UID: ${uid}. Primary Role: ${primaryRole}`,
+        `✅ Claims & Profile synced for UID: ${uid}. Role: ${primaryRole}. Areas: ${JSON.stringify(finalAreas)}`,
       );
+
       return null;
     } catch (error) {
-      console.error("Error in syncOrgRolesToClaims:", error);
+      console.error("❌ Error in syncOrgRolesToClaims:", error);
       return null;
     }
   },
@@ -1612,12 +1704,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
 
     // 6. Generate Deterministic Role ID
     // Standardizes ID as: role_county_area_precinct
-    const roleDocId = [
-      role,
-      county_id,
-      area_id || "general",
-      precinct_id || "none",
-    ]
+    const roleDocId = [role, county_id, area_id || "ALL", precinct_id || "none"]
       .map((p) =>
         String(p)
           .toLowerCase()
@@ -1626,10 +1713,29 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       .join("_");
 
     // 7. Prepare User Access Object
+
+    let accessCounties = [county_id];
+    let accessAreas = area_id ? [area_id] : [];
+    let accessPrecincts = precinct_id ? [precinct_id] : [];
+
+    if (role === "developer") {
+      accessCounties = ["ALL"];
+      accessAreas = ["ALL"];
+      accessPrecincts = ["ALL"];
+    } else if (role === "county_chair") {
+      // County Chairs see everything in their one county
+      accessAreas = ["ALL"];
+      accessPrecincts = ["ALL"];
+    } else if (role === "state_rep_district" || role === "area_chair") {
+      // These roles see everything in their specific area(s)
+      accessPrecincts = ["ALL"];
+    }
+    // Committeepersons stay restricted to the specific precinct_id provided
+
     const access = {
-      counties: [county_id],
-      areas: area_id ? [area_id] : [],
-      precincts: precinct_id ? [precinct_id] : [],
+      counties: accessCounties,
+      areas: accessAreas,
+      precincts: accessPrecincts,
     };
 
     // 8. Create Firestore User Document
@@ -2173,3 +2279,113 @@ export const adminCreateSurvey = onCall(async (request) => {
     );
   }
 });
+
+// ================================================================
+//  HANDLES NOTIFICATION PREFERENCES FROM USER SETTINGS CHANGES
+// ================================================================
+
+export const onNotificationPreferenceUpdated = functions.firestore
+  .document("users/{uid}")
+  .onUpdate(async (change, context) => {
+    const beforeData = change.before.data();
+    const afterData = change.after.data();
+    const uid = context.params.uid;
+
+    const beforePrefs = beforeData.notification_preferences || {};
+    const afterPrefs = afterData.notification_preferences || {};
+
+    // 1. Identify which topic changed
+    const topics = Object.keys(afterPrefs).filter(
+      (key) => key !== "last_updated",
+    );
+
+    for (const topicId of topics) {
+      if (beforePrefs[topicId] !== afterPrefs[topicId]) {
+        const isSubscribing = afterPrefs[topicId] === true;
+
+        console.log(
+          `User ${uid} is ${isSubscribing ? "subscribing to" : "unsubscribing from"} ${topicId}`,
+        );
+
+        // 2. Get the user's FCM Tokens
+        // Logic assumes tokens are stored in /users/{uid}/fcmTokens/{tokenDoc}
+        const tokensSnapshot = await admin
+          .firestore()
+          .collection("users")
+          .doc(uid)
+          .collection("fcmTokens")
+          .get();
+
+        const tokens = tokensSnapshot.docs.map((doc) => doc.id);
+
+        if (tokens.length === 0) {
+          console.log(`No FCM tokens found for user ${uid}.`);
+          continue;
+        }
+
+        // 3. Perform the FCM Topic Sync
+        try {
+          if (isSubscribing) {
+            await admin.messaging().subscribeToTopic(tokens, topicId);
+            console.log(
+              `Successfully subscribed ${tokens.length} tokens to ${topicId}`,
+            );
+          } else {
+            await admin.messaging().unsubscribeFromTopic(tokens, topicId);
+            console.log(
+              `Successfully unsubscribed ${tokens.length} tokens from ${topicId}`,
+            );
+          }
+        } catch (error) {
+          console.error(`Error syncing topics for user ${uid}:`, error);
+        }
+      }
+    }
+  });
+
+export const onnotificationpreferenceupdated = onDocumentUpdated(
+  "users/{uid}",
+  async (event) => {
+    const beforeData = event.data?.before.data();
+    const afterData = event.data?.after.data();
+    const uid = event.params.uid;
+
+    if (!beforeData || !afterData) return;
+
+    const beforePrefs = beforeData.notification_preferences || {};
+    const afterPrefs = afterData.notification_preferences || {};
+
+    // Get all keys except our metadata timestamp
+    const topics = Object.keys(afterPrefs).filter(
+      (key) => key !== "last_updated",
+    );
+
+    for (const topicId of topics) {
+      if (beforePrefs[topicId] !== afterPrefs[topicId]) {
+        const isSubscribing = afterPrefs[topicId] === true;
+
+        // Get tokens from the sub-collection
+        const tokensSnap = await admin
+          .firestore()
+          .collection("users")
+          .doc(uid)
+          .collection("fcmTokens")
+          .get();
+
+        const tokens = tokensSnap.docs.map((doc) => doc.id);
+
+        if (tokens.length === 0) continue;
+
+        try {
+          if (isSubscribing) {
+            await admin.messaging().subscribeToTopic(tokens, topicId);
+          } else {
+            await admin.messaging().unsubscribeFromTopic(tokens, topicId);
+          }
+        } catch (error) {
+          console.error(`FCM Topic Sync Error for ${uid}:`, error);
+        }
+      }
+    }
+  },
+);

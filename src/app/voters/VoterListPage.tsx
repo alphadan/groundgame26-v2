@@ -41,6 +41,7 @@ interface Voter {
   full_name?: string;
   age?: number | string;
   party?: string;
+  gender?: string;
   address?: string;
   city?: string;
   zip_code?: string;
@@ -78,6 +79,7 @@ export default function VoterListPage() {
     const headers = [
       "Full Name",
       "Age",
+      "Gender",
       "Party",
       "Address",
       "City",
@@ -93,6 +95,7 @@ export default function VoterListPage() {
     const rows = voters.map((voter: any) => [
       voter.full_name || "",
       voter.age || "",
+      voter.gender || "",
       voter.party || "",
       voter.address || "",
       voter.city || "",
@@ -212,6 +215,30 @@ export default function VoterListPage() {
         },
       },
       {
+        field: "gender",
+        headerName: "Sex",
+        width: 90,
+        align: "center",
+        headerAlign: "center",
+        renderCell: ({ value }) => (
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: "bold",
+              fontSize: "1.1rem",
+              color:
+                value === "F"
+                  ? theme.palette.primary.light
+                  : value === "M"
+                    ? theme.palette.secondary.dark
+                    : "grey.400",
+            }}
+          >
+            {value || " "}
+          </Typography>
+        ),
+      },
+      {
         field: "party",
         headerName: "Party",
         width: 90,
@@ -235,7 +262,7 @@ export default function VoterListPage() {
       {
         field: "contact",
         headerName: "Contact & Rewards",
-        width: 220,
+        width: 280,
         sortable: false,
         renderCell: ({ row }) => {
           const phone = row.phone_mobile || row.phone_home;
@@ -306,7 +333,11 @@ export default function VoterListPage() {
                   </IconButton>
                 </Tooltip>
               )}
-              <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+              <Divider
+                orientation="vertical"
+                flexItem
+                sx={{ mx: 0.5, pr: 1 }}
+              />
               <VoterNotes
                 voterId={row.voter_id}
                 fullName={row.full_name}
@@ -336,7 +367,13 @@ export default function VoterListPage() {
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isLoading}
-        demographicFilters={["party", "turnout", "ageGroup", "mailBallot"]}
+        demographicFilters={[
+          "party",
+          "turnout",
+          "ageGroup",
+          "mailBallot",
+          "gender",
+        ]}
       />
 
       {voters.length > 0 && (

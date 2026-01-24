@@ -401,6 +401,7 @@ export default function Dashboard() {
           </Box>
         </Stack>
       </Paper>
+      <ManageTeamPage />
     </Box>
   );
 }

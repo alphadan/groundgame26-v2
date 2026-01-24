@@ -1,4 +1,3 @@
-// src/components/GeographicFilters.tsx
 import React, { useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db as indexedDb } from "../lib/db";
@@ -28,13 +27,11 @@ interface GeographicFiltersProps {
 /**
  * Normalization Helpers for BigQuery Matching
  */
-// Converts "PA15-A-15" -> "15"
 const cleanAreaForBigQuery = (areaId: string): string => {
   if (!areaId) return "";
   return areaId.split("-").pop() || "";
 };
 
-// Converts "0240" -> "240" or "005" -> "5"
 const cleanPrecinctForBigQuery = (code: string): string => {
   if (!code) return "";
   const numeric = Number(code);
@@ -54,36 +51,38 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
 }) => {
   const { isLoaded: authLoaded } = useAuth();
 
-  // 1. Load Counties from IndexedDB
+  // 1. Load Counties - Only show Active
   const counties =
     useLiveQuery(async () => {
-      return await indexedDb.counties.toArray();
+      return await indexedDb.counties
+        .filter((c) => c.active === true)
+        .toArray();
     }, []) ?? [];
 
-  // 2. Load Areas filtered by the selected County ID
+  // 2. Load Areas - Filtered by County AND Active status
   const areas =
     useLiveQuery(async () => {
       if (!selectedCounty) return [];
-      // Use the full ID and the new field name
       return await indexedDb.areas
         .where("county_id")
         .equals(selectedCounty)
+        .filter((a) => a.active === true)
         .toArray();
     }, [selectedCounty]) ?? [];
 
-  // 3. Load Precincts filtered by the selected Area ID
+  // 3. Load Precincts - Filtered by Area AND Active status
   const precincts =
     useLiveQuery(async () => {
       if (!selectedArea) return [];
       return await indexedDb.precincts
-        .where("area_id") // New field name from syncReferenceData
+        .where("area_id")
         .equals(selectedArea)
+        .filter((p) => p.active === true)
         .toArray();
     }, [selectedArea]) ?? [];
 
-  // --- AUTO-SELECTION & NORMALIZATION LOGIC ---
+  // --- AUTO-SELECTION LOGIC ---
 
-  // Auto-select County if only one exists
   useEffect(() => {
     if (counties.length === 1 && !selectedCounty) {
       const single = counties[0];
@@ -93,14 +92,12 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
     }
   }, [counties, selectedCounty, onCountyChange, onCountyCodeChange, setValue]);
 
-  // Auto-select Area if only one exists and clean it for BigQuery
   useEffect(() => {
     if (selectedCounty && areas.length === 1 && !selectedArea) {
       const single = areas[0];
       const cleanArea = cleanAreaForBigQuery(single.id);
-
       onAreaChange(single.id);
-      onAreaDistrictChange(cleanArea); // Sends "15" to BigQuery
+      onAreaDistrictChange(cleanArea);
       setValue("area", single.id);
     }
   }, [
@@ -112,14 +109,12 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
     setValue,
   ]);
 
-  // Auto-select Precinct if only one exists and clean it for BigQuery
   useEffect(() => {
     if (selectedArea && precincts.length === 1) {
       const single = precincts[0];
       const cleanPrecinct = cleanPrecinctForBigQuery(single.precinct_code);
-
       setValue("precinct", cleanPrecinct);
-      onPrecinctChange(cleanPrecinct); // Sends "235" to BigQuery
+      onPrecinctChange(cleanPrecinct);
     }
   }, [selectedArea, precincts, setValue, onPrecinctChange]);
 
@@ -185,12 +180,10 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
                 onChange={(e) => {
                   const val = e.target.value as string;
                   const cleanArea = cleanAreaForBigQuery(val);
-
                   field.onChange(val);
                   onAreaChange(val);
-                  onAreaDistrictChange(cleanArea); // Sends clean code to parent
+                  onAreaDistrictChange(cleanArea);
 
-                  // Reset precinct
                   onPrecinctChange("");
                   setValue("precinct", "");
                 }}
@@ -226,9 +219,8 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
                 onChange={(e) => {
                   const val = e.target.value as string;
                   const cleanPrecinct = cleanPrecinctForBigQuery(val);
-
                   field.onChange(cleanPrecinct);
-                  onPrecinctChange(cleanPrecinct); // Sends clean code (no leading zeros)
+                  onPrecinctChange(cleanPrecinct);
                 }}
               >
                 {precincts.length > 1 && (

@@ -20,7 +20,8 @@ type FilterKey =
   | "turnout"
   | "ageGroup"
   | "mailBallot"
-  | "zipCode";
+  | "zipCode"
+  | "gender";
 
 interface DemographicFiltersProps {
   control: Control<any>;
@@ -72,7 +73,7 @@ export const DemographicFilters: React.FC<DemographicFiltersProps> = ({
                   helperText="5 digits only"
                   onChange={(e) =>
                     field.onChange(
-                      e.target.value.replace(/\D/g, "").slice(0, 5)
+                      e.target.value.replace(/\D/g, "").slice(0, 5),
                     )
                   }
                 />
@@ -236,6 +237,27 @@ export const DemographicFilters: React.FC<DemographicFiltersProps> = ({
                     </MenuItem>
                     <MenuItem value="true">Has Mail Ballot</MenuItem>
                     <MenuItem value="false">Does Not Have Mail Ballot</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
+            />
+          </Grid>
+        )}
+        {/* Gender Filter */}
+        {shouldShow("gender") && (
+          <Grid size={{ xs: 12, md: 6, lg: 4 }}>
+            <Controller
+              name="gender"
+              control={control}
+              render={({ field }) => (
+                <FormControl fullWidth>
+                  <InputLabel>Gender</InputLabel>
+                  <Select {...field} value={field.value || ""} label="Gender">
+                    <MenuItem value="">
+                      <em>All Genders</em>
+                    </MenuItem>
+                    <MenuItem value="M">Male</MenuItem>
+                    <MenuItem value="F">Female</MenuItem>
                   </Select>
                 </FormControl>
               )}

@@ -9,10 +9,10 @@ import {
 import { UserProfile, Precinct } from "../types";
 
 /**
- * Strategy:
- * 1. Fetch the computed profile (role, permissions, and access IDs) from Cloud Function.
- * 2. Filter local constants based on the returned access ID arrays.
- * 3. Perform an atomic write to IndexedDB to ensure data consistency.
+ * Production Sync Strategy:
+ * 1. Wildcard Handling: Supports "ALL" string in access arrays for Developers/Admins.
+ * 2. ID Consistency: Matches composite string IDs (e.g., PA15-A-28).
+ * 3. Atomic Dexie Transactions: Ensures IndexedDB is never in a partial state.
  */
 export async function syncReferenceData(currentUid: string): Promise<void> {
   console.log("🟢 [Sync] Entering syncReferenceData for UID:", currentUid);
@@ -41,34 +41,69 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
     const { role: userRole, access } = profileData;
     console.log("🟢 [Sync] Profile received. Primary Role:", userRole);
 
-    // 3. Filter using standardized IDs from the Cloud Function
-    // We match against the 'id' field in our constants
-    const filteredCounties = allCounties.filter((c) =>
-      access.counties.includes(c.id)
+    // --- HELPER: Wildcard Check ---
+    const hasAll = (arr: string[] | undefined) => arr?.includes("ALL") || false;
+
+    // 3. Filter Counties
+    console.log("🛠️ [Sync Debug] Starting Filter Phase");
+    console.log(
+      "🛠️ [Sync Debug] Full Access Object:",
+      JSON.stringify(access, null, 2),
     );
 
-    const filteredAreas = allAreas.filter((a) => access.areas.includes(a.id));
+    const hasAllCounties = hasAll(access.counties);
+    const hasAllAreas = hasAll(access.areas);
 
-    // 4. Strategic Precinct Filtering
+    // COUNTY LOGGING
+    const filteredCounties = allCounties.filter(
+      (c) => hasAllCounties || access.counties.includes(c.id),
+    );
+    console.log(
+      `🛠️ [Sync Debug] Counties: Found ${allCounties.length} in refData, Matched ${filteredCounties.length} via access.`,
+    );
+
+    // 4. Filter Areas
+
+    console.log("DEBUG: access.areas is:", access.areas);
+    console.log("DEBUG: hasAll(access.areas) is:", hasAll(access.areas));
+
+    // AREA LOGGING
+    const filteredAreas = allAreas.filter((a) => {
+      const isMatch = hasAllAreas || access.areas.includes(a.id);
+      // Optional: log why a specific area failed if you expected it to pass
+      if (a.id === "PA15-A-28" && !isMatch) {
+        console.warn(
+          "⚠️ [Sync Debug] Area PA15-A-28 exists in refData but access.areas does not include it and hasAll is false.",
+        );
+      }
+      return isMatch;
+    });
+    console.log(
+      `🛠️ [Sync Debug] Areas: Found ${allAreas.length} in refData, Matched ${filteredAreas.length} via access.`,
+    );
+
+    console.log(`DEBUG: Filtered Areas Count: ${filteredAreas.length}`);
+
+    // 5. Strategic Precinct Filtering
+    // PRECINCT LOGGING
     let filteredPrecincts: Precinct[] = [];
-
-    if (userRole === "committeeperson") {
-      // Committeepersons: Strictly assigned precincts only
-      filteredPrecincts = allPrecincts.filter((p) =>
-        access.precincts.includes(p.id)
+    if (userRole === "developer") {
+      console.log(
+        "🛠️ [Sync Debug] User is Developer: Bypassing Precinct filters.",
       );
+      filteredPrecincts = allPrecincts;
     } else {
-      // Admins/Chairs/Devs: Get all precincts belonging to their allowed areas
-      filteredPrecincts = allPrecincts.filter((p) =>
-        access.areas.includes(p.area_id)
+      filteredPrecincts = allPrecincts.filter(
+        (p) => hasAllAreas || access.areas.includes(p.area_id),
       );
     }
 
     console.log(
-      `📊 [Sync] Results: ${filteredCounties.length} counties, ${filteredAreas.length} areas, ${filteredPrecincts.length} precincts matched.`
+      `📊 [Sync] Results: ${filteredCounties.length} counties, ${filteredAreas.length} areas, ${filteredPrecincts.length} precincts matched.`,
     );
 
-    // 5. Atomic Write to IndexedDB (Dexie Transaction)
+    // 6. Atomic Write to IndexedDB (Dexie Transaction)
+    // We wrap everything in a transaction so if one write fails, none are committed.
     await db.transaction(
       "rw",
       [db.counties, db.areas, db.precincts, db.groups, db.users],
@@ -82,22 +117,22 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
           db.users.clear(),
         ]);
 
-        // Bulk put filtered data
+        // Bulk put filtered data if available
         if (filteredCounties.length > 0)
           await db.counties.bulkPut(filteredCounties);
         if (filteredAreas.length > 0) await db.areas.bulkPut(filteredAreas);
         if (filteredPrecincts.length > 0)
           await db.precincts.bulkPut(filteredPrecincts);
 
-        // Groups are global for now, but we use the filtered county_id to narrow if needed
-        await db.groups.bulkPut(allGroups);
+        // Groups/Teams are typically global within a campaign
+        if (allGroups.length > 0) await db.groups.bulkPut(allGroups);
 
-        // Store the full profile for offline permission checks
+        // Store the full profile for offline permission checks and UI display
         await db.users.put(profileData);
-      }
+      },
     );
 
-    // 6. Finalize sync metadata
+    // 7. Finalize sync metadata
     await updateAppControlAfterSync();
     console.log("✅ [Sync] Successfully populated IndexedDB.");
   } catch (err: any) {

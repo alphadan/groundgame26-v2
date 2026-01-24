@@ -24,6 +24,7 @@ interface FilterValues {
   ageGroup?: string;
   mailBallot?: string;
   zipCode?: string;
+  gender?: string;
 }
 
 type FilterKey =
@@ -34,7 +35,8 @@ type FilterKey =
   | "turnout"
   | "ageGroup"
   | "mailBallot"
-  | "zipCode";
+  | "zipCode"
+  | "gender";
 
 interface FilterSelectorProps {
   onSubmit: (filters: FilterValues) => void;

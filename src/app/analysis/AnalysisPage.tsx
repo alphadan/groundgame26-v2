@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { FilterValues } from "../../types";
 import { useDynamicVoters } from "../../hooks/useDynamicVoters";
@@ -18,15 +18,43 @@ import {
   CircularProgress,
   useTheme,
   Divider,
+  Chip,
+  Button,
+  Avatar,
 } from "@mui/material";
 import { BarChart } from "@mui/x-charts/BarChart";
 import GroupIcon from "@mui/icons-material/Group";
+import BoltIcon from "@mui/icons-material/Bolt";
 
 export default function AnalysisPage() {
   const theme = useTheme();
   const { isLoaded } = useAuth();
 
-  // --- 1. SEPARATED STATES ---
+  // --- 0. PRESET FILTERS ---
+  const PRESET_FILTERS = [
+    {
+      label: "Female Republicans",
+      icon: "👩",
+      filters: { party: "R", gender: "F" },
+    },
+    {
+      label: "Young GOP (18-24)",
+      icon: "🎓",
+      filters: { party: "R", ageGroup: "18-24" },
+    },
+    {
+      label: "High-Propensity Seniors",
+      icon: "🗳️",
+      filters: { turnout: "4", ageGroup: "71+" },
+    },
+    {
+      label: "Missing Mail Ballots",
+      icon: "📩",
+      filters: { party: "R", mailBallot: "false" },
+    },
+  ];
+
+  // --- 1. STATES ---
   const [analysisPrecinct, setAnalysisPrecinct] =
     useState<string>("PA15-P-005");
   const [voterFilters, setVoterFilters] = useState<FilterValues | null>(null);
@@ -41,7 +69,53 @@ export default function AnalysisPage() {
   const { data: voters = [], isLoading: votersLoading } =
     useDynamicVoters(voterFilters);
 
-  // --- 3. PERFORMANCE KPI CALCULATIONS ---
+  // --- 3. HELPER FUNCTIONS ---
+
+  const getFilterTitle = (filters: FilterValues | null) => {
+    if (!filters) return "All Voters";
+
+    const parts: string[] = [];
+    if (filters.modeledParty)
+      parts.push(
+        filters.modeledParty === "R" ? "Republicans" : filters.modeledParty,
+      );
+    if (filters.gender) parts.push(filters.gender === "F" ? "Female" : "Male");
+    if (filters.ageGroup) parts.push(`Age ${filters.ageGroup}`);
+    if (filters.turnout) parts.push(`${filters.turnout} Turnout`);
+
+    // Handle the boolean strings for the title
+    if (
+      filters.mailBallot !== undefined &&
+      filters.mailBallot !== null &&
+      filters.mailBallot !== ""
+    ) {
+      const hasBallot = String(filters.mailBallot).toLowerCase() === "true";
+      parts.push(hasBallot ? "Mail-In" : "No Mail-In");
+    }
+
+    return parts.length > 0 ? parts.join(" • ") : "Custom Filter Set";
+  };
+
+  const applyQuickFilter = (presetFilters: Partial<FilterValues>) => {
+    console.log("⚡ Applying Quick Target:", presetFilters);
+    const merged: FilterValues = { ...presetFilters };
+    if (analysisPrecinct && analysisPrecinct !== "all") {
+      merged.precinct_id = analysisPrecinct;
+    }
+    setVoterFilters(merged);
+  };
+
+  const isPresetActive = (presetFilters: Partial<FilterValues>) => {
+    if (!voterFilters) return false;
+    return Object.keys(presetFilters).every(
+      (key) =>
+        voterFilters[key as keyof FilterValues] ===
+        presetFilters[key as keyof FilterValues],
+    );
+  };
+
+  // --- 4. CALCULATIONS ---
+
   const dynamicKPIs = useMemo(() => {
     const s = stats || {
       gop_registrations: 0,
@@ -112,30 +186,55 @@ export default function AnalysisPage() {
     ];
   }, [goal, stats]);
 
-  // --- 4. VOTER CHART MAPPING ---
   const customChartsData = useMemo(() => {
     if (!voters.length) return null;
+
+    // 1. Voter Registration (By Party)
+    const registrationData = [
+      { label: "GOP", val: voters.filter((v) => v.party === "R").length },
+      { label: "DEM", val: voters.filter((v) => v.party === "D").length },
+      {
+        label: "Other",
+        val: voters.filter((v) => !["R", "D"].includes(v.party || "")).length,
+      },
+    ];
+
+    // 2. Mail-In Ballots (Those who have requested/returned a ballot)
+    // Assuming your voter object has a 'mail_ballot' or similar property
+    const mailInData = [
+      {
+        label: "GOP",
+        val: voters.filter((v) => v.party === "R" && v.has_mail_ballot === true)
+          .length,
+      },
+      {
+        label: "DEM",
+        val: voters.filter((v) => v.party === "D" && v.has_mail_ballot === true)
+          .length,
+      },
+      {
+        label: "Other",
+        val: voters.filter(
+          (v) =>
+            !["R", "D"].includes(v.party || "") && v.has_mail_ballot === true,
+        ).length,
+      },
+    ];
+
     return {
-      party: [
-        { label: "GOP", val: voters.filter((v) => v.party === "R").length },
-        { label: "DEM", val: voters.filter((v) => v.party === "D").length },
-        {
-          label: "IND",
-          val: voters.filter((v) => !["R", "D"].includes(v.party || "")).length,
-        },
-      ],
-      age: [
-        {
-          label: "18-34",
-          val: voters.filter((v) => v.age && v.age <= 34).length,
-        },
-        {
-          label: "35-54",
-          val: voters.filter((v) => v.age && v.age > 34 && v.age <= 54).length,
-        },
-        { label: "55+", val: voters.filter((v) => v.age && v.age > 54).length },
-      ],
+      registration: registrationData,
+      mailIn: mailInData,
     };
+  }, [voters]);
+
+  useEffect(() => {
+    if (voters.length > 0) {
+      console.log("📥 [BigQuery Raw Data Sample]:", voters[0]);
+      console.log(
+        "🧐 [Check has_mail_ballot type]:",
+        typeof voters[0].has_mail_ballot,
+      );
+    }
   }, [voters]);
 
   if (!isLoaded)
@@ -147,27 +246,25 @@ export default function AnalysisPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 4 }, maxWidth: 1600, margin: "auto" }}>
-      {/* SECTION 1: FIELD ANALYTICS HEADER & FILTERS */}
+      {/* HEADER & FILTERS */}
       <Stack
-        direction={{ xs: "column", md: "row" }} // Underneath on mobile, side-by-side on desktop
+        direction={{ xs: "column", md: "row" }}
         justifyContent="space-between"
-        alignItems={{ xs: "flex-start", md: "flex-end" }} // Aligns filters to bottom of header text on desktop
-        spacing={3} // Adds consistent gap
-        sx={{ mb: 6 }} // Increased spacing between this header and the KPI cards
+        alignItems={{ xs: "flex-start", md: "flex-end" }}
+        spacing={3}
+        sx={{ mb: 6 }}
       >
         <Box>
           <Typography variant="h4" fontWeight="bold" color="primary">
             Field Analytics
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            {/* If using the naming logic from the filter bar update: */}
             Strategic Analysis for{" "}
             {analysisPrecinct === "all"
               ? "All Selected Precincts"
               : analysisPrecinct}
           </Typography>
         </Box>
-
         <Box sx={{ width: { xs: "100%", md: "auto" } }}>
           <PrecinctFilterBar
             onPrecinctSelect={setAnalysisPrecinct}
@@ -176,6 +273,7 @@ export default function AnalysisPage() {
         </Box>
       </Stack>
 
+      {/* KPI GRID */}
       <Grid container spacing={3} mb={6}>
         {dynamicKPIs.map((kpi) => (
           <Grid size={{ xs: 12, sm: 6, md: 3 }} key={kpi.label}>
@@ -217,58 +315,178 @@ export default function AnalysisPage() {
 
       <Divider sx={{ mb: 6 }} />
 
-      {/* SECTION 2: CUSTOM TARGETING (Filter Selector) */}
-      <Typography variant="h5" fontWeight="bold" gutterBottom>
-        Custom Analysis & Targeting
-      </Typography>
+      {/* QUICK TARGETS */}
+      <Box sx={{ mb: 4 }}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+          <BoltIcon color="primary" fontSize="small" />
+          <Typography
+            variant="subtitle2"
+            fontWeight="bold"
+            color="text.secondary"
+          >
+            Quick Targets
+          </Typography>
+        </Stack>
+        <Stack
+          direction="row"
+          spacing={1.5}
+          flexWrap="wrap"
+          useFlexGap
+          sx={{ gap: 1.5 }}
+        >
+          {PRESET_FILTERS.map((preset) => {
+            const active = isPresetActive(
+              preset.filters as Partial<FilterValues>,
+            );
+            return (
+              <Chip
+                key={preset.label}
+                label={preset.label}
+                onClick={() =>
+                  applyQuickFilter(preset.filters as Partial<FilterValues>)
+                }
+                onDelete={active ? () => setVoterFilters(null) : undefined}
+                color={active ? "primary" : "default"}
+                variant={active ? "filled" : "outlined"}
+                avatar={
+                  <Avatar
+                    sx={{
+                      bgcolor: "transparent",
+                      fontSize: "1.5rem",
+                      width: "38px !important",
+                      height: "38px !important",
+                      marginLeft: "6px !important",
+                    }}
+                  >
+                    {preset.icon}
+                  </Avatar>
+                }
+                sx={{
+                  borderRadius: "12px",
+                  fontWeight: 600,
+                  height: 48,
+                  px: 1,
+                  fontSize: "0.95rem",
+                  backgroundColor: active ? undefined : "#ffffff",
+                  boxShadow: active
+                    ? theme.shadows[2]
+                    : "0 2px 4px rgba(0,0,0,0.05)",
+                  border: active
+                    ? undefined
+                    : `1px solid ${theme.palette.divider}`,
+                  transition: "all 0.2s ease-in-out",
+                  "& .MuiChip-label": { pl: 1.5 },
+                  "&:hover": {
+                    backgroundColor: active ? undefined : "#f8f9fa",
+                    transform: "translateY(-1px)",
+                    boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
+                  },
+                }}
+              />
+            );
+          })}
+          {voterFilters && (
+            <Button
+              size="large"
+              variant="text"
+              onClick={() => setVoterFilters(null)}
+              sx={{
+                color: theme.palette.error.main,
+                textTransform: "none",
+                fontWeight: "bold",
+                height: 48,
+                px: 2,
+              }}
+            >
+              Clear All
+            </Button>
+          )}
+        </Stack>
+      </Box>
 
       <FilterSelector
-        onSubmit={setVoterFilters}
+        onSubmit={(values) => {
+          console.log("📝 Form Submitted:", values);
+          setVoterFilters(values);
+        }}
         isLoading={votersLoading}
         demographicFilters={[
           "modeledParty",
           "turnout",
           "ageGroup",
           "mailBallot",
+          "gender",
         ]}
       />
 
+      {/* RESULTS DISPLAY */}
       {voterFilters && (
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12 }}>
-            <Alert icon={<GroupIcon />} severity="info">
-              Analyzing <strong>{voters.length.toLocaleString()}</strong> voters
-              from BigQuery.
-            </Alert>
+        <Box sx={{ mt: 4 }}>
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12 }}>
+              <Box sx={{ mb: 2, textAlign: "center" }}>
+                <Typography variant="h6" fontWeight="bold" color="primary">
+                  {getFilterTitle(voterFilters)}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Showing results for{" "}
+                  {analysisPrecinct === "all"
+                    ? "Selected Area"
+                    : `Precinct ${analysisPrecinct}`}
+                </Typography>
+              </Box>
+
+              <Alert
+                icon={<GroupIcon />}
+                severity="info"
+                sx={{ mt: 4, borderRadius: 2 }}
+              >
+                Analyzing <strong>{voters.length.toLocaleString()}</strong>{" "}
+                voters from BigQuery.
+              </Alert>
+            </Grid>
+
+            {customChartsData &&
+              [
+                {
+                  title: "Voter Registration",
+                  data: customChartsData.registration,
+                  color: theme.palette.primary.main,
+                },
+                {
+                  title: "Mail-In Ballots",
+                  data: customChartsData.mailIn,
+                  color: theme.palette.success.main, // Success green often fits mail-in tracking
+                },
+              ].map((chart, i) => (
+                <Grid size={{ xs: 12, md: 6 }} key={i}>
+                  <Paper
+                    sx={{ p: 3, borderRadius: 3, boxShadow: theme.shadows[2] }}
+                  >
+                    <Typography variant="subtitle2" mb={2} fontWeight="bold">
+                      {chart.title}
+                    </Typography>
+                    <BarChart
+                      dataset={chart.data}
+                      xAxis={[
+                        {
+                          scaleType: "band",
+                          dataKey: "label",
+                          colorMap: {
+                            type: "ordinal",
+                            values: ["GOP", "DEM", "Other"],
+                            colors: ["#cc0000", "#0000cc", "#d1d1d1"], // Red, Blue, Light Gray
+                          },
+                        },
+                      ]}
+                      series={[{ dataKey: "val", label: "Voters" }]}
+                      height={300}
+                    />
+                  </Paper>
+                </Grid>
+              ))}
           </Grid>
-          {customChartsData &&
-            [
-              {
-                title: "Party Breakdown",
-                data: customChartsData.party,
-                color: theme.palette.primary.main,
-              },
-              {
-                title: "Age Distribution",
-                data: customChartsData.age,
-                color: theme.palette.info.main,
-              },
-            ].map((chart, i) => (
-              <Grid size={{ xs: 12, md: 6 }} key={i}>
-                <Paper sx={{ p: 3, borderRadius: 3 }}>
-                  <Typography variant="subtitle2" mb={2} fontWeight="bold">
-                    {chart.title}
-                  </Typography>
-                  <BarChart
-                    dataset={chart.data}
-                    xAxis={[{ scaleType: "band", dataKey: "label" }]}
-                    series={[{ dataKey: "val", color: chart.color }]}
-                    height={250}
-                  />
-                </Paper>
-              </Grid>
-            ))}
-        </Grid>
+        </Box>
       )}
     </Box>
   );

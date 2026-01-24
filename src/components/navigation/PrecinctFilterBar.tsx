@@ -1,4 +1,3 @@
-// src/components/navigaton/PrecinctFilterBar.tsx
 import React, { useState, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db as indexedDb } from "../../lib/db";
@@ -25,56 +24,60 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
   const [selectedArea, setSelectedArea] = useState<string>("");
   const [selectedPrecinct, setSelectedPrecinct] = useState<string>("all");
 
-  // 1. Load Data from IndexedDB (Hierarchy)
-  const counties = useLiveQuery(() => indexedDb.counties.toArray()) ?? [];
+  // 1. Load Data from IndexedDB (Hierarchy + Active Filter)
 
+  // Filter for Active Counties
+  const counties =
+    useLiveQuery(async () => {
+      return await indexedDb.counties
+        .filter((c) => c.active === true)
+        .toArray();
+    }, []) ?? [];
+
+  // Filter for Active Areas within Selected County
   const areas =
     useLiveQuery(async () => {
       if (!selectedCounty) return [];
       return await indexedDb.areas
         .where("county_id")
         .equals(selectedCounty)
+        .filter((a) => a.active === true)
         .toArray();
     }, [selectedCounty]) ?? [];
 
+  // Filter for Active Precincts within Selected Area
   const precincts =
     useLiveQuery(async () => {
       if (!selectedArea) return [];
       return await indexedDb.precincts
         .where("area_id")
         .equals(selectedArea)
+        .filter((p) => p.active === true)
         .toArray();
     }, [selectedArea]) ?? [];
 
-  // 2. Auto-selection logic (Sync from your RestrictedFilters logic)
+  // 2. Auto-selection logic
+
+  // Auto-select County if only one exists
   useEffect(() => {
     if (counties.length === 1 && !selectedCounty) {
       setSelectedCounty(counties[0].id);
     }
   }, [counties, selectedCounty]);
 
-  // 1. Auto-select County if only one exists (Already in your code)
-  useEffect(() => {
-    if (counties.length === 1 && !selectedCounty) {
-      setSelectedCounty(counties[0].id);
-    }
-  }, [counties, selectedCounty]);
-
-  // 2. Auto-select Area if only one exists
+  // Auto-select Area if only one exists
   useEffect(() => {
     if (selectedCounty && areas.length === 1 && !selectedArea) {
       setSelectedArea(areas[0].id);
     }
   }, [selectedCounty, areas, selectedArea]);
 
-  // 3. Auto-select Precinct if only one exists AND trigger the parent hook
+  // Auto-select Precinct if only one exists AND trigger the parent hook
   useEffect(() => {
-    // Only auto-select if we have an area, exactly one precinct,
-    // and we haven't already selected a specific precinct.
     if (selectedArea && precincts.length === 1 && selectedPrecinct === "all") {
       const singlePrecinctId = precincts[0].id;
       setSelectedPrecinct(singlePrecinctId);
-      onPrecinctSelect(singlePrecinctId); // Triggers usePrecinctAnalysis
+      onPrecinctSelect(singlePrecinctId);
     }
   }, [selectedArea, precincts, selectedPrecinct, onPrecinctSelect]);
 
@@ -96,7 +99,8 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
           label="County"
           value={selectedCounty}
           onChange={(e) => {
-            setSelectedCounty(e.target.value);
+            const val = e.target.value as string;
+            setSelectedCounty(val);
             setSelectedArea("");
             setSelectedPrecinct("all");
             onPrecinctSelect("all");
@@ -121,7 +125,8 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
           label="Area"
           value={selectedArea}
           onChange={(e) => {
-            setSelectedArea(e.target.value);
+            const val = e.target.value as string;
+            setSelectedArea(val);
             setSelectedPrecinct("all");
             onPrecinctSelect("all");
           }}
@@ -137,16 +142,16 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
         </Select>
       </FormControl>
 
-      {/* Precinct Dropdown - This triggers the hook */}
+      {/* Precinct Dropdown */}
       <FormControl size="small" sx={{ minWidth: 200 }} disabled={!selectedArea}>
         <InputLabel>Precinct</InputLabel>
         <Select
           label="Precinct"
           value={selectedPrecinct}
           onChange={(e) => {
-            const val = e.target.value;
+            const val = e.target.value as string;
             setSelectedPrecinct(val);
-            onPrecinctSelect(val); // This updates AnalysisPage's state
+            onPrecinctSelect(val);
           }}
         >
           <MenuItem value="all">

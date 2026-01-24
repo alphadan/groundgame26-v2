@@ -38,7 +38,7 @@ import {
 } from "@mui/material";
 import { updateProfile } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
-
+import { CommunicationPreferences } from "./components/CommunicationPreferences";
 import { auth, db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useThemeMode } from "../../context/ThemeContext";
@@ -49,7 +49,7 @@ export default function SettingsPage() {
   const theme = useTheme();
   const { mode, toggleTheme } = useThemeMode();
   const navigate = useNavigate();
-  const { user, userProfile, isLoaded } = useAuth();
+  const { user, userProfile, claims, isLoaded } = useAuth();
 
   const [formData, setFormData] = useState({
     displayName: "",
@@ -116,7 +116,7 @@ export default function SettingsPage() {
 
       <Grid container spacing={3}>
         {/* IDENTITY SECTION */}
-        <Grid size={{ xs: 12, md: 5 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Paper sx={{ p: 4, borderRadius: 3, height: "100%" }}>
             <Stack alignItems="center" spacing={2} sx={{ mb: 4 }}>
               <Avatar
@@ -186,7 +186,7 @@ export default function SettingsPage() {
         </Grid>
 
         {/* REWARDS CENTER */}
-        <Grid size={{ xs: 12, md: 7 }}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Stack spacing={3}>
             {/* Points Summary Card */}
             <Paper
@@ -399,6 +399,21 @@ export default function SettingsPage() {
               </Box>
             </Stack>
           </Paper>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Stack spacing={3}>
+            <Paper> {/* Points Summary */} </Paper>
+
+            {/* NEW IMPORTED MODULE */}
+            <CommunicationPreferences
+              uid={user?.uid ?? ""}
+              userProfile={userProfile}
+              claims={claims}
+            />
+
+            <Paper> {/* Points History */} </Paper>
+          </Stack>
         </Grid>
 
         {/* FOOTER INFO */}

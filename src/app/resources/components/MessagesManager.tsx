@@ -41,7 +41,7 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
   const { isLoaded } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [suggestedMessages, setSuggestedMessages] = useState<MessageTemplate[]>(
-    []
+    [],
   );
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [messageError, setMessageError] = useState("");
@@ -50,15 +50,15 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
 
   const getMessageIdeas = httpsCallable<any, { templates: MessageTemplate[] }>(
     functions,
-    "getMessageIdeas"
+    "getMessageIdeas",
   );
   const toggleFavoriteMessage = httpsCallable<{ templateId: string }, any>(
     functions,
-    "toggleFavoriteMessage"
+    "toggleFavoriteMessage",
   );
   const incrementCopyCount = httpsCallable<{ templateId: string }, any>(
     functions,
-    "incrementCopyCount"
+    "incrementCopyCount",
   );
 
   const handleToggleFavorite = async (templateId: string) => {
@@ -66,8 +66,8 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
       prev.map((msg) =>
         msg.id === templateId
           ? { ...msg, favorite_count: (msg.favorite_count || 0) > 0 ? 0 : 1 }
-          : msg
-      )
+          : msg,
+      ),
     );
     try {
       await toggleFavoriteMessage({ templateId });
@@ -104,10 +104,11 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
             submittedFilters.party === "R"
               ? "Republican"
               : submittedFilters.party === "D"
-              ? "Democrat"
-              : submittedFilters.party || "all",
+                ? "Democrat"
+                : submittedFilters.party || "all",
           turnout: submittedFilters.turnout || "all",
           mailBallot: submittedFilters.mailBallot || "all",
+          gender: submittedFilters.gender || "all",
         });
 
         console.log("Filters received from Selector:", submittedFilters);
@@ -126,12 +127,12 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
         setIsSubmitting(false);
       }
     },
-    [getMessageIdeas]
+    [getMessageIdeas],
   );
 
   const paginatedMessages = suggestedMessages.slice(
     page * pageSize,
-    page * pageSize + pageSize
+    page * pageSize + pageSize,
   );
 
   const handleChangePage = (event: unknown, newPage: number) => {
@@ -139,7 +140,7 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
   };
 
   const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     setPageSize(parseInt(event.target.value, 10));
     setPage(0);
@@ -155,7 +156,13 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isSubmitting}
-        demographicFilters={["party", "ageGroup", "mailBallot", "turnout"]}
+        demographicFilters={[
+          "party",
+          "ageGroup",
+          "mailBallot",
+          "turnout",
+          "gender",
+        ]}
         showLocationFilters={false}
       />
 
@@ -215,6 +222,27 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
                         )}
                       </IconButton>
                     </Stack>
+                    {/* --- DISPLAY TAGS CHIPS --- */}
+                    {msg.tags && msg.tags.length > 0 && (
+                      <Stack
+                        direction="row"
+                        spacing={0.5}
+                        flexWrap="wrap"
+                        useFlexGap
+                        sx={{ mb: 1.5, gap: 0.5 }}
+                      >
+                        {msg.tags.map((tag: string) => (
+                          <Chip
+                            key={tag}
+                            label={tag}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                            sx={{ fontSize: "0.65rem", height: 20 }}
+                          />
+                        ))}
+                      </Stack>
+                    )}
                     <Divider sx={{ mb: 2 }} />
                     <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
                       {msg.body}

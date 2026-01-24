@@ -1,8 +1,9 @@
-// src/app/precincts/ManageTeamPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db as indexedDb } from "../../lib/db";
 import { useAuth } from "../../context/AuthContext";
+import { db as firestore } from "../../lib/firebase"; // Ensure your firebase config is exported
+import { collection, query, where, getDocs } from "firebase/firestore";
 import {
   Box,
   Typography,
@@ -13,8 +14,9 @@ import {
   Alert,
   useMediaQuery,
   useTheme,
+  Chip,
 } from "@mui/material";
-import { Phone, Message, MailOutline } from "@mui/icons-material";
+import { Phone, MailOutline } from "@mui/icons-material";
 import {
   DataGrid,
   GridColDef,
@@ -22,59 +24,85 @@ import {
   GridToolbarQuickFilter,
 } from "@mui/x-data-grid";
 
-interface Committeeman {
+export interface Committeeman {
   id: string;
   display_name?: string;
   email?: string;
   role?: string;
   area_district?: string;
   phone_mobile?: string;
-  phone_home?: string;
   precinct_name?: string;
   precincts?: string[];
 }
 
-function CustomToolbar() {
+interface ManageTeamPageProps {
+  isDashboard?: boolean;
+}
+
+// Helper to format role names for display badges
+const getRoleLabel = (role?: string) => {
+  switch (role) {
+    case "county_chair":
+      return { label: "County Chair", color: "secondary" };
+    case "state_rep_district":
+      return { label: "District Rep", color: "info" };
+    case "area_chair":
+      return { label: "Area Chair", color: "primary" };
+    case "precinct_committeeperson":
+      return { label: "Precinct CP", color: "default" };
+    default:
+      return { label: role || "Member", color: "default" };
+  }
+};
+
+function CustomToolbar({ isDashboard }: { isDashboard: boolean }) {
+  if (isDashboard) return null;
   return (
     <GridToolbarContainer sx={{ p: 2, justifyContent: "space-between" }}>
       <Typography variant="h6" fontWeight="bold">
-        Precinct Committeepersons
+        Team Directory
       </Typography>
       <GridToolbarQuickFilter />
     </GridToolbarContainer>
   );
 }
 
-export default function ManageTeamPage() {
+export default function ManageTeamPage({
+  isDashboard = false,
+}: ManageTeamPageProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-
   const { claims, isLoaded } = useAuth();
 
   const [committeemen, setCommitteemen] = useState<Committeeman[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const canView =
-    claims?.role === "developer" ||
-    claims?.role === "state_admin" ||
-    claims?.role === "county_chair" ||
-    claims?.role === "area_chair";
+  const canView = [
+    "developer",
+    "state_admin",
+    "county_chair",
+    "state_rep_district",
+    "area_chair",
+  ].includes(claims?.role || "");
 
   const precincts =
-    useLiveQuery(() =>
-      indexedDb.precincts.where("active").equals(1).toArray()
-    ) ?? [];
+    useLiveQuery(async () => {
+      try {
+        if (!indexedDb.precincts) return [];
+        return await indexedDb.precincts.where("active").equals(1).toArray();
+      } catch (e) {
+        return [];
+      }
+    }, []) ?? [];
 
   const precinctLabelMap = useMemo(() => {
     const map = new Map<string, string>();
-    precincts.forEach((p) => {
-      map.set(p.id, `${p.precinct_code} – ${p.name}`);
-    });
+    precincts.forEach((p) => map.set(p.id, `${p.precinct_code} – ${p.name}`));
     return map;
   }, [precincts]);
 
   useEffect(() => {
-    if (!isLoaded || !canView) {
+    if (!isLoaded || !canView || !claims) {
       setLoading(false);
       return;
     }
@@ -82,324 +110,252 @@ export default function ManageTeamPage() {
     const loadTeam = async () => {
       setLoading(true);
       try {
-        const mockTeam: Committeeman[] = [
-          {
-            id: "user01",
-            display_name: "VACANT",
-            precinct_name: "Atglen",
-            precincts: ["PA15-P-005"],
-          },
-          {
-            id: "user02",
-            display_name: "VACANT",
-            precinct_name: "Atglen",
-            precincts: ["PA15-P-005"],
-          },
-          {
-            id: "user03",
-            display_name: "Carol Kulp",
-            email: "carol@example.com",
-            phone_mobile: "+16105551234",
-            precinct_name: "East Fallowfield E",
-            precincts: ["PA15-P-225"],
-          },
-          {
-            id: "user04",
-            display_name: "Robert Kulp",
-            email: "robert@example.com",
-            phone_mobile: "+16105551235",
-            precinct_name: "East Fallowfield E",
-            precincts: ["PA15-P-225"],
-          },
-          {
-            id: "user05",
-            display_name: "Robert Knecht",
-            phone_mobile: "+16105551236",
-            precinct_name: "East Fallowfield W",
-            precincts: ["PA15-P-230"],
-          },
-          {
-            id: "user06",
-            display_name: "Nina Petro",
-            phone_mobile: "+16105551237",
-            precinct_name: "East Fallowfield W",
-            precincts: ["PA15-P-230"],
-          },
-          {
-            id: "user07",
-            display_name: "Dana Young",
-            precinct_name: "Highland",
-            precincts: ["PA15-P-290"],
-          },
-          {
-            id: "user08",
-            display_name: "Joshua Wall",
-            precinct_name: "Highland",
-            precincts: ["PA15-P-290"],
-          },
-          {
-            id: "user10",
-            display_name: "Sharon Wolf",
-            precinct_name: "Parkesburg N",
-            precincts: ["PA15-P-440"],
-          },
-          {
-            id: "user11",
-            display_name: "VACANT",
-            precinct_name: "Parkesburg N",
-            precincts: ["PA15-P-440"],
-          },
-          {
-            id: "user12",
-            display_name: "VACANT",
-            precinct_name: "Parkesburg S",
-            precincts: ["PA15-P-445"],
-          },
-          {
-            id: "user13",
-            display_name: "Nick Ohar",
-            precinct_name: "Parkesburg S",
-            precincts: ["PA15-P-445"],
-          },
-          {
-            id: "user14",
-            display_name: "Brendan Murphy",
-            precinct_name: "Sadsbury N",
-            precincts: ["PA15-P-535"],
-          },
-          {
-            id: "user15",
-            display_name: "Tricia Daller",
-            precinct_name: "Sadsbury N",
-            precincts: ["PA15-P-535"],
-          },
-          {
-            id: "user16",
-            display_name: "Richard Felice",
-            precinct_name: "Sadsbury S",
-            precincts: ["PA15-P-540"],
-          },
-          {
-            id: "user17",
-            display_name: "Joseph Felice",
-            precinct_name: "Sadsbury S",
-            precincts: ["PA15-P-540"],
-          },
-          {
-            id: "user18",
-            display_name: "Art Wright",
-            precinct_name: "W Sadsbury",
-            precincts: ["PA15-P-545"],
-          },
-          {
-            id: "user19",
-            display_name: "Herbert Myers",
-            precinct_name: "W Sadsbury",
-            precincts: ["PA15-P-545"],
-          },
-          {
-            id: "user20",
-            display_name: "Joseph Piazza",
-            precinct_name: "W Fallowfield",
-            precincts: ["PA15-P-235"],
-          },
-          {
-            id: "user21",
-            display_name: "Herb Phillips",
-            precinct_name: "W Fallowfield",
-            precincts: ["PA15-P-235"],
-          },
-        ];
+        const usersRef = collection(firestore, "users");
+        let targetRoles: string[] = [];
+        let filterField: "counties" | "areas" | null = null;
+        let filterValues: string[] = [];
 
-        setCommitteemen(mockTeam);
+        const userRole = claims.role;
+
+        // 1. Define Hierarchy Logic
+        switch (userRole) {
+          case "developer":
+            // Developers can see EVERYONE, regardless of role
+            targetRoles = [
+              "county_chair",
+              "state_rep_district",
+              "area_chair",
+              "committeeperson",
+            ];
+            break;
+          case "state_admin":
+            targetRoles = ["county_chair"];
+            break;
+          case "county_chair":
+            targetRoles = ["state_rep_district", "area_chair"];
+            filterField = "counties";
+            filterValues = claims.counties || [];
+            break;
+          case "state_rep_district":
+            targetRoles = ["area_chair", "committeeperson"];
+            filterField = "areas";
+            filterValues = claims.areas || [];
+            break;
+          case "area_chair":
+            targetRoles = ["committeeperson"];
+            filterField = "areas";
+            filterValues = claims.areas || [];
+            break;
+        }
+
+        if (targetRoles.length === 0) {
+          setCommitteemen([]);
+          return;
+        }
+
+        // 2. Fetch Users by Role
+        const q = query(
+          usersRef,
+          where("role", "in", targetRoles),
+          where("active", "==", true),
+        );
+        const querySnapshot = await getDocs(q);
+        const fetchedTeam: Committeeman[] = [];
+
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          const userAccess = data.access || { counties: [], areas: [] };
+
+          // 3. Geographic Filter Check
+          let isMatch = false;
+
+          // DEVELOPER BYPASS: If developer, skip geographic checks
+          if (
+            userRole === "developer" ||
+            !filterField ||
+            filterValues.includes("ALL")
+          ) {
+            isMatch = true;
+          } else {
+            const userScope =
+              filterField === "counties"
+                ? userAccess.counties
+                : userAccess.areas;
+            isMatch = (userScope || []).some((id: string) =>
+              filterValues.includes(id),
+            );
+          }
+
+          if (isMatch) {
+            fetchedTeam.push({
+              id: doc.id,
+              display_name: data.display_name || "Unknown Member",
+              email: data.email,
+              phone_mobile: data.phone_mobile,
+              role: data.role,
+              area_district: data.area_district || "",
+              precinct_name: data.precinct_name,
+              precincts: userAccess.precincts || [],
+            });
+          }
+        });
+
+        setCommitteemen(isDashboard ? fetchedTeam.slice(0, 6) : fetchedTeam);
       } catch (err) {
-        console.error("Failed to load team:", err);
+        console.error("Firestore error:", err);
       } finally {
         setLoading(false);
       }
     };
 
     loadTeam();
-  }, [isLoaded, canView]);
-
-  const handleCall = (phone?: string) => {
-    if (!phone) return;
-    const cleaned = phone.replace(/\D/g, "");
-    const normalized =
-      cleaned.length === 11 && cleaned.startsWith("1")
-        ? cleaned
-        : "1" + cleaned;
-    window.location.href = `tel:${normalized}`;
-  };
-
-  const handleText = (phone?: string) => {
-    if (!phone) return;
-    const cleaned = phone.replace(/\D/g, "");
-    const normalized =
-      cleaned.length === 11 && cleaned.startsWith("1")
-        ? cleaned
-        : "1" + cleaned;
-    window.location.href = `sms:${normalized}`;
-  };
-
-  const handleEmail = (email?: string) => {
-    if (!email) return;
-    window.location.href = `mailto:${email}`;
-  };
-
-  // Detect if device can make phone calls or send SMS
-  const canCall =
-    "tel:" in window.location || "tel:" in document.createElement("a");
-  const canText =
-    "sms:" in window.location || "sms:" in document.createElement("a");
+  }, [isLoaded, canView, claims, isDashboard]);
 
   const columns: GridColDef<Committeeman>[] = [
     {
       field: "display_name",
-      headerName: "Name",
+      headerName: "Member",
       flex: 1,
-      minWidth: 160,
+      minWidth: 180,
+      renderCell: (params) => {
+        const roleInfo = getRoleLabel(params.row.role);
+        return (
+          <Stack spacing={0.5} py={1}>
+            <Typography variant="body2" fontWeight="bold">
+              {params.value}
+            </Typography>
+            <Chip
+              label={roleInfo.label}
+              size="small"
+              color={roleInfo.color as any}
+              variant="outlined"
+              sx={{ height: 16, fontSize: "0.65rem", alignSelf: "flex-start" }}
+            />
+          </Stack>
+        );
+      },
+    },
+    {
+      field: "area_district",
+      headerName: "Area",
+      width: 120,
+      hideable: true,
+      valueGetter: (_value, row: Committeeman) => {
+        // Priority 1: Use the explicit area_district field
+        if (row.area_district) return row.area_district;
+
+        // Priority 2: Fallback to parsing from the first precinct ID (e.g., "PA15-A-01")
+        if (row.precincts && row.precincts.length > 0) {
+          const parts = row.precincts[0].split("-");
+          if (parts.length >= 3) return parts[parts.length - 1]; // Grabs the "01"
+        }
+
+        return "—";
+      },
       renderCell: (params) => (
-        <Typography
-          fontWeight={params.value === "VACANT" ? "normal" : "medium"}
-        >
-          {params.value || "VACANT"}
+        <Typography variant="caption" color="text.secondary" noWrap>
+          {params.value !== "—" ? `Area ${params.value}` : "—"}
         </Typography>
       ),
     },
     {
       field: "precincts",
       headerName: "Precinct",
-      flex: 1.5,
-      minWidth: 240,
-      valueGetter: (_value, row) => {
-        const precinctName = row.precinct_name || "";
-        const precincts = row.precincts || [];
-        if (precincts.length === 0) return "—";
-
-        const codeLabels = precincts
+      flex: 1.2,
+      minWidth: isDashboard ? 140 : 200,
+      valueGetter: (_, row) => {
+        const codes = (row.precincts || [])
           .map((p) => precinctLabelMap.get(p) || p)
           .join(", ");
-
-        return precinctName ? `${precinctName} – ${codeLabels}` : codeLabels;
+        return row.precinct_name ? `${row.precinct_name} – ${codes}` : codes;
       },
-      renderCell: (params) => {
-        const label = params.value || "—";
-        if (label === "—")
-          return <Typography color="text.secondary">—</Typography>;
-
-        const displayLabel =
-          isMobile && label.includes(",") ? label.split(", ")[0] + "…" : label;
-
-        return (
-          <Tooltip title={label}>
-            <Typography variant="body2" noWrap>
-              {displayLabel}
-            </Typography>
-          </Tooltip>
-        );
-      },
+      renderCell: (params) => (
+        <Tooltip title={params.value || ""}>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {params.value || "—"}
+          </Typography>
+        </Tooltip>
+      ),
     },
     {
       field: "actions",
       headerName: "Contact",
-      width: 160,
-      align: "right",
+      width: 100,
       sortable: false,
-      filterable: false,
-      disableColumnMenu: true,
+      align: "right",
       renderCell: ({ row }) => (
-        <Stack direction="row" spacing={0.5}>
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
           {row.email && (
-            <Tooltip title="Email">
-              <IconButton size="small" onClick={() => handleEmail(row.email)}>
-                <MailOutline fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            <IconButton
+              size="small"
+              onClick={() => (window.location.href = `mailto:${row.email}`)}
+            >
+              <MailOutline fontSize="small" />
+            </IconButton>
           )}
-          {(row.phone_mobile || row.phone_home) && canCall && (
-            <Tooltip title="Call">
-              <IconButton
-                size="small"
-                onClick={() => handleCall(row.phone_mobile || row.phone_home)}
-              >
-                <Phone fontSize="small" color="success" />
-              </IconButton>
-            </Tooltip>
-          )}
-          {row.phone_mobile && canText && (
-            <Tooltip title="Text">
-              <IconButton
-                size="small"
-                onClick={() => handleText(row.phone_mobile)}
-              >
-                <Message fontSize="small" color="info" />
-              </IconButton>
-            </Tooltip>
+          {row.phone_mobile && (
+            <IconButton
+              size="small"
+              color="success"
+              onClick={() => (window.location.href = `tel:${row.phone_mobile}`)}
+            >
+              <Phone fontSize="small" />
+            </IconButton>
           )}
         </Stack>
       ),
     },
   ];
 
-  if (!isLoaded) {
+  if (!isLoaded || loading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", my: 8 }}>
-        <CircularProgress color="primary" />
+      <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
+        <CircularProgress size={isDashboard ? 30 : 50} />
       </Box>
     );
   }
 
-  if (!canView) {
+  if (!canView)
     return (
-      <Alert severity="warning" sx={{ m: 4 }}>
-        You do not have permission to view the team directory.
+      <Alert severity="warning" sx={{ m: isDashboard ? 0 : 4 }}>
+        Access Restricted.
       </Alert>
     );
-  }
-
-  if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", my: 8 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
-    <Box sx={{ width: "100%", p: { xs: 2, sm: 3 } }}>
-      <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
-        Team Directory
-      </Typography>
-      <Typography variant="body1" color="text.secondary" mb={4}>
-        Contact your precinct committeepersons directly.
-      </Typography>
+    <Box sx={{ width: "100%", p: isDashboard ? 0 : { xs: 2, sm: 3 } }}>
+      {!isDashboard && (
+        <Box mb={4}>
+          <Typography
+            variant="h4"
+            fontWeight="bold"
+            color="primary"
+            gutterBottom
+          >
+            Team Directory
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Hierarchical View: {getRoleLabel(claims?.role).label} Scope
+          </Typography>
+        </Box>
+      )}
 
-      {/* Auto-height DataGrid — fits content perfectly */}
       <DataGrid
         rows={committeemen}
         columns={columns}
-        initialState={{
-          pagination: {
-            paginationModel: { pageSize: 10 },
-          },
-        }}
-        pageSizeOptions={[10, 25, 50]}
-        autoHeight // ← This makes the grid height fit the rows exactly
+        autoHeight
+        getRowHeight={() => "auto"}
+        density={isDashboard ? "compact" : "standard"}
         disableRowSelectionOnClick
-        slots={{ toolbar: CustomToolbar }}
+        hideFooter={isDashboard}
+        slots={{ toolbar: () => <CustomToolbar isDashboard={isDashboard} /> }}
         sx={{
-          "& .MuiDataGrid-columnHeaders": {
-            bgcolor: "primary.main",
-            color: "primary.contrastText",
-            fontWeight: "bold",
-          },
-          "& .MuiDataGrid-row:hover": {
-            bgcolor: "action.hover",
-          },
+          border: isDashboard ? "none" : undefined,
           borderRadius: 3,
-          boxShadow: 3,
-          // Remove fixed height, let autoHeight handle it
+          "& .MuiDataGrid-columnHeaders": isDashboard
+            ? { display: "none" }
+            : { bgcolor: "grey.50" },
+          "& .MuiDataGrid-row": { minHeight: "60px !important" },
         }}
       />
     </Box>

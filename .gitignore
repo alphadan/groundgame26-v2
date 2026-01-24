@@ -5,6 +5,7 @@ build/
 
 # Public
 public
+public/firebase-messaging-sw.js
 
 # Firebase
 .firebase/

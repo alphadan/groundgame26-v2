@@ -39,18 +39,21 @@ export interface County extends Omit<BaseMetadata, "id"> {
 export interface Area extends Omit<BaseMetadata, "id"> {
   id: string;
   county_id: string;
+  county_code?: string;
   area_district: string;
   name: string;
   // Fallback for old data during transition
-  last_updated?: number;
-  updated_at: any;
+  active: boolean;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface Precinct extends Omit<BaseMetadata, "id"> {
   id: string; // e.g., "PA15-P-005"
   county_id: string; // Linked to County.id
   area_id: string; // Linked to Area.id
-  precinct_code: string; // BigQuery matching (e.g., "5")
+  precinct_code: string; 
+  precinct_id?: string;
   name: string;
   house_district?: string;
   senate_district?: string;
@@ -163,6 +166,7 @@ export interface FilterValues {
   turnout?: string;
   ageGroup?: string;
   mailBallot?: string;
+  gender?: string;
 }
 
 /**

@@ -19,11 +19,10 @@ function isValidArea(entry: any): entry is Area {
     entry !== null &&
     typeof entry.id === "string" &&
     typeof entry.area_district === "string" &&
-    typeof entry.county_code === "string" &&
+    typeof entry.county_id === "string" && // Match new ID format
     typeof entry.name === "string" &&
     typeof entry.active === "boolean" &&
-    typeof entry.created_at === "number" &&
-    typeof entry.last_updated === "number"
+    typeof entry.updated_at === "number" // Match your data key
   );
 }
 
@@ -85,7 +84,7 @@ function isValidGroup(entry: any): entry is Group {
 // === Validate and Export (Runtime Safe) ===
 const validateAndExport = <T>(
   data: any[],
-  validator: (entry: any) => entry is T
+  validator: (entry: any) => entry is T,
 ): T[] => {
   if (!Array.isArray(data)) {
     console.error("Invalid data format – expected array");
@@ -124,7 +123,7 @@ export const counties = [
     id: "PA-C-34",
     code: "34",
     name: "Juniata",
-    active: true,
+    active: false,
     state_code: "PA",
     fips_code: "42067",
     created_at: 1766155224,
@@ -409,7 +408,7 @@ export const areas = [
     county_code: "15",
     county_id: "PA-C-15",
     name: "Area 28",
-    active: false,
+    active: true,
     created_at: 1766155224,
     updated_at: 1766155224,
   },
@@ -5504,7 +5503,7 @@ export const precincts = [
     house_district: "13",
     county_district: "15",
     party_rep_district: "PA-SRD-district_3",
-    active: true,
+    active: false,
     created_at: 1766155224,
     updated_at: 1766155224,
   },
@@ -5969,7 +5968,7 @@ export const precincts = [
     house_district: "13",
     county_district: "15",
     party_rep_district: "PA-SRD-district_3",
-    active: true,
+    active: false,
     created_at: 1766155224,
     updated_at: 1766155224,
   },
@@ -5984,7 +5983,7 @@ export const precincts = [
     house_district: "13",
     county_district: "15",
     party_rep_district: "PA-SRD-district_2",
-    active: true,
+    active: false,
     created_at: 1766155224,
     updated_at: 1766155224,
   },
@@ -6194,7 +6193,7 @@ export const precincts = [
     house_district: "158",
     county_district: "15",
     party_rep_district: "PA-SRD-district_3",
-    active: true,
+    active: false,
     created_at: 1766155224,
     updated_at: 1766155224,
   },
