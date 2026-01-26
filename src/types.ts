@@ -52,7 +52,7 @@ export interface Precinct extends Omit<BaseMetadata, "id"> {
   id: string; // e.g., "PA15-P-005"
   county_id: string; // Linked to County.id
   area_id: string; // Linked to Area.id
-  precinct_code: string; 
+  precinct_code: string;
   precinct_id?: string;
   name: string;
   house_district?: string;
@@ -164,6 +164,8 @@ export interface FilterValues {
   modeledParty?: string;
   party?: string;
   turnout?: string;
+  turnout_score_general?: number;
+  turnout_score_primary?: number;
   ageGroup?: string;
   mailBallot?: string;
   gender?: string;

@@ -6262,7 +6262,7 @@ export const precincts = [
     county_id: "PA-C-15",
     precinct_code: "415",
     name: "Oxford East",
-    area_id: "PA15-A-",
+    area_id: "PA15-A-19",
     congressional_district: "PA06",
     senate_district: "19",
     house_district: "13",
@@ -6562,7 +6562,7 @@ export const precincts = [
     county_id: "PA-C-15",
     precinct_code: "474",
     name: "Phoenixville E-3",
-    area_id: "PA15-A-",
+    area_id: "PA15-A-05",
     congressional_district: "PA06",
     senate_district: "44",
     house_district: "26",
@@ -8235,3 +8235,12 @@ export const state_rep_districts = [
     updated_at: 1766155224,
   },
 ];
+
+export const REFERENCE_DATA = {
+  counties,
+  areas,
+  precincts,
+  groups,
+  state_rep_districts,
+  org_roles,
+};

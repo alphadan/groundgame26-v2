@@ -3,7 +3,7 @@ import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import { setGlobalOptions } from "firebase-functions/v2";
 import {
   onDocumentWritten,
-  onDocumentUpdated
+  onDocumentUpdated,
 } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions/v2";
 import { BigQuery } from "@google-cloud/bigquery";
@@ -429,7 +429,7 @@ export const queryVotersDynamic = onCall(
       SELECT 
         voter_id, full_name, gender, age, party, precinct, area_district,
         address, city, email, phone_mobile, phone_home, has_mail_ballot,
-        modeled_party, turnout_score_general, date_registered, likely_mover, zip_code
+        modeled_party, turnout_score_general, turnout_score_primary, date_registered, likely_mover, zip_code
       FROM \`${table}\`
       WHERE 1=1
     `;
@@ -475,11 +475,20 @@ export const queryVotersDynamic = onCall(
       params.party = filters.party.trim();
     }
 
-    // === Turnout Score ===
+    // === Turnout General Score ===
     if (filters.turnout && filters.turnout.trim() !== "") {
       const score = parseInt(filters.turnout.trim());
       if (!isNaN(score)) {
         sql += ` AND turnout_score_general = @turnout`;
+        params.turnout = score;
+      }
+    }
+
+    // === Turnout Primary Score ===
+    if (filters.turnout && filters.turnout.trim() !== "") {
+      const score = parseInt(filters.turnout.trim());
+      if (!isNaN(score)) {
+        sql += ` AND turnout_score_primary = @turnout`;
         params.turnout = score;
       }
     }

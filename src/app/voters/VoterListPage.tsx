@@ -20,7 +20,9 @@ import {
   useMediaQuery,
   AlertTitle,
   Button,
+  Avatar,
 } from "@mui/material";
+import BoltIcon from "@mui/icons-material/Bolt";
 import {
   Phone,
   Message,
@@ -67,6 +69,23 @@ export default function VoterListPage() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [isRewardToast, setIsRewardToast] = useState(false);
 
+  const PRESET_FILTERS = [
+    {
+      label: "High Primary Turnout",
+      icon: "🗳️",
+      filters: {
+        party: "R",
+        turnout_score_primary: 4,
+        turnout_score_general: undefined,
+      },
+    },
+    {
+      label: "GOP Women",
+      icon: "👩",
+      filters: { party: "R", gender: "F" },
+    },
+  ];
+
   const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
 
   // Permission Check - Updated to can_manage_resources
@@ -88,7 +107,8 @@ export default function VoterListPage() {
       "Phone Home",
       "Precinct",
       "Modeled Party",
-      "Turnout Score",
+      "Turnout Score General",
+      "Turnout Score Primary",
       "Has Mail Ballot",
     ];
 
@@ -104,7 +124,9 @@ export default function VoterListPage() {
       voter.phone_home || "",
       voter.precinct || "",
       voter.modeled_party || "",
-      voter.turnout_score_general || "",
+      voter.turnout_score_general ?? "N/A",
+      voter.turnout_score_primary ?? "N/A",
+      voter.has_mail_ballot ? "Yes" : "No",
       voter.has_mail_ballot ? "Yes" : "No",
     ]);
 
@@ -155,13 +177,38 @@ export default function VoterListPage() {
 
   const handleSubmit = useCallback((submittedFilters: FilterValues) => {
     if (!submittedFilters.precinct) {
-      setIsRewardToast(false);
       setSnackbarMessage("Please select a precinct to generate a voter list");
       setSnackbarOpen(true);
       return;
     }
-    setFilters(submittedFilters);
+
+    // If the user uses the manual form, they are opting BACK into General Turnout logic.
+    // We explicitly wipe the "hidden" primary score here.
+    setFilters({
+      ...submittedFilters,
+      turnout_score_primary: undefined,
+    });
   }, []);
+
+  const isPresetActive = (presetFilters: Partial<FilterValues>) => {
+    if (!filters) return false;
+    return Object.keys(presetFilters).every(
+      (key) =>
+        filters[key as keyof FilterValues] ===
+        presetFilters[key as keyof FilterValues],
+    );
+  };
+
+  // Logic to apply filters and handle mutual exclusivity
+  const applyQuickFilter = (presetFilters: Partial<FilterValues>) => {
+    setFilters((prev) => {
+      const currentPrecinct = prev?.precinct || "";
+      return {
+        ...presetFilters,
+        precinct: currentPrecinct,
+      } as FilterValues;
+    });
+  };
 
   // Simple Toolbar without the download button
   const CustomToolbar = useCallback(
@@ -363,18 +410,84 @@ export default function VoterListPage() {
       <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom>
         Voter Contact List
       </Typography>
+      <Box sx={{ mb: 4 }}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+          <BoltIcon color="primary" fontSize="small" />
+          <Typography
+            variant="subtitle2"
+            fontWeight="bold"
+            color="text.secondary"
+          >
+            Quick Targets (Specialized Search)
+          </Typography>
+        </Stack>
 
+        <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ gap: 1.5 }}>
+          {PRESET_FILTERS.map((preset) => {
+            // Check if this preset's specific primary score is active
+            const active = isPresetActive(preset.filters);
+
+            return (
+              <Chip
+                key={preset.label}
+                label={preset.label}
+                // The Magic: This function sets turnout_score_primary and WIPES turnout_score_general
+                onClick={() => applyQuickFilter(preset.filters)}
+                onDelete={active ? () => setFilters(null) : undefined}
+                color={active ? "primary" : "default"}
+                variant={active ? "filled" : "outlined"}
+                avatar={
+                  <Avatar sx={{ bgcolor: "transparent", fontSize: "1.2rem" }}>
+                    {preset.icon}
+                  </Avatar>
+                }
+                sx={{
+                  borderRadius: "12px",
+                  fontWeight: 600,
+                  height: 44,
+                  px: 1,
+                  // Visual feedback that this is a "Power User" feature
+                  border: active
+                    ? undefined
+                    : `1px solid ${theme.palette.primary.light}`,
+                  "&:hover": { transform: "translateY(-1px)", boxShadow: 2 },
+                }}
+              />
+            );
+          })}
+          {filters && (
+            <Button
+              size="small"
+              variant="text"
+              onClick={() => setFilters(null)}
+              sx={{ color: theme.palette.error.main, fontWeight: "bold" }}
+            >
+              Clear All
+            </Button>
+          )}
+        </Stack>
+      </Box>
+
+      {/* --- STANDARD FILTER SELECTOR (General Turnout is default here) --- */}
       <FilterSelector
-        onSubmit={handleSubmit}
+        onSubmit={handleSubmit} // This function will clear Primary Turnout if used manually
         isLoading={isLoading}
         demographicFilters={[
           "party",
-          "turnout",
+          "turnout", // This maps to turnout_score_general by default in your hook/form
           "ageGroup",
           "mailBallot",
           "gender",
         ]}
       />
+      {/* Inside the VoterListPage JSX, below the FilterSelector */}
+      {filters?.turnout_score_primary !== undefined && (
+        <Alert severity="warning" sx={{ mt: 4, borderRadius: 2 }}>
+          <strong>Specialized Filter Active:</strong> High Primary Turnout
+          (Score: {filters.turnout_score_primary}) is currently applied. This
+          filter is not available in the manual selector.
+        </Alert>
+      )}
 
       {voters.length > 0 && (
         <>

@@ -45,7 +45,7 @@ export default function AnalysisPage() {
     {
       label: "High-Propensity Seniors",
       icon: "🗳️",
-      filters: { turnout: "4", ageGroup: "71+" },
+      filters: { turnout: 4, ageGroup: "71+" },
     },
     {
       label: "Missing Mail Ballots",
@@ -82,6 +82,14 @@ export default function AnalysisPage() {
     if (filters.gender) parts.push(filters.gender === "F" ? "Female" : "Male");
     if (filters.ageGroup) parts.push(`Age ${filters.ageGroup}`);
     if (filters.turnout) parts.push(`${filters.turnout} Turnout`);
+
+    if (filters.turnout_score_general !== undefined) {
+      parts.push(`General-Score: ${filters.turnout_score_general}`);
+    }
+
+    if (filters.turnout_score_primary !== undefined) {
+      parts.push(`Primary-Score: ${filters.turnout_score_primary}`);
+    }
 
     // Handle the boolean strings for the title
     if (
@@ -407,6 +415,11 @@ export default function AnalysisPage() {
       <FilterSelector
         onSubmit={(values) => {
           console.log("📝 Form Submitted:", values);
+          const cleanValues = {
+            ...values,
+            turnout_score_primary: undefined,
+            turnout_score_general: undefined,
+          };
           setVoterFilters(values);
         }}
         isLoading={votersLoading}

@@ -65,7 +65,7 @@ export default function DncManagement() {
     try {
       const result = await callFunction<{ voters: any[] }>(
         "searchVotersByPhoneV2",
-        { phone: searchPhone }
+        { phone: searchPhone },
       );
       setSearchResults(result.voters);
       if (result.voters.length === 0)
@@ -124,7 +124,7 @@ export default function DncManagement() {
           value ? new Date(value).toLocaleDateString() : "N/A",
       },
     ],
-    []
+    [],
   );
 
   return (
@@ -166,7 +166,7 @@ export default function DncManagement() {
         }}
       >
         <Typography variant="h6" gutterBottom>
-          Find Voter to Block
+          Find Voter Phone Number to Block
         </Typography>
         <Stack direction="row" spacing={2}>
           <TextField

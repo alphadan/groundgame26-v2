@@ -1,8 +1,9 @@
-// src/app/admin/roles/ManageRoles.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useCloudFunctions } from "../../../hooks/useCloudFunctions";
 import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
 import { useAuth } from "../../../context/AuthContext";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db as indexedDb } from "../../../lib/db";
 import { OrgRole, UserProfile } from "../../../types";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -22,10 +23,12 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
+  Alert,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
+import SecurityIcon from "@mui/icons-material/Security";
 import RoleForm from "./RoleForm";
 import AssignUserDialog from "./AssignUserDialog";
 
@@ -33,6 +36,15 @@ export default function ManageRoles() {
   const [open, setOpen] = useState(false);
   const { callFunction } = useCloudFunctions();
   const navigate = useNavigate();
+
+  const { user, isLoaded: authLoaded } = useAuth();
+
+  // 1. Reactive Developer Check from IndexedDB
+  const localUser = useLiveQuery(
+    async () => (user?.uid ? await indexedDb.users.get(user.uid) : null),
+    [user?.uid],
+  );
+  const isDeveloper = localUser?.role === "developer";
 
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
@@ -53,6 +65,7 @@ export default function ManageRoles() {
   const {
     data: roles,
     loading: rolesLoading,
+    error: crudError,
     fetchAll,
   } = useAdminCRUD<OrgRole>({
     collectionName: "org_roles",
@@ -72,8 +85,9 @@ export default function ManageRoles() {
     },
   });
 
-  const columns: GridColDef<OrgRole>[] = useMemo(
-    () => [
+  // 2. Memoized and Guarded Columns
+  const columns: GridColDef<OrgRole>[] = useMemo(() => {
+    const baseColumns: GridColDef<OrgRole>[] = [
       {
         field: "userStatus",
         headerName: "Status",
@@ -97,8 +111,8 @@ export default function ManageRoles() {
               </Box>
             );
           }
-          const user = fullUserMap?.[uid];
-          const isActive = user?.active ?? false;
+          const userObj = fullUserMap?.[uid];
+          const isActive = userObj?.active ?? false;
           return (
             <Tooltip title={isActive ? "Account Active" : "Account Disabled"}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -135,9 +149,8 @@ export default function ManageRoles() {
                 variant="outlined"
               />
             );
-
-          const user = fullUserMap?.[uid];
-          return user?.display_name || user?.email || "Unknown User";
+          const userObj = fullUserMap?.[uid];
+          return userObj?.display_name || userObj?.email || "Unknown User";
         },
       },
       { field: "county_id", headerName: "County", width: 110 },
@@ -160,66 +173,77 @@ export default function ManageRoles() {
           </Button>
         ),
       },
-      {
-        field: "unassign",
-        headerName: "Remove",
-        width: 110,
-        renderCell: (params) => {
-          const uid = params.row.uid;
-          if (params.row.is_vacant || !uid) return null;
+    ];
 
-          const user = fullUserMap?.[uid];
-          const assignedUser = user?.display_name || user?.email || "this user";
+    // 3. Developer-Only Columns
+    if (isDeveloper) {
+      baseColumns.push(
+        {
+          field: "unassign",
+          headerName: "Revoke Access",
+          width: 130,
+          renderCell: (params) => {
+            const uid = params.row.uid;
+            if (params.row.is_vacant || !uid) return null;
+            const userObj = fullUserMap?.[uid];
+            const assignedUser =
+              userObj?.display_name || userObj?.email || "this user";
+            return (
+              <Button
+                size="small"
+                color="error"
+                variant="text"
+                onClick={() => {
+                  setRoleToVacate({ id: params.row.id, name: assignedUser });
+                  setUnassignConfirmOpen(true);
+                }}
+              >
+                Unassign
+              </Button>
+            );
+          },
+        },
+        {
+          field: "active",
+          headerName: "Global Status",
+          width: 140,
+          renderCell: (params) => {
+            const isActive = params.value;
+            return (
+              <Chip
+                label={isActive ? "ENABLED" : "DISABLED"}
+                color={isActive ? "success" : "default"}
+                size="small"
+                onClick={() => {
+                  setRoleToToggle({
+                    id: params.row.id,
+                    active: isActive,
+                    role: params.row.role,
+                  });
+                  setToggleConfirmOpen(true);
+                }}
+                sx={{ fontWeight: "bold", width: 100 }}
+              />
+            );
+          },
+        },
+      );
+    }
 
-          return (
-            <Button
-              size="small"
-              color="error"
-              onClick={() => {
-                setRoleToVacate({ id: params.row.id, name: assignedUser });
-                setUnassignConfirmOpen(true);
-              }}
-            >
-              Unassign
-            </Button>
-          );
-        },
-      },
-      {
-        field: "active",
-        headerName: "Role Status",
-        width: 120,
-        renderCell: (params: any) => {
-          const isActive = params.value;
-          return (
-            <Chip
-              label={isActive ? "ACTIVE" : "INACTIVE"}
-              color={isActive ? "success" : "default"}
-              variant={isActive ? "filled" : "outlined"}
-              onClick={() => {
-                setRoleToToggle({
-                  id: params.row.id,
-                  active: isActive,
-                  role: params.row.role,
-                });
-                setToggleConfirmOpen(true);
-              }}
-              sx={{ cursor: "pointer", fontWeight: "bold", width: 90 }}
-            />
-          );
-        },
-      },
-    ],
-    [fullUserMap]
-  );
+    return baseColumns;
+  }, [fullUserMap, isDeveloper]);
+
+  if (!authLoaded)
+    return <CircularProgress sx={{ m: "20% auto", display: "block" }} />;
 
   return (
-    <Box sx={{ p: 4 }}>
+    <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1400, margin: "auto" }}>
+      {/* Header */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "flex-start",
           mb: 4,
         }}
       >
@@ -236,19 +260,40 @@ export default function ManageRoles() {
               Manage Roles
             </Typography>
             <Typography variant="subtitle1" color="text.secondary">
-              Define roles for users and manage their geographic permissions
+              Assign field permissions and geographic authorities
             </Typography>
           </Box>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setOpen(true)}
-          sx={{ borderRadius: 2, px: 3 }}
-        >
-          Create Position
-        </Button>
+
+        <Stack direction="row" spacing={2}>
+          {isDeveloper && (
+            <Chip
+              icon={<SecurityIcon />}
+              label="Developer Mode"
+              color="secondary"
+              variant="filled"
+            />
+          )}
+          {isDeveloper && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setOpen(true)}
+              sx={{ borderRadius: 2 }}
+            >
+              Create Position
+            </Button>
+          )}
+        </Stack>
       </Box>
+
+      {crudError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {typeof crudError === "string"
+            ? crudError
+            : (crudError as any).message}
+        </Alert>
+      )}
 
       <Paper elevation={3} sx={{ borderRadius: 3, overflow: "hidden" }}>
         <DataGrid
@@ -257,20 +302,19 @@ export default function ManageRoles() {
           loading={rolesLoading}
           autoHeight
           pageSizeOptions={[10, 25, 50]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10 } },
-          }}
+          disableRowSelectionOnClick
           sx={{ border: "none" }}
         />
       </Paper>
 
+      {/* DIALOGS */}
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Create New Role Position</DialogTitle>
+        <DialogTitle>Define New Position</DialogTitle>
         <DialogContent dividers>
           <RoleForm
             onSuccess={() => {
@@ -298,25 +342,25 @@ export default function ManageRoles() {
         />
       )}
 
+      {/* Unassign Confirmation */}
       <Dialog
         open={unassignConfirmOpen}
         onClose={() => setUnassignConfirmOpen(false)}
       >
-        <DialogTitle>Confirm Removal</DialogTitle>
+        <DialogTitle>Revoke Position?</DialogTitle>
         <DialogContent>
           <Typography>
             Are you sure you want to remove{" "}
             <strong>{roleToVacate?.name}</strong> from this position?
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            This will immediately revoke their administrative access to this
-            precinct/area.
+          <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+            This will immediately disconnect their mobile app from the cloud
+            database.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button
             onClick={() => setUnassignConfirmOpen(false)}
-            color="inherit"
             disabled={isVacating}
           >
             Cancel
@@ -334,7 +378,7 @@ export default function ManageRoles() {
                 });
                 setUnassignConfirmOpen(false);
                 fetchAll();
-              } catch (err: any) {
+              } catch (err) {
                 console.error(err);
               } finally {
                 setIsVacating(false);
@@ -342,10 +386,12 @@ export default function ManageRoles() {
               }
             }}
           >
-            {isVacating ? <CircularProgress size={24} /> : "Confirm Unassign"}
+            {isVacating ? <CircularProgress size={24} /> : "Confirm Revoke"}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Toggle Confirmation */}
       <Dialog
         open={toggleConfirmOpen}
         onClose={() => !isToggling && setToggleConfirmOpen(false)}
@@ -355,16 +401,9 @@ export default function ManageRoles() {
         </DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to{" "}
-            <strong>{roleToToggle?.active ? "deactivate" : "activate"}</strong>{" "}
-            the {roleToToggle?.role.toUpperCase()} position?
+            Confirm {roleToToggle?.active ? "deactivation" : "activation"} of
+            the {roleToToggle?.role.toUpperCase()} seat.
           </Typography>
-          {roleToToggle?.active && (
-            <Typography variant="body2" color="error" sx={{ mt: 2 }}>
-              Warning: This will immediately revoke all geographic data access
-              for any user currently assigned to this seat.
-            </Typography>
-          )}
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button
@@ -386,8 +425,8 @@ export default function ManageRoles() {
                   active: !roleToToggle.active,
                 });
                 setToggleConfirmOpen(false);
-                fetchAll(); // Refresh the grid
-              } catch (err: any) {
+                fetchAll();
+              } catch (err) {
                 console.error(err);
               } finally {
                 setIsToggling(false);
@@ -395,11 +434,7 @@ export default function ManageRoles() {
               }
             }}
           >
-            {isToggling ? (
-              <CircularProgress size={24} />
-            ) : (
-              `Confirm ${roleToToggle?.active ? "Deactivation" : "Activation"}`
-            )}
+            {isToggling ? <CircularProgress size={24} /> : "Update Status"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,8 +1,10 @@
+// src/App.tsx
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import { multiFactor } from "firebase/auth";
 import { Box, CircularProgress, Typography, Button } from "@mui/material";
 import { useAuth } from "./context/AuthContext";
 import { syncReferenceData } from "./services/referenceDataSync";
+import { ensureDBInitialized } from "./lib/db"; // Import your DB initializer
 import MainLayout from "./app/layout/MainLayout";
 import AppRouter from "./routes/AppRouter";
 import EnrollMFAScreen from "./pages/auth/EnrollMFAScreen";
@@ -16,15 +18,37 @@ export default function App() {
     isLoaded: authLoaded,
     isLoading: authLoading,
   } = useAuth();
-  const [isSynced, setIsSynced] = useState(false);
-  const [syncError, setSyncError] = useState<Error | null>(null);
+
+  const [dbReady, setDbReady] = useState(false); // Gate 2
+  const [isSynced, setIsSynced] = useState(false); // Gate 3
+  const [initError, setInitError] = useState<Error | null>(null);
   const hasSyncedRef = useRef<string | null>(null);
 
-  // Sync Logic
-  const performSync = useCallback(async () => {
-    if (!user?.uid || hasSyncedRef.current === user.uid) return;
+  // --- 1. DB SCHEMA INITIALIZATION ---
+  useEffect(() => {
+  const initDB = async () => {
+    // SECURITY GATE: Do not query Firestore if no user is logged in
+    if (!authLoaded || !user) {
+      // We can still open the DB to check the version, 
+      // but we should NOT trigger the seedDatabase() Layer 1 sync here.
+      return; 
+    }
 
-    // Safety check: Only sync if MFA is enrolled
+    try {
+      await ensureDBInitialized(); // Now only runs for logged-in users
+      setDbReady(true);
+    } catch (err: any) {
+      setInitError(err);
+    }
+  };
+  initDB();
+}, [authLoaded, user]);
+
+  // --- 2. DATA SYNC LOGIC ---
+  const performSync = useCallback(async () => {
+    // Wait for DB schema and User Auth before syncing data
+    if (!user?.uid || !dbReady || hasSyncedRef.current === user.uid) return;
+
     const mfaUser = multiFactor(user);
     if (mfaUser.enrolledFactors.length === 0) return;
 
@@ -35,15 +59,17 @@ export default function App() {
     } catch (err: any) {
       console.error("App: Sync Error", err);
       hasSyncedRef.current = null;
-      setSyncError(err);
+      setInitError(err);
     }
-  }, [user?.uid]);
+  }, [user?.uid, dbReady]);
 
   useEffect(() => {
-    if (authLoaded && user?.uid) performSync();
-  }, [authLoaded, user?.uid, performSync]);
+    if (authLoaded && user?.uid && dbReady) performSync();
+  }, [authLoaded, user?.uid, dbReady, performSync]);
 
-  // --- BRANCH 1: GLOBAL LOADING ---
+  // --- LOADING STATES ---
+
+  // AUTH LOADING
   if (authLoading || !authLoaded) {
     return (
       <Box
@@ -52,7 +78,6 @@ export default function App() {
         minHeight="100vh"
         justifyContent="center"
         alignItems="center"
-        bgcolor="background.default"
       >
         <CircularProgress size={50} sx={{ color: "#B22234" }} />
         <Typography variant="body1" sx={{ mt: 2 }} color="text.secondary">
@@ -62,9 +87,8 @@ export default function App() {
     );
   }
 
-  // --- BRANCH 2: LOGGED OUT (PUBLIC) ---
+  // PUBLIC AREA (No User)
   if (!user) {
-    console.log("App.tsx: User is NULL. Rendering Public Area.");
     return (
       <Box
         display="flex"
@@ -80,33 +104,41 @@ export default function App() {
     );
   }
 
-  // --- BRANCH 3: LOGGED IN BUT NO MFA ---
+  // MFA ENROLLMENT
   const mfaUser = multiFactor(user);
-  if (mfaUser.enrolledFactors.length === 0) {
-    console.log("App.tsx: User exists but no MFA. Rendering Enrollment.");
-    return <EnrollMFAScreen />;
+  if (mfaUser.enrolledFactors.length === 0) return <EnrollMFAScreen />;
+
+  // DB INITIALIZING OR SYNCING
+  if (!dbReady || (!isSynced && !initError)) {
+    return (
+      <Box
+        display="flex"
+        flexDirection="column"
+        minHeight="100vh"
+        justifyContent="center"
+        alignItems="center"
+      >
+        <CircularProgress size={50} sx={{ color: "#B22234" }} />
+        <Typography variant="body1" sx={{ mt: 2 }} color="text.secondary">
+          {!dbReady
+            ? "Preparing secure local database..."
+            : "Synchronizing region data..."}
+        </Typography>
+      </Box>
+    );
   }
 
-  // 4. CONSENT GATE
+  // CONSENT GATE
   const CURRENT_LEGAL_VERSION = "2026.01.14";
   if (userProfile) {
     const hasAgreed = userProfile.has_agreed_to_terms === true;
     const isLatestVersion =
       userProfile.legal_consent?.version === CURRENT_LEGAL_VERSION;
-
-    if (!hasAgreed || !isLatestVersion) {
-      console.log(
-        "App: Consent required. Agreed:",
-        hasAgreed,
-        "Version Match:",
-        isLatestVersion,
-      );
-      return <ConsentScreen />;
-    }
+    if (!hasAgreed || !isLatestVersion) return <ConsentScreen />;
   }
 
-  // --- BRANCH 5: LOGGED IN & MFA - SYNCING DATA ---
-  if (!isSynced && !syncError) {
+  // ERROR STATE
+  if (initError) {
     return (
       <Box
         display="flex"
@@ -114,43 +146,22 @@ export default function App() {
         minHeight="100vh"
         justifyContent="center"
         alignItems="center"
-        bgcolor="background.default"
-      >
-        <CircularProgress size={50} sx={{ color: "#B22234" }} />
-        <Typography variant="body1" sx={{ mt: 2 }} color="text.secondary">
-          Syncing precinct data...
-        </Typography>
-      </Box>
-    );
-  }
-
-  // --- BRANCH 6: SYNC ERROR ---
-  if (syncError) {
-    return (
-      <Box
-        display="flex"
-        flexDirection="column"
-        minHeight="100vh"
-        justifyContent="center"
-        alignItems="center"
-        bgcolor="background.default"
         p={4}
       >
         <Typography variant="h5" color="error" gutterBottom fontWeight="bold">
-          Initialization Error
+          Database Error
         </Typography>
-        <Typography variant="body1" textAlign="center" sx={{ mb: 3 }}>
-          {syncError.message}
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          {initError.message}
         </Typography>
-        <Button variant="contained" onClick={performSync}>
-          Retry Sync
+        <Button variant="contained" onClick={() => window.location.reload()}>
+          Reload Application
         </Button>
       </Box>
     );
   }
 
-  // --- BRANCH 7: PRIVATE DASHBOARD (SYNCED & AUTHENTICATED) ---
-  console.log("App.tsx: User Synced & Auth. Rendering Private Layout.");
+  // --- FINAL: PRIVATE DASHBOARD ---
   return (
     <Box
       display="flex"
