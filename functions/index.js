@@ -1404,6 +1404,7 @@ export const adminCreateMessageTemplate = onCall(async (request) => {
       // ANY Case: If frontend sends "all", store as null for query logic
       party: data.party === "all" ? null : data.party || null,
       age_group: data.age_group === "all" ? null : data.age_group || null,
+      gender: data.gender === "all" ? null : data.gender,
       turnout_score_general:
         data.turnout_score_general === "all"
           ? null
@@ -2260,7 +2261,7 @@ export const adminCreateSurvey = onCall(async (request) => {
 
   const data = request.data;
 
-  if (!data.survey_id || !data.name || !data.embed_id) {
+  if (!data.survey_id || !data.name || !data.jsonPath) {
     throw new HttpsError("invalid-argument", "Missing required fields");
   }
 
@@ -2272,11 +2273,11 @@ export const adminCreateSurvey = onCall(async (request) => {
         survey_id: data.survey_id.trim(),
         name: data.name.trim(),
         description: data.description?.trim() || null,
-        embed_id: data.embed_id.trim(),
+        jsonPath: data.jsonPath?.trim() || null,
         demographics: data.demographics || {},
         active: data.active ?? true,
-        created_at: admin.firestore.FieldValue.serverTimestamp(),
-        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        created_at: Date.now(),
+        updated_at: Date.now(),
         created_by: request.auth.uid,
       });
 
@@ -2288,6 +2289,111 @@ export const adminCreateSurvey = onCall(async (request) => {
     );
   }
 });
+
+// ================================================================
+//  EDIT SURVEY META THROUGH ADMIN
+// ================================================================
+
+export const adminUpdateSurvey = onCall({ cors: true }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const data = request.data;
+
+  if (!data.id || !data.updates) {
+    throw new HttpsError("invalid-argument", "Missing id or updates");
+  }
+
+  const { id, updates } = data;
+
+  // Optional: extra validation on updates
+  if (!updates.survey_id || !updates.name || !updates.jsonPath) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Missing required fields in updates",
+    );
+  }
+
+  try {
+    await db
+      .collection("surveys")
+      .doc(id) // ← uses the Firestore document ID (not survey_id)
+      .update({
+        ...updates,
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+        // Optional: updated_by: request.auth.uid,
+      });
+
+    return { success: true, message: "Survey updated" };
+  } catch (error) {
+    console.error("Update error:", error);
+    throw new HttpsError(
+      "internal",
+      error.message || "Failed to update survey",
+    );
+  }
+});
+
+// ================================================================
+//  CREATE OR EDIT SURVEY META THROUGH ADMIN
+// ================================================================
+
+export const adminCreateOrUpdateSurvey = onCall(
+  { cors: true },
+  async (request) => {
+    // 1. Auth Check
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "You must be logged in.");
+    }
+
+    const data = request.data;
+
+    // 2. Strict Validation
+    // Ensure the ID exists and isn't just whitespace
+    const rawId = data.survey_id?.toString().trim();
+    if (!rawId || !data.name?.trim() || !data.jsonPath?.trim()) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing required fields: survey_id, name, or jsonPath.",
+      );
+    }
+
+    const surveyId = rawId; // This is now guaranteed to be a non-empty string
+
+    const payload = {
+      survey_id: surveyId,
+      name: data.name.trim(),
+      description: data.description?.trim() || null,
+      jsonPath: data.jsonPath.trim(),
+      demographics: data.demographics || {},
+      active: data.active ?? true,
+      updated_at: FieldValue.serverTimestamp(), // Better than Date.now()
+    };
+
+    try {
+      const docRef = db.collection("surveys").doc(surveyId);
+      const docSnap = await docRef.get();
+
+      if (docSnap.exists) {
+        await docRef.update(payload);
+        logger.info(`Survey ${surveyId} updated`);
+        return { success: true, message: `Survey ${surveyId} updated` };
+      } else {
+        await docRef.set({
+          ...payload,
+          created_at: FieldValue.serverTimestamp(),
+          created_by: request.auth.uid,
+        });
+        logger.info(`Survey ${surveyId} created`);
+        return { success: true, message: `Survey ${surveyId} created` };
+      }
+    } catch (error) {
+      logger.error("Survey operation failed:", error);
+      throw new HttpsError("internal", error.message || "Operation failed");
+    }
+  },
+);
 
 // ================================================================
 //  HANDLES NOTIFICATION PREFERENCES FROM USER SETTINGS CHANGES

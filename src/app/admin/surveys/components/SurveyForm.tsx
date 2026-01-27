@@ -48,7 +48,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
     survey_id: "",
     name: "",
     description: "",
-    embed_id: "",
+    jsonPath: "",
     active: true,
     demographics: {
       age_group: undefined,
@@ -71,7 +71,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
         survey_id: initialData.survey_id || "",
         name: initialData.name || "",
         description: initialData.description || "",
-        embed_id: initialData.embed_id || "",
+        jsonPath: initialData.jsonPath || "",
         active: initialData.active ?? true,
         demographics: {
           age_group: initialData.demographics?.age_group,
@@ -89,11 +89,11 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
     if (
       !form.survey_id?.trim() ||
       !form.name?.trim() ||
-      !form.embed_id?.trim()
+      !form.jsonPath?.trim()
     ) {
       setResult({
         success: false,
-        message: "Survey ID, Name, and Embed ID are required",
+        message: "Survey ID, Name, and jsonPath are required",
       });
       return;
     }
@@ -106,32 +106,33 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
         survey_id: form.survey_id.trim(),
         name: form.name.trim(),
         description: form.description?.trim() || null,
-        embed_id: form.embed_id.trim(),
+        jsonPath: form.jsonPath.trim(),
         active: form.active ?? true,
         demographics: form.demographics || {},
+        // Client-side timestamp (server will override with FieldValue.serverTimestamp())
         updated_at: new Date().toISOString(),
+        // Include other fields if needed (party, etc. not in your current form)
       };
 
-      if (isEdit) {
-        await callFunction("adminUpdateSurvey", {
-          id: initialData!.id,
-          updates: payload,
-        });
-        setResult({
-          success: true,
-          message: `Survey ${form.survey_id} updated successfully`,
-        });
-      } else {
-        await callFunction("adminCreateSurvey", payload);
-        setResult({
-          success: true,
-          message: `Survey ${form.survey_id} created successfully`,
-        });
-      }
+      // Single function handles both create and update
+      await callFunction("adminCreateOrUpdateSurvey", payload);
+
+      setResult({
+        success: true,
+        message: isEdit
+          ? `Survey ${form.survey_id} updated successfully`
+          : `Survey ${form.survey_id} created successfully`,
+      });
 
       onSuccess();
     } catch (err: any) {
-      setResult({ success: false, message: err.message || "Operation failed" });
+      console.error("Survey submission failed:", err);
+      setResult({
+        success: false,
+        message:
+          err.message ||
+          "Operation failed. Please check your connection and try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -154,13 +155,13 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
 
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
-            label="Embed ID *"
+            label="jsonPath *"
             fullWidth
             required
-            value={form.embed_id || ""}
-            onChange={(e) => setForm({ ...form, embed_id: e.target.value })}
+            value={form.jsonPath || ""}
+            onChange={(e) => setForm({ ...form, jsonPath: e.target.value })}
             disabled={isSubmitting}
-            helperText="Google Forms embed ID (from form URL)"
+            helperText="Storage path for the survey JSON file"
           />
         </Grid>
 
@@ -212,11 +213,9 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
               >
                 <MenuItem value="">None</MenuItem>
                 <MenuItem value="18-24">18-24</MenuItem>
-                <MenuItem value="25-34">25-34</MenuItem>
-                <MenuItem value="35-44">35-44</MenuItem>
-                <MenuItem value="45-54">45-54</MenuItem>
-                <MenuItem value="55-64">55-64</MenuItem>
-                <MenuItem value="65+">65+</MenuItem>
+                <MenuItem value="25-40">25-40</MenuItem>
+                <MenuItem value="41-70">41-70</MenuItem>
+                <MenuItem value="71+">71+</MenuItem>
               </TextField>
             </Grid>
 

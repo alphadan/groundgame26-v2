@@ -11,6 +11,7 @@ import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
 import { useNavigate } from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import BarChartIcon from "@mui/icons-material/BarChart";
 import Tooltip from "@mui/material/Tooltip";
 import {
   Box,
@@ -127,10 +128,18 @@ export default function SurveysManagement() {
     {
       field: "actions",
       headerName: "Actions",
-      width: 160,
+      width: 280,
       sortable: false,
       renderCell: (params) => (
-        <Stack direction="row" spacing={1}>
+        <Stack
+          direction="row"
+          spacing={1}
+          flexWrap="wrap"
+          sx={{
+            py: 1,
+            alignItems: "center",
+          }}
+        >
           <Button
             size="small"
             startIcon={<EditIcon />}
@@ -146,6 +155,16 @@ export default function SurveysManagement() {
             }
           >
             Preview
+          </Button>
+          <Button
+            size="small"
+            startIcon={<BarChartIcon />}
+            onClick={() =>
+              navigate(`/admin/surveys/${params.row.survey_id}/results`)
+            }
+            color="secondary"
+          >
+            Results
           </Button>
         </Stack>
       ),

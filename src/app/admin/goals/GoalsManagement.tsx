@@ -3,7 +3,7 @@ import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
 import { Goal } from "../../../types";
-import CreateGoals from "./CreateGoals"; // The component below
+import CreateGoals from "./CreateGoals";
 
 import {
   Box,
@@ -41,12 +41,28 @@ export default function GoalsManagement() {
 
   const columns: GridColDef<Goal>[] = useMemo(
     () => [
-      { field: "precinct_id", headerName: "Precinct ID", width: 150 },
+      {
+        field: "precinct_id",
+        headerName: "Precinct ID",
+        width: 150,
+        headerAlign: "left",
+        align: "left",
+        valueGetter: (_, row) => row.precinct_id || "N/A",
+      },
+      {
+        field: "area_id",
+        headerName: "Area Name",
+        width: 150,
+        headerAlign: "left",
+        align: "left",
+        valueGetter: (_, row) => row.area_id || "N/A",
+      },
       {
         field: "precinct_name",
         headerName: "Precinct Name",
         width: 200,
-        // Fallback in case name is missing in older docs
+        headerAlign: "left",
+        align: "left",
         valueGetter: (_, row) => row.precinct_name || "N/A",
       },
       {
@@ -54,6 +70,8 @@ export default function GoalsManagement() {
         headerName: "Registrations Target",
         width: 180,
         type: "number",
+        headerAlign: "right", // ← crucial for numbers
+        align: "right",
         valueGetter: (_, row) => row.targets?.registrations ?? 0,
       },
       {
@@ -61,6 +79,8 @@ export default function GoalsManagement() {
         headerName: "Mail-In Target",
         width: 130,
         type: "number",
+        headerAlign: "right",
+        align: "right",
         valueGetter: (_, row) => row.targets?.mail_in ?? 0,
       },
       {
@@ -68,6 +88,8 @@ export default function GoalsManagement() {
         headerName: "Volunteers",
         width: 120,
         type: "number",
+        headerAlign: "right",
+        align: "right",
         valueGetter: (_, row) => row.targets?.volunteers ?? 0,
       },
       {
@@ -75,12 +97,16 @@ export default function GoalsManagement() {
         headerName: "Activity Index",
         width: 130,
         type: "number",
+        headerAlign: "right",
+        align: "right",
         valueGetter: (_, row) => row.targets?.user_activity ?? 0,
       },
       {
         field: "actions",
         headerName: "Actions",
         width: 100,
+        headerAlign: "center", // ← optional, looks better centered
+        align: "center",
         renderCell: (params) => (
           <Button
             size="small"
@@ -96,7 +122,7 @@ export default function GoalsManagement() {
         ),
       },
     ],
-    []
+    [],
   );
 
   const handleClose = () => {

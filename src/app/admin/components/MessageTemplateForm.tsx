@@ -1,5 +1,5 @@
 // src/app/admin/components/MessageTemplateForm.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useCloudFunctions } from "../../../hooks/useCloudFunctions";
 import { MessageCategory } from "../../../types";
 import {
@@ -15,7 +15,16 @@ import {
   Tooltip,
   CircularProgress,
 } from "@mui/material";
-import { CloudUpload as UploadIcon } from "@mui/icons-material";
+import {
+  CloudUpload as UploadIcon,
+  Save as SaveIcon,
+} from "@mui/icons-material";
+
+// --- Types & Interfaces ---
+interface MessageTemplateFormProps {
+  initialData?: any; // The message object passed when editing
+  onSuccess: () => void; // Callback to refresh the list and close form
+}
 
 // --- Utilities ---
 const generateSlug = (category: string, subject: string): string => {
@@ -34,7 +43,10 @@ const SPAM_WORDS = [
   "guaranteed",
 ];
 
-export const MessageTemplateForm: React.FC = () => {
+export const MessageTemplateForm: React.FC<MessageTemplateFormProps> = ({
+  initialData,
+  onSuccess,
+}) => {
   const { callFunction } = useCloudFunctions();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{
@@ -42,19 +54,45 @@ export const MessageTemplateForm: React.FC = () => {
     message: string;
   } | null>(null);
 
-  const [form, setForm] = useState({
+  // Initial Form State
+  const defaultState = {
     subject_line: "",
     body: "",
     category: "" as MessageCategory | "",
     party: "all",
     age_group: "all",
+    gender: "all",
     turnout_score_general: "all",
     has_mail_ballot: "all",
     tags: "",
     active: true,
-  });
+  };
 
-  // Derived Analytics
+  const [form, setForm] = useState(defaultState);
+
+  // --- Effect: Sync Form with initialData (Crucial for Edit Mode) ---
+  useEffect(() => {
+    if (initialData) {
+      setForm({
+        subject_line: initialData.subject_line || "",
+        body: initialData.body || "",
+        category: initialData.category || "",
+        party: initialData.party || "all",
+        age_group: initialData.age_group || "all",
+        gender: "all",
+        turnout_score_general: initialData.turnout_score_general || "all",
+        has_mail_ballot: initialData.has_mail_ballot || "all",
+        tags: Array.isArray(initialData.tags)
+          ? initialData.tags.join(", ")
+          : initialData.tags || "",
+        active: initialData.active ?? true,
+      });
+    } else {
+      setForm(defaultState);
+    }
+  }, [initialData]);
+
+  // --- Derived Analytics ---
   const wordCount = useMemo(() => getWordCount(form.body), [form.body]);
   const spamRisk = useMemo(() => {
     const lowerBody = form.body.toLowerCase();
@@ -65,17 +103,21 @@ export const MessageTemplateForm: React.FC = () => {
     wordCount > 125
       ? "error.main"
       : wordCount > 100
-      ? "warning.main"
-      : "success.main";
+        ? "warning.main"
+        : "success.main";
 
+  // --- Submission Handler ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setResult(null);
 
     try {
-      const slugId = generateSlug(form.category, form.subject_line);
-      await callFunction("adminCreateMessageTemplate", {
+      // Use existing ID if editing, otherwise generate a new one
+      const slugId =
+        initialData?.id || generateSlug(form.category, form.subject_line);
+
+      const payload = {
         ...form,
         id: slugId,
         party: form.party === "all" ? null : form.party,
@@ -86,23 +128,26 @@ export const MessageTemplateForm: React.FC = () => {
             : form.turnout_score_general,
         has_mail_ballot:
           form.has_mail_ballot === "all" ? null : form.has_mail_ballot,
-      });
+        // Convert tags string back to array for Firestore
+        tags: form.tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter((t) => t !== ""),
+      };
+
+      await callFunction("adminCreateMessageTemplate", payload);
 
       setResult({
         success: true,
-        message: `Successfully published script: ${slugId}`,
+        message: initialData
+          ? `Updated template: ${slugId}`
+          : `Published new template: ${slugId}`,
       });
-      setForm({
-        subject_line: "",
-        body: "",
-        category: "",
-        party: "all",
-        age_group: "all",
-        turnout_score_general: "all",
-        has_mail_ballot: "all",
-        tags: "",
-        active: true,
-      });
+
+      // Give the user a moment to see the success message before closing
+      setTimeout(() => {
+        onSuccess();
+      }, 1500);
     } catch (err: any) {
       setResult({
         success: false,
@@ -115,13 +160,6 @@ export const MessageTemplateForm: React.FC = () => {
 
   return (
     <Box component="form" onSubmit={handleSubmit}>
-      <Typography variant="h6" fontWeight="bold" gutterBottom>
-        Create Message Templates
-      </Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Templates are automatically optimized for mobile delivery standards.
-      </Typography>
-
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
@@ -173,7 +211,6 @@ export const MessageTemplateForm: React.FC = () => {
             multiline
             rows={6}
             required
-            placeholder="Links like https://groundgame26.com are supported."
             value={form.body}
             onChange={(e) => setForm((p) => ({ ...p, body: e.target.value }))}
           />
@@ -185,13 +222,14 @@ export const MessageTemplateForm: React.FC = () => {
               Word Count: {wordCount} (Target: 50-125)
             </Typography>
             {spamRisk.length > 0 && (
-              <Tooltip title={`Avoid: ${spamRisk.join(", ")}`}>
+              <Tooltip title={`Avoid keywords: ${spamRisk.join(", ")}`}>
                 <Chip label="Spam Warning" size="small" color="warning" />
               </Tooltip>
             )}
           </Stack>
         </Grid>
 
+        {/* Targeting Options */}
         <Grid size={{ xs: 12, md: 4 }}>
           <TextField
             select
@@ -242,6 +280,19 @@ export const MessageTemplateForm: React.FC = () => {
             <MenuItem value="1 - Low">1 - Low</MenuItem>
           </TextField>
         </Grid>
+        <Grid size={{ xs: 12, md: 4 }}>
+          <TextField
+            select
+            label="Gender"
+            fullWidth
+            value={form.gender || "all"}
+            onChange={(e) => setForm((p) => ({ ...p, gender: e.target.value }))}
+          >
+            <MenuItem value="all">Any Gender</MenuItem>
+            <MenuItem value="M">Male</MenuItem>
+            <MenuItem value="F">Female</MenuItem>
+          </TextField>
+        </Grid>
 
         <Grid size={{ xs: 12 }}>
           <TextField
@@ -264,13 +315,15 @@ export const MessageTemplateForm: React.FC = () => {
         startIcon={
           isSubmitting ? (
             <CircularProgress size={20} color="inherit" />
+          ) : initialData ? (
+            <SaveIcon />
           ) : (
             <UploadIcon />
           )
         }
         sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
       >
-        Publish Template
+        {initialData ? "Update Template" : "Publish Template"}
       </Button>
 
       {result && (

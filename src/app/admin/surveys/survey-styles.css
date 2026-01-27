@@ -1,0 +1,4 @@
+.sa-commercial, .sa-commercial__product {
+  background-color: red;
+  visibility: hidden;
+}

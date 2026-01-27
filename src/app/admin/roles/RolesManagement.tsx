@@ -192,7 +192,7 @@ export default function ManageRoles() {
               <Button
                 size="small"
                 color="error"
-                variant="text"
+                variant="outlined"
                 onClick={() => {
                   setRoleToVacate({ id: params.row.id, name: assignedUser });
                   setUnassignConfirmOpen(true);

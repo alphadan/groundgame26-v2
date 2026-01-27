@@ -182,6 +182,8 @@ export type MessageCategory =
   | "Housing"
   | "Local";
 
+export type Gender = "M" | "F";
+
 /**
  * The Master Script Template
  */
@@ -196,6 +198,7 @@ export interface MessageTemplate {
   party: string | null; // Changed from modeled_party
   turnout_score_general: string | null;
   has_mail_ballot: string | null;
+  gender: Gender | null;
 
   tags: string[]; // Saved as array of strings
   active: boolean;
@@ -439,7 +442,7 @@ export type Sex = "M" | "F" | "Other";
 // Main Survey interface
 export interface Survey {
   id: string;
-  embed_id: string;
+  jsonPath: string;
   demographics: {
     age_group?: AgeGroup;
     area_id?: string;

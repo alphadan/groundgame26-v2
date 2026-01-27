@@ -38,6 +38,7 @@ import GoalsManagement from "../app/admin/goals/GoalsManagement";
 import RolesManagement from "../app/admin/roles/RolesManagement";
 import DncManagement from "../app/admin/dnc/DncManagement";
 import SurveysManagement from "../app/admin/surveys/SurveysManagement";
+import SurveyResults from "../app/admin/surveys/SurveyResults";
 
 export default function AppRouter() {
   const { user } = useAuth();
@@ -101,6 +102,10 @@ export default function AppRouter() {
         <Route path="/admin/roles" element={<RolesManagement />} />
         <Route path="/admin/dnc" element={<DncManagement />} />
         <Route path="/admin/surveys" element={<SurveysManagement />} />
+        <Route
+          path="/admin/surveys/:survey_id/results"
+          element={<SurveyResults />}
+        />
       </Route>
 
       {/* 5. DYNAMIC ROOT & CATCH-ALL

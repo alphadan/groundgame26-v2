@@ -85,12 +85,11 @@ export default function GroupsManagement() {
 
   // 4. Grid Column Definitions
   const columns: GridColDef[] = [
-    { field: "code", headerName: "Code", width: 90 },
     { field: "name", headerName: "Group Name", flex: 1, minWidth: 200 },
     {
       field: "contact",
       headerName: "Contact & Links",
-      width: 220,
+      width: 320,
       sortable: false,
       renderCell: (params) => {
         const {
