@@ -1,1 +1,0 @@
-'[{"origin": ["*"], "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "responseHeader": ["Content-Type", "x-goog-resumable"], "maxAgeSeconds": 3600}]' | Out-File -FilePath cors.json -Encoding ascii

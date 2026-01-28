@@ -1,3 +1,4 @@
+// src/app/voters/NameSearchPage.tsx
 import React, { useState, useCallback, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useCloudFunctions } from "../../hooks/useCloudFunctions";
@@ -6,6 +7,9 @@ import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
 import { useDncMap } from "../../hooks/useDncMap";
 import { awardPoints } from "../../services/rewardsService";
+import { analytics } from "../../lib/firebase";
+import { logEvent } from "firebase/analytics";
+
 import {
   Box,
   Typography,
@@ -46,7 +50,7 @@ interface FilterValues {
   turnout?: string;
   ageGroup?: string;
   mailBallot?: string;
-  gender?: string; // Added Gender to interface
+  gender?: string;
 }
 
 interface Voter {
@@ -70,6 +74,13 @@ const useDynamicVoters = (filters: FilterValues | null) => {
         return [];
 
       try {
+        // LOG SEARCH EVENT FOR CAMPAIGN INTELLIGENCE
+        logEvent(analytics, "voter_search_executed", {
+          search_term: filters.name,
+          search_street: filters.street || "none",
+          precinct_id: filters.precinct || "all",
+        });
+
         const result = await callFunction<{ voters: Voter[] }>(
           "queryVotersDynamic",
           filters,
@@ -99,12 +110,24 @@ export default function NameSearchPage() {
 
   const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
 
+  // --- REWARD & ANALYTICS HANDLER ---
   const handleContactAction = async (
     type: "sms" | "email" | "phone",
     voterName: string,
     protocolUrl: string,
+    voterId: string, // 2. ADDED VOTER_ID FOR ANALYTICS
   ) => {
     if (!user?.uid) return;
+
+    // 3. LOG CUSTOM EVENT TO GA4
+    logEvent(analytics, "search_result_contact", {
+      contact_method: type,
+      voter_id: voterId,
+      voter_name: voterName,
+      volunteer_uid: user.uid,
+      precinct_id: filters?.precinct || "none",
+    });
+
     try {
       await awardPoints(user.uid, type === "phone" ? "sms" : type, 1);
       setIsRewardToast(true);
@@ -114,6 +137,7 @@ export default function NameSearchPage() {
         window.location.href = protocolUrl;
       }, 800);
     } catch (err) {
+      // Fallback: Ensure user still gets to the dialer/app even if points fail
       window.location.href = protocolUrl;
     }
   };
@@ -228,6 +252,7 @@ export default function NameSearchPage() {
                       "phone",
                       row.full_name!,
                       `tel:${normalizedPhone}`,
+                      row.voter_id, // 4. PASSING ID
                     )
                   }
                 >
@@ -243,6 +268,7 @@ export default function NameSearchPage() {
                       "sms",
                       row.full_name!,
                       `sms:${normalizedPhone}`,
+                      row.voter_id, // 4. PASSING ID
                     )
                   }
                 >
@@ -258,6 +284,7 @@ export default function NameSearchPage() {
                       "email",
                       row.full_name!,
                       `mailto:${row.email}`,
+                      row.voter_id, // 4. PASSING ID
                     )
                   }
                 >
@@ -314,7 +341,7 @@ export default function NameSearchPage() {
       <FilterSelector
         onSubmit={handleSubmit}
         isLoading={isLoading}
-        demographicFilters={["name", "street", "gender"]} // Added Gender to filters
+        demographicFilters={["name", "street", "gender"]}
       />
 
       {error && (

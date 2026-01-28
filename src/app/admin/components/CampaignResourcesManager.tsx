@@ -80,13 +80,13 @@ export const CampaignResourcesManager: React.FC = () => {
       const snapshot = await getDocs(
         query(
           collection(firestore, "campaign_resources"),
-          orderBy("created_at", "desc")
-        )
+          orderBy("created_at", "desc"),
+        ),
       );
       setResources(
         snapshot.docs.map(
-          (d) => ({ id: d.id, ...d.data() } as CampaignResource)
-        )
+          (d) => ({ id: d.id, ...d.data() }) as CampaignResource,
+        ),
       );
     } catch (err) {
       console.error("Load failed:", err);
@@ -119,7 +119,7 @@ export const CampaignResourcesManager: React.FC = () => {
     return resources.filter(
       (r) =>
         r.title.toLowerCase().includes(searchText.toLowerCase()) ||
-        (r.description || "").toLowerCase().includes(searchText.toLowerCase())
+        (r.description || "").toLowerCase().includes(searchText.toLowerCase()),
     );
   }, [resources, searchText]);
 
@@ -159,7 +159,7 @@ export const CampaignResourcesManager: React.FC = () => {
         {
           category: newResource.category,
           fileName: newResource.file.name,
-        }
+        },
       );
 
       await new Promise((resolve, reject) => {
@@ -296,251 +296,281 @@ export const CampaignResourcesManager: React.FC = () => {
   ];
 
   return (
-    <Paper sx={{ p: { xs: 2, md: 4 }, mt: 4, borderRadius: 3 }}>
-      <Typography variant="h5" fontWeight="bold" gutterBottom color="primary">
-        Campaign Resource Manager
-      </Typography>
-      <Typography variant="body2" color="text.secondary" mb={4}>
-        Upload and assign localized campaign materials across the organization.
-      </Typography>
+    <Stack spacing={4} sx={{ mt: 4 }}>
+      {/* PAPER 1: UPLOAD FORM */}
+      <Paper elevation={2} sx={{ p: { xs: 2, md: 4 }, borderRadius: 3 }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom color="primary">
+          Campaign Resource Manager
+        </Typography>
+        <Typography variant="body2" color="text.secondary" mb={4}>
+          Upload and assign localized campaign materials across the
+          organization.
+        </Typography>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
 
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <TextField
-            select
-            label="Category"
-            fullWidth
-            value={newResource.category}
-            onChange={(e) =>
-              setNewResource((p) => ({ ...p, category: e.target.value as any }))
-            }
-          >
-            {["Brochures", "Ballots", "Forms", "Graphics", "Scripts"].map(
-              (c) => (
-                <MenuItem key={c} value={c}>
-                  {c}
-                </MenuItem>
-              )
-            )}
-          </TextField>
-        </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <TextField
-            select
-            label="Assignment Scope"
-            fullWidth
-            value={newResource.scope}
-            onChange={(e) =>
-              setNewResource((p) => ({ ...p, scope: e.target.value as any }))
-            }
-          >
-            {scopeOptions.map((s) => (
-              <MenuItem key={s} value={s} sx={{ textTransform: "capitalize" }}>
-                {s}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
-        {newResource.scope === "precinct" && (
+        <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               select
-              label="Assign to Precinct"
+              label="Category"
               fullWidth
-              value={newResource.geoId}
+              value={newResource.category}
               onChange={(e) =>
-                setNewResource((p) => ({ ...p, geoId: e.target.value }))
+                setNewResource((p) => ({
+                  ...p,
+                  category: e.target.value as any,
+                }))
               }
             >
-              {availablePrecincts.map((p) => (
-                <MenuItem key={p.id} value={p.id}>
-                  {p.name}
+              {["Brochures", "Ballots", "Forms", "Graphics", "Scripts"].map(
+                (c) => (
+                  <MenuItem key={c} value={c}>
+                    {c}
+                  </MenuItem>
+                ),
+              )}
+            </TextField>
+          </Grid>
+          <Grid size={{ xs: 12, md: 4 }}>
+            <TextField
+              select
+              label="Assignment Scope"
+              fullWidth
+              value={newResource.scope}
+              onChange={(e) =>
+                setNewResource((p) => ({ ...p, scope: e.target.value as any }))
+              }
+            >
+              {scopeOptions.map((s) => (
+                <MenuItem
+                  key={s}
+                  value={s}
+                  sx={{ textTransform: "capitalize" }}
+                >
+                  {s}
                 </MenuItem>
               ))}
             </TextField>
           </Grid>
-        )}
+          {newResource.scope === "precinct" && (
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                select
+                label="Assign to Precinct"
+                fullWidth
+                value={newResource.geoId}
+                onChange={(e) =>
+                  setNewResource((p) => ({ ...p, geoId: e.target.value }))
+                }
+              >
+                {availablePrecincts.map((p) => (
+                  <MenuItem key={p.id} value={p.id}>
+                    {p.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+          )}
 
-        {/* Title with 60 char limit + counter */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            label="Title"
-            fullWidth
-            value={newResource.title}
-            onChange={(e) =>
-              setNewResource((p) => ({
-                ...p,
-                title: e.target.value.slice(0, 60),
-              }))
-            }
-            inputProps={{ maxLength: 60 }}
-            error={titleLength > 50}
-            helperText={
-              <Box component="span">
-                {titleLength}/60 characters
-                {titleLength > 40 && titleLength <= 50 && (
-                  <Box component="span" sx={{ color: "warning.main", ml: 1 }}>
-                    ⚠️ May truncate on mobile
-                  </Box>
-                )}
-                {titleLength > 50 && (
-                  <Box component="span" sx={{ color: "error.main", ml: 1 }}>
-                    Too long!
-                  </Box>
-                )}
-              </Box>
-            }
-          />
-        </Grid>
-
-        {/* Description with 120 char limit + counter */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            label="Description"
-            fullWidth
-            multiline
-            rows={3}
-            value={newResource.description}
-            onChange={(e) =>
-              setNewResource((p) => ({
-                ...p,
-                description: e.target.value.slice(0, 120),
-              }))
-            }
-            inputProps={{ maxLength: 120 }}
-            error={descriptionLength > 100}
-            helperText={
-              <Box component="span">
-                {descriptionLength}/120 characters
-                {descriptionLength > 80 && descriptionLength <= 100 && (
-                  <Box component="span" sx={{ color: "warning.main", ml: 1 }}>
-                    Consider shortening
-                  </Box>
-                )}
-                {descriptionLength > 100 && (
-                  <Box component="span" sx={{ color: "error.main", ml: 1 }}>
-                    Too long!
-                  </Box>
-                )}
-              </Box>
-            }
-          />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Button
-            variant="outlined"
-            component="label"
-            fullWidth
-            startIcon={
-              newResource.file ? (
-                <CheckCircleIcon color="success" />
-              ) : (
-                <UploadIcon />
-              )
-            }
-            sx={{ height: 56, borderStyle: "dashed" }}
-          >
-            {newResource.file ? newResource.file.name : "Select PDF Document"}
-            <input
-              type="file"
-              hidden
-              accept=".pdf"
-              onChange={handleFileSelect}
+          {/* Title with 60 char limit + counter */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              label="Title"
+              fullWidth
+              value={newResource.title}
+              onChange={(e) =>
+                setNewResource((p) => ({
+                  ...p,
+                  title: e.target.value.slice(0, 60),
+                }))
+              }
+              inputProps={{ maxLength: 60 }}
+              error={titleLength > 50}
+              color={
+                titleLength > 40 && titleLength <= 50
+                  ? "warning"
+                  : titleLength > 50
+                    ? "error"
+                    : "primary"
+              }
+              helperText={
+                <Box component="span">
+                  {titleLength}/60 characters
+                  {titleLength > 40 && titleLength <= 50 && (
+                    <Box component="span" sx={{ color: "warning.main", ml: 1 }}>
+                      ⚠️ May truncate on mobile
+                    </Box>
+                  )}
+                  {titleLength > 50 && (
+                    <Box component="span" sx={{ color: "error.main", ml: 1 }}>
+                      Too long!
+                    </Box>
+                  )}
+                </Box>
+              }
             />
-          </Button>
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={handleUpload}
-            disabled={
-              isUploading || !newResource.file || !newResource.title.trim()
-            }
-            sx={{ height: 56, fontWeight: "bold" }}
-          >
-            {isUploading
-              ? `Uploading ${uploadProgress}%`
-              : "Publish to Library"}
-          </Button>
-        </Grid>
-      </Grid>
+          </Grid>
 
-      {isUploading && (
-        <LinearProgress
-          variant="determinate"
-          value={uploadProgress}
-          sx={{ mt: 2, height: 8, borderRadius: 4 }}
-        />
-      )}
+          {/* Description with 120 char limit + counter */}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              label="Description"
+              fullWidth
+              multiline
+              rows={3}
+              value={newResource.description}
+              onChange={(e) =>
+                setNewResource((p) => ({
+                  ...p,
+                  description: e.target.value.slice(0, 120),
+                }))
+              }
+              inputProps={{ maxLength: 120 }}
+              error={descriptionLength > 100}
+              helperText={
+                <Box component="span">
+                  {descriptionLength}/120 characters
+                  {descriptionLength > 80 && descriptionLength <= 100 && (
+                    <Box component="span" sx={{ color: "warning.main", ml: 1 }}>
+                      Consider shortening
+                    </Box>
+                  )}
+                  {descriptionLength > 100 && (
+                    <Box component="span" sx={{ color: "error.main", ml: 1 }}>
+                      Too long!
+                    </Box>
+                  )}
+                </Box>
+              }
+            />
+          </Grid>
 
-      <Divider sx={{ my: 6 }} />
-
-      {/* Rest of your component (search + DataGrid + Delete Dialog) remains unchanged */}
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        justifyContent="space-between"
-        alignItems="center"
-        spacing={2}
-        mb={3}
-      >
-        <Typography variant="h6" fontWeight="bold">
-          Live Resource Library
-        </Typography>
-        <TextField
-          size="small"
-          placeholder="Search resources..."
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <SearchIcon
-                fontSize="small"
-                sx={{ mr: 1, color: "text.secondary" }}
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Button
+              variant="outlined"
+              component="label"
+              fullWidth
+              startIcon={
+                newResource.file ? (
+                  <CheckCircleIcon color="success" />
+                ) : (
+                  <UploadIcon />
+                )
+              }
+              sx={{ height: 56, borderStyle: "dashed" }}
+            >
+              {newResource.file ? newResource.file.name : "Select PDF Document"}
+              <input
+                type="file"
+                hidden
+                accept=".pdf"
+                onChange={handleFileSelect}
               />
-            ),
-          }}
-          sx={{ width: { xs: "100%", sm: 300 } }}
-        />
-      </Stack>
+            </Button>
+          </Grid>
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleUpload}
+              disabled={
+                isUploading || !newResource.file || !newResource.title.trim()
+              }
+              sx={{ height: 56, fontWeight: "bold" }}
+            >
+              {isUploading
+                ? `Uploading ${uploadProgress}%`
+                : "Publish to Library"}
+            </Button>
+          </Grid>
+        </Grid>
 
-      <Box sx={{ height: 600, width: "100%" }}>
-        <DataGrid
-          rows={filteredResources}
-          columns={columns}
-          loading={loading}
-          initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-          pageSizeOptions={[10, 25, 50]}
-          disableRowSelectionOnClick
-          sx={{ "& .font-weight-bold": { fontWeight: "bold" }, border: "none" }}
-        />
-      </Box>
+        {isUploading && (
+          <Box sx={{ mt: 2 }}>
+            <LinearProgress variant="determinate" value={uploadProgress} />
+            <Typography
+              variant="caption"
+              sx={{ mt: 1, display: "block", textAlign: "center" }}
+            >
+              Uploading to Secure Storage... {uploadProgress}%
+            </Typography>
+          </Box>
+        )}
+      </Paper>
 
-      <Dialog
-        open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-      >
-        <DialogTitle sx={{ fontWeight: "bold" }}>Delete Resource?</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">
-            This will permanently remove this asset from the volunteer Download
-            Center. The file will be unlinked from the system immediately.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
-          <Button onClick={confirmDelete} color="error" variant="contained">
-            Confirm Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Paper>
+      {/* PAPER 2: LIVE LIBRARY */}
+      <Paper elevation={2} sx={{ p: { xs: 2, md: 4 }, borderRadius: 3 }}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          justifyContent="space-between"
+          alignItems="center"
+          spacing={2}
+          mb={3}
+        >
+          <Box>
+            <Typography variant="h6" fontWeight="bold">
+              Live Resource Library
+            </Typography>
+          </Box>
+          <TextField
+            size="small"
+            placeholder="Search resources..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <SearchIcon
+                  fontSize="small"
+                  sx={{ mr: 1, color: "text.secondary" }}
+                />
+              ),
+            }}
+            sx={{ width: { xs: "100%", sm: 300 } }}
+          />
+        </Stack>
+
+        <Box sx={{ height: 600, width: "100%" }}>
+          <DataGrid
+            rows={filteredResources}
+            columns={columns}
+            loading={loading}
+            initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+            pageSizeOptions={[10, 25, 50]}
+            disableRowSelectionOnClick
+            sx={{
+              "& .font-weight-bold": { fontWeight: "bold" },
+              border: "none",
+            }}
+          />
+        </Box>
+
+        <Dialog
+          open={deleteConfirmOpen}
+          onClose={() => setDeleteConfirmOpen(false)}
+        >
+          <DialogTitle sx={{ fontWeight: "bold" }}>
+            Delete Resource?
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">
+              This will permanently remove this asset from the volunteer
+              Download Center. The file will be unlinked from the system
+              immediately.
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
+            <Button onClick={confirmDelete} color="error" variant="contained">
+              Confirm Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Paper>
+    </Stack>
   );
 };

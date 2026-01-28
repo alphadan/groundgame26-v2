@@ -1,6 +1,9 @@
+// src/app/resources/components/DownloadCenter.tsx
 import React, { useState } from "react";
 import { httpsCallable } from "firebase/functions";
-import { functions } from "../../../lib/firebase";
+import { functions, analytics } from "../../../lib/firebase"; // Ensure analytics is exported from lib/firebase
+import { logEvent } from "firebase/analytics";
+import { useAuth } from "../../../context/AuthContext";
 import { FilterSelector } from "../../../components/FilterSelector";
 import {
   Box,
@@ -20,7 +23,6 @@ import {
 } from "@mui/icons-material";
 import { CampaignResource } from "../../../types";
 
-// Note: Ensure CampaignResource type includes: verified_by_role?: string;
 interface DownloadCenterProps {
   resources?: CampaignResource[];
   onNotify: (message: string) => void;
@@ -29,11 +31,13 @@ interface DownloadCenterProps {
 /**
  * DownloadCenter Component
  * Handles geographic-based resource filtering with independent category pagination.
+ * Tracks downloads via Firebase Analytics for Campaign Intelligence.
  */
 export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // States typed with Index Signatures to prevent "No index signature" errors
+  // States for categorized data and pagination
   const [categorized, setCategorized] = useState<Record<
     string,
     CampaignResource[]
@@ -42,9 +46,23 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
     Record<string, { page: number; size: number }>
   >({});
 
-  const handleDownload = (title: string, url: string) => {
-    window.open(url, "_blank");
-    onNotify(`Opening ${title}...`);
+  // --- ANALYTICS & DOWNLOAD HANDLER ---
+  const handleDownload = (resource: CampaignResource) => {
+    if (!resource.url) return;
+
+    // 1. Log the event for Looker Studio
+    logEvent(analytics, "resource_downloaded", {
+      resource_id: resource.id,
+      title: resource.title,
+      category: resource.category,
+      scope: resource.scope,
+      volunteer_uid: user?.uid || "anonymous",
+      timestamp: new Date().toISOString(),
+    });
+
+    // 2. Open the file
+    window.open(resource.url, "_blank");
+    onNotify(`Opening ${resource.title}...`);
   };
 
   const handleFetch = async (filters: any) => {
@@ -72,11 +90,10 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
 
   const renderCategorySection = (
     categoryName: string,
-    items: CampaignResource[]
+    items: CampaignResource[],
   ) => {
     if (items.length === 0) return null;
 
-    // Retrieve settings for this specific category, fallback to defaults if not yet set
     const { page, size } = pageSettings[categoryName] || { page: 0, size: 8 };
     const pagedItems = items.slice(page * size, page * size + size);
 
@@ -94,13 +111,13 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
 
         <Grid container spacing={3} sx={{ mt: 1 }}>
           {pagedItems.map((item) => (
-            <Grid key={item.id} size={{ xs: 12, sm: 6, md: 4 }}>
+            <Grid key={item.id} size={{ xs: 12, sm: 6, md: 3 }}>
               <Paper
                 variant="outlined"
                 sx={{
                   p: 2,
                   borderRadius: 3,
-                  height: 280, // Set a fixed height
+                  height: 280,
                   display: "flex",
                   flexDirection: "column",
                   transition: "transform 0.2s",
@@ -108,13 +125,21 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
                 }}
               >
                 <Box sx={{ flexGrow: 1, overflowY: "auto", pr: 1 }}>
-                  {" "}
-                  {/* Internal Scroll */}
                   <Stack direction="row" justifyContent="space-between" mb={1}>
                     <Typography variant="subtitle1" fontWeight="bold">
                       {item.title}
                     </Typography>
-                    {/* Your Verified Badge Chip */}
+                    {item.scope && (
+                      <Chip
+                        label={item.scope}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          textTransform: "capitalize",
+                          fontSize: "0.65rem",
+                        }}
+                      />
+                    )}
                   </Stack>
                   <Typography variant="body2" color="text.secondary">
                     {item.description}
@@ -125,10 +150,10 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
                   fullWidth
                   variant="contained"
                   startIcon={<DownloadIcon />}
-                  onClick={() => handleDownload(item.title, item.url)}
+                  onClick={() => handleDownload(item)}
                   sx={{ mt: 2 }}
                 >
-                  Download
+                  Download / View
                 </Button>
               </Paper>
             </Grid>
@@ -188,7 +213,7 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
         <Box sx={{ mt: 4 }}>
           {categorized ? (
             Object.entries(categorized).map(([name, items]) =>
-              renderCategorySection(name, items)
+              renderCategorySection(name, items),
             )
           ) : (
             <Paper

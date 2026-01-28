@@ -40,22 +40,20 @@
     "react-hook-form": "^7.69.0",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^6.30.2",
-    "react-scripts": "5.0.1",
     "recharts": "^3.5.1",
     "survey-analytics": "^2.5.8",
     "survey-core": "^2.5.8",
     "survey-creator": "^1.12.59",
     "survey-react-ui": "^2.5.8",
-    "typescript": "^4.9.5",
     "web-vitals": "^2.1.4",
     "zod": "^4.1.13",
     "zustand": "^5.0.9"
   },
   "scripts": {
-    "start": "craco start",
-    "build": "node scripts/inject-firebase-config.js && craco build",
-    "test": "craco test",
-    "eject": "react-scripts eject",
+    "dev": "vite",
+    "start": "vite",
+    "build": "rimraf dist && node scripts/inject-firebase-config.js && tsc && vite build",
+    "preview": "vite preview",
     "deploy": "npm run build && firebase deploy"
   },
   "eslintConfig": {
@@ -66,7 +64,7 @@
   },
   "browserslist": {
     "production": [
-      ">0.2%",
+      ">0.5%",
       "not dead",
       "not op_mini all"
     ],
@@ -77,9 +75,15 @@
     ]
   },
   "devDependencies": {
-    "@craco/craco": "^7.1.0",
     "@types/leaflet": "^1.9.21",
     "@types/react-router-dom": "^5.3.3",
-    "craco-alias": "^3.0.1"
+    "@vitejs/plugin-react-swc": "^4.2.2",
+    "craco-alias": "^3.0.1",
+    "dotenv": "^17.2.3",
+    "rimraf": "^6.1.2",
+    "terser": "^5.46.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-svgr": "^4.5.0"
   }
 }

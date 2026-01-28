@@ -1,3 +1,4 @@
+// src/app/voters/VoterListPage.tsx
 import React, { useState, useCallback, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useDynamicVoters } from "../../hooks/useDynamicVoters";
@@ -5,6 +6,9 @@ import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
 import { useDncMap } from "../../hooks/useDncMap";
 import { awardPoints } from "../../services/rewardsService";
+import { analytics } from "../../lib/firebase";
+import { logEvent } from "firebase/analytics";
+
 import {
   Box,
   Typography,
@@ -84,11 +88,23 @@ export default function VoterListPage() {
       icon: "👩",
       filters: { party: "R", gender: "F" },
     },
+    {
+      label: "Has Mail-In Ballot",
+      icon: "📩",
+      filters: { party: "R", has_mail_ballot: true },
+      disabled: true,
+    },
+    {
+      label: "Not Voted Mail-In Ballot",
+      icon: "📩",
+      filters: { party: "R", has_mail_ballot: false },
+      disabled: true,
+    },
   ];
 
   const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
 
-  // Permission Check - Updated to can_manage_resources
+  // Permission Check
   const canDownload = !!claims?.permissions?.can_manage_resources;
 
   // --- CSV DOWNLOAD HANDLER ---
@@ -127,7 +143,6 @@ export default function VoterListPage() {
       voter.turnout_score_general ?? "N/A",
       voter.turnout_score_primary ?? "N/A",
       voter.has_mail_ballot ? "Yes" : "No",
-      voter.has_mail_ballot ? "Yes" : "No",
     ]);
 
     const csvContent = [
@@ -155,13 +170,25 @@ export default function VoterListPage() {
     setSnackbarOpen(true);
   }, [voters]);
 
-  // --- REWARDED ACTION HANDLER ---
+  // --- REWARDED & ANALYTICS ACTION HANDLER ---
   const handleContactAction = async (
     type: "sms" | "email" | "phone",
     voterName: string,
     protocolUrl: string,
+    voterId: string, // ADDED FOR TRACKING
   ) => {
     if (!user?.uid) return;
+
+    // 2. LOG EVENT TO FIREBASE ANALYTICS
+    logEvent(analytics, "voter_contact_initiated", {
+      contact_method: type,
+      voter_id: voterId,
+      voter_name: voterName,
+      precinct: filters?.precinct || "none",
+      volunteer_uid: user.uid,
+      volunteer_name: user.displayName || "Admin",
+    });
+
     try {
       await awardPoints(user.uid, type === "phone" ? "sms" : type, 1);
       setIsRewardToast(true);
@@ -181,9 +208,6 @@ export default function VoterListPage() {
       setSnackbarOpen(true);
       return;
     }
-
-    // If the user uses the manual form, they are opting BACK into General Turnout logic.
-    // We explicitly wipe the "hidden" primary score here.
     setFilters({
       ...submittedFilters,
       turnout_score_primary: undefined,
@@ -199,7 +223,6 @@ export default function VoterListPage() {
     );
   };
 
-  // Logic to apply filters and handle mutual exclusivity
   const applyQuickFilter = (presetFilters: Partial<FilterValues>) => {
     setFilters((prev) => {
       const currentPrecinct = prev?.precinct || "";
@@ -210,7 +233,6 @@ export default function VoterListPage() {
     });
   };
 
-  // Simple Toolbar without the download button
   const CustomToolbar = useCallback(
     () => (
       <GridToolbarContainer
@@ -339,6 +361,7 @@ export default function VoterListPage() {
                         "phone",
                         row.full_name || "Voter",
                         `tel:${normalizedPhone}`,
+                        row.voter_id, // PASSING ID FOR ANALYTICS
                       )
                     }
                   >
@@ -356,6 +379,7 @@ export default function VoterListPage() {
                         "sms",
                         row.full_name || "Voter",
                         `sms:${normalizedPhone}`,
+                        row.voter_id, // PASSING ID FOR ANALYTICS
                       )
                     }
                   >
@@ -373,6 +397,7 @@ export default function VoterListPage() {
                         "email",
                         row.full_name || "Voter",
                         `mailto:${row.email}`,
+                        row.voter_id, // PASSING ID FOR ANALYTICS
                       )
                     }
                   >
@@ -424,35 +449,57 @@ export default function VoterListPage() {
 
         <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ gap: 1.5 }}>
           {PRESET_FILTERS.map((preset) => {
-            // Check if this preset's specific primary score is active
             const active = isPresetActive(preset.filters);
+            const isDisabled = preset.disabled;
 
             return (
-              <Chip
+              <Tooltip
                 key={preset.label}
-                label={preset.label}
-                // The Magic: This function sets turnout_score_primary and WIPES turnout_score_general
-                onClick={() => applyQuickFilter(preset.filters)}
-                onDelete={active ? () => setFilters(null) : undefined}
-                color={active ? "primary" : "default"}
-                variant={active ? "filled" : "outlined"}
-                avatar={
-                  <Avatar sx={{ bgcolor: "transparent", fontSize: "1.2rem" }}>
-                    {preset.icon}
-                  </Avatar>
-                }
-                sx={{
-                  borderRadius: "12px",
-                  fontWeight: 600,
-                  height: 44,
-                  px: 1,
-                  // Visual feedback that this is a "Power User" feature
-                  border: active
-                    ? undefined
-                    : `1px solid ${theme.palette.primary.light}`,
-                  "&:hover": { transform: "translateY(-1px)", boxShadow: 2 },
-                }}
-              />
+                title={isDisabled ? "Filter coming soon in next update" : ""}
+              >
+                <span>
+                  <Chip
+                    label={preset.label}
+                    onClick={
+                      isDisabled
+                        ? undefined
+                        : () => applyQuickFilter(preset.filters)
+                    }
+                    onDelete={active ? () => setFilters(null) : undefined}
+                    color={active ? "primary" : "default"}
+                    variant={active ? "filled" : "outlined"}
+                    disabled={isDisabled}
+                    avatar={
+                      <Avatar
+                        sx={{
+                          bgcolor: "transparent",
+                          fontSize: "1.2rem",
+                          filter: isDisabled ? "grayscale(1)" : "none",
+                          opacity: isDisabled ? 0.5 : 1,
+                        }}
+                      >
+                        {preset.icon}
+                      </Avatar>
+                    }
+                    sx={{
+                      borderRadius: "12px",
+                      fontWeight: 600,
+                      height: 44,
+                      px: 1,
+                      "&:hover": isDisabled
+                        ? {}
+                        : {
+                            transform: "translateY(-1px)",
+                            boxShadow: 2,
+                          },
+                      border:
+                        active || isDisabled
+                          ? undefined
+                          : `1px solid ${theme.palette.primary.light}`,
+                    }}
+                  />
+                </span>
+              </Tooltip>
             );
           })}
           {filters && (
@@ -468,24 +515,22 @@ export default function VoterListPage() {
         </Stack>
       </Box>
 
-      {/* --- STANDARD FILTER SELECTOR (General Turnout is default here) --- */}
       <FilterSelector
-        onSubmit={handleSubmit} // This function will clear Primary Turnout if used manually
+        onSubmit={handleSubmit}
         isLoading={isLoading}
         demographicFilters={[
           "party",
-          "turnout", // This maps to turnout_score_general by default in your hook/form
+          "turnout",
           "ageGroup",
           "mailBallot",
           "gender",
         ]}
       />
-      {/* Inside the VoterListPage JSX, below the FilterSelector */}
+
       {filters?.turnout_score_primary !== undefined && (
         <Alert severity="warning" sx={{ mt: 4, borderRadius: 2 }}>
           <strong>Specialized Filter Active:</strong> High Primary Turnout
-          (Score: {filters.turnout_score_primary}) is currently applied. This
-          filter is not available in the manual selector.
+          (Score: {filters.turnout_score_primary}) is currently applied.
         </Alert>
       )}
 
@@ -505,13 +550,11 @@ export default function VoterListPage() {
               SMS Messaging Warning
             </AlertTitle>
             <Typography variant="body2">
-              <strong>Carrier Suspension:</strong> Sending more than 10 messages
-              per hour can cause providers to flag your number as automated
-              spam.
+              <strong>Carrier Suspension:</strong> Limit messaging to prevent
+              spam flagging.
             </Typography>
           </Alert>
 
-          {/* DOWNLOAD ACTION ROW - Just above DataGrid */}
           {canDownload && (
             <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
               <Button

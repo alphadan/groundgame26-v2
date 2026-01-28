@@ -28,19 +28,17 @@ export default function RewardsManagement() {
             Rewards Catalog
           </Typography>
         </Stack>
-        <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2 }}>
           <RewardsCatalogGrid />
-        </Paper>
       </Box>
+
+      <Divider sx={{ mb: 6 }} />
 
       {/* Section 2: Volunteer Points */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h5" fontWeight="bold" sx={{ mb: 2 }}>
           Volunteer Point Management
         </Typography>
-        <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2 }}>
           <UserPointsManagementGrid />
-        </Paper>
       </Box>
     </Box>
   );

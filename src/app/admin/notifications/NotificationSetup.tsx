@@ -1,7 +1,7 @@
 // src/app/admin/notifications/NotificationSetup.tsx
 import { useEffect } from "react";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { messaging } from '../../../lib/firebase'; 
+import { messaging } from "../../../lib/firebase";
 
 export function NotificationSetup() {
   useEffect(() => {
@@ -11,7 +11,7 @@ export function NotificationSetup() {
         if (permission !== "granted") return;
 
         const token = await getToken(messaging, {
-          vapidKey: process.env.REACT_APP_FIREBASE_VAPID_KEY,
+          vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
         });
 
         if (token) {

@@ -121,8 +121,7 @@ export default function RewardsCatalogGrid() {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
-        <Typography variant="h6">Reward Catalog</Typography>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
         <Button
           variant="contained"
           startIcon={<CardGiftcardIcon />}

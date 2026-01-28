@@ -37,7 +37,6 @@ const cardConfigs = [
       "Reset Password",
       "Delete User",
     ],
-    metrics: "142 Users • 98 Active",
     path: "/admin/users",
   },
   {
@@ -50,7 +49,6 @@ const cardConfigs = [
       "Reset Messages Filters",
       "Delete Messages",
     ],
-    metrics: "4 Messages • 4 Active",
     path: "/admin/messages",
   },
   {
@@ -58,7 +56,6 @@ const cardConfigs = [
     icon: <FileDownloadIcon fontSize="large" color="primary" />,
     description: "Add, edit, delete campaign resources",
     subActivities: ["Brochures", "Ballots", "Graphics", "Scripts"],
-    metrics: "100 Assets • 98 Active",
     path: "/admin/resources",
   },
   {
@@ -71,7 +68,6 @@ const cardConfigs = [
       "Reset Notifications Ques",
       "Delete Notifications",
     ],
-    metrics: "100 Notifications • 98 Notifications",
     path: "/admin/notifications",
   },
   {
@@ -79,7 +75,6 @@ const cardConfigs = [
     icon: <AnalyticsIcon fontSize="large" color="primary" />,
     description: "View User Metrics",
     subActivities: ["Send Broadcast", "Schedule", "View History"],
-    metrics: "Recent: 42 sent",
     path: "/admin/analytics",
   },
   {
@@ -92,7 +87,6 @@ const cardConfigs = [
       "Create Badges",
       "Manage Badges",
     ],
-    metrics: "4 Rewards • 15 Badges",
     path: "/admin/engagement",
   },
   {
@@ -105,7 +99,6 @@ const cardConfigs = [
       "Reset Areas",
       "Bulk Upload Areas",
     ],
-    metrics: "28 Areas • 1 Active Area",
     path: "/admin/areas",
   },
   {
@@ -118,7 +111,6 @@ const cardConfigs = [
       "Reset Precincts",
       "Bulk Upload Precincts",
     ],
-    metrics: "230 Precincts • 10 Active Precincts",
     path: "/admin/precincts",
   },
   {
@@ -131,7 +123,6 @@ const cardConfigs = [
       "Reset Groups",
       "Bulk Upload Groups",
     ],
-    metrics: "3 Groups • 1 Active Groups",
     path: "/admin/groups",
   },
   {
@@ -139,7 +130,6 @@ const cardConfigs = [
     icon: <GpsFixedIcon fontSize="large" color="primary" />,
     description: "Manage goals at precinct level",
     subActivities: ["Create Goals", "Edit Goals", "Reset Goals"],
-    metrics: "4 Groups",
     path: "/admin/goals",
   },
   {
@@ -147,7 +137,6 @@ const cardConfigs = [
     icon: <TheaterComedyIcon fontSize="large" color="primary" />,
     description: "Manage user roles and permissions",
     subActivities: ["Create Roles", "Assign Roles", "Fill Vacancies"],
-    metrics: "4 Roles, 3 Users",
     path: "/admin/roles",
   },
   {
@@ -155,7 +144,6 @@ const cardConfigs = [
     icon: <PhoneDisabledIcon fontSize="large" color="primary" />,
     description: "Manage DNC at precinct level",
     subActivities: ["Add DNC", "Edit DNC", "Ban Users"],
-    metrics: "0 DNC, 0 Blacklist",
     path: "/admin/dnc",
   },
   {
@@ -167,7 +155,6 @@ const cardConfigs = [
       "Edit survey code",
       "Get survey demograohics",
     ],
-    metrics: "1 Survey, 2 Demographics",
     path: "/admin/surveys",
   },
   // ... add others (Areas, Precincts, Rewards stub, etc.)
@@ -227,10 +214,6 @@ export default function AdminDashboard() {
                 </Box>
 
                 <Divider sx={{ my: 2 }} />
-
-                <Typography variant="body2" fontWeight="medium" color="primary">
-                  {card.metrics}
-                </Typography>
               </CardContent>
 
               <Box sx={{ p: 3, pt: 0 }}>

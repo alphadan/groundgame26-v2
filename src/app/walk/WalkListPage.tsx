@@ -1,3 +1,4 @@
+// src/app/walk/WalkListPage.tsx
 import React, { useState, useCallback, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useDynamicVoters } from "../../hooks/useDynamicVoters";
@@ -5,6 +6,9 @@ import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
 import { useDncMap } from "../../hooks/useDncMap";
 import { awardPoints } from "../../services/rewardsService";
+import { analytics } from "../../lib/firebase";
+import { logEvent } from "firebase/analytics";
+
 import {
   Box,
   Typography,
@@ -63,20 +67,31 @@ export default function WalkListPage() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  // Fetch voters (Sorted by Address in Cloud Function)
   const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
 
   const PURPLE_MAIN = "#673ab7";
 
-  // --- REWARD HANDLER ---
+  // --- REWARD & ANALYTICS HANDLER ---
   const handleRewardAction = async (
     action: "sms" | "email" | "walk",
     label: string,
+    row: Voter, // 2. PASS FULL ROW FOR BETTER ANALYTICS
     url?: string,
   ) => {
     if (!user?.uid) return;
 
-    // Logic: Walk visit = 5 pts, Comms = 1 pt
+    // 3. LOG EVENT TO GA4
+    logEvent(analytics, "canvass_action_logged", {
+      action_type: action, // 'walk' (doorbell), 'sms', or 'email'
+      voter_id: row.voter_id,
+      voter_address: row.address || "unknown",
+      precinct_id: filters?.precinct || "unknown",
+      volunteer_uid: user.uid,
+      volunteer_name: user.displayName || "Admin",
+      timestamp: new Date().toISOString(),
+    });
+
+    // Logic: Points logic can be adjusted here
     const points = action === "walk" ? 1 : 1;
 
     try {
@@ -89,6 +104,8 @@ export default function WalkListPage() {
       }
     } catch (err) {
       console.error("Failed to award points:", err);
+      // Fallback: If points fail, still navigate if URL exists
+      if (url) window.location.href = url;
     }
   };
 
@@ -137,7 +154,6 @@ export default function WalkListPage() {
     link.click();
   }, [voters, dncMap, filters]);
 
-  // Define Toolbar inside to prevent Context/Theme errors
   const CustomToolbar = () => (
     <GridToolbarContainer
       sx={{ p: 2, justifyContent: "space-between", bgcolor: "grey.50" }}
@@ -167,7 +183,6 @@ export default function WalkListPage() {
           const prevRow = prevRowId
             ? (api.getRowModels().get(prevRowId) as any)
             : null;
-
           const isNewHouse = !prevRow || prevRow.address !== row.address;
 
           return (
@@ -267,8 +282,12 @@ export default function WalkListPage() {
                       size="small"
                       sx={{ color: PURPLE_MAIN }}
                       onClick={() =>
-                        handleRewardAction("walk", `visiting ${row.full_name}`)
-                      }
+                        handleRewardAction(
+                          "walk",
+                          `visiting ${row.full_name}`,
+                          row,
+                        )
+                      } // 4. PASSING FULL ROW
                     >
                       <DoorbellIcon fontSize="small" />
                     </IconButton>
@@ -297,6 +316,7 @@ export default function WalkListPage() {
                           handleRewardAction(
                             "sms",
                             "SMS Outreach",
+                            row, // 4. PASSING FULL ROW
                             `sms:${row.phone_mobile!.replace(/\D/g, "")}`,
                           )
                         }
@@ -315,6 +335,7 @@ export default function WalkListPage() {
                           handleRewardAction(
                             "email",
                             "Email Outreach",
+                            row, // 4. PASSING FULL ROW
                             `mailto:${row.email}`,
                           )
                         }
@@ -337,7 +358,7 @@ export default function WalkListPage() {
         },
       },
     ],
-    [dncMap, theme.palette, handleRewardAction],
+    [dncMap, theme.palette, handleRewardAction, isMobile, filters],
   );
 
   if (!authLoaded)

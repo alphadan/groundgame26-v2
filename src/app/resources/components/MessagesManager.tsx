@@ -2,7 +2,8 @@
 import React, { useState, useCallback } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { httpsCallable } from "firebase/functions";
-import { functions } from "../../../lib/firebase";
+import { functions, analytics } from "../../../lib/firebase"; // Ensure analytics is exported from lib/firebase
+import { logEvent } from "firebase/analytics";
 import { FilterSelector } from "../../../components/FilterSelector";
 import {
   Box,
@@ -38,7 +39,7 @@ interface MessagesManagerProps {
 export const MessagesManager: React.FC<MessagesManagerProps> = ({
   onNotify,
 }) => {
-  const { isLoaded } = useAuth();
+  const { user, isLoaded } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [suggestedMessages, setSuggestedMessages] = useState<MessageTemplate[]>(
     [],
@@ -61,25 +62,46 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
     "incrementCopyCount",
   );
 
-  const handleToggleFavorite = async (templateId: string) => {
+  // --- ANALYTICS: FAVORITE TOGGLE ---
+  const handleToggleFavorite = async (msg: MessageTemplate) => {
+    const isNowFavorite = !((msg.favorite_count || 0) > 0);
+
+    // Log interaction to GA4
+    logEvent(analytics, "message_favorite_toggled", {
+      template_id: msg.id,
+      subject: msg.subject_line,
+      is_favorite: isNowFavorite,
+      volunteer_uid: user?.uid,
+    });
+
     setSuggestedMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === templateId
-          ? { ...msg, favorite_count: (msg.favorite_count || 0) > 0 ? 0 : 1 }
-          : msg,
+      prev.map((m) =>
+        m.id === msg.id ? { ...m, favorite_count: isNowFavorite ? 1 : 0 } : m,
       ),
     );
     try {
-      await toggleFavoriteMessage({ templateId });
+      await toggleFavoriteMessage({ templateId: msg.id });
     } catch (err) {
       console.error("Favorite toggle failed:", err);
     }
   };
 
+  // --- ANALYTICS: COPY ACTION ---
   const handleCopyMessage = async (msg: MessageTemplate) => {
     try {
       await navigator.clipboard.writeText(msg.body);
       onNotify(`"${msg.subject_line}" copied to clipboard!`);
+
+      // 1. Log to GA4 for Campaign Intelligence
+      logEvent(analytics, "message_template_copied", {
+        template_id: msg.id,
+        subject: msg.subject_line,
+        category: msg.category || "General",
+        volunteer_uid: user?.uid,
+        timestamp: new Date().toISOString(),
+      });
+
+      // 2. Existing Cloud Function counter
       incrementCopyCount({ templateId: msg.id });
     } catch (err) {
       onNotify("Copy failed — please select and copy manually.");
@@ -94,8 +116,13 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
       setSuggestedMessages([]);
       setPage(0);
 
-      // DEBUG: See what the FilterSelector is actually giving you
-      // console.log("Filters received from Selector:", submittedFilters);
+      // --- ANALYTICS: SEARCH CRITERIA ---
+      logEvent(analytics, "message_search_executed", {
+        filter_party: submittedFilters.party || "all",
+        filter_age: submittedFilters.ageGroup || "all",
+        filter_turnout: submittedFilters.turnout || "all",
+        volunteer_uid: user?.uid,
+      });
 
       try {
         const result = await getMessageIdeas({
@@ -111,10 +138,6 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
           gender: submittedFilters.gender || "all",
         });
 
-        console.log("Filters received from Selector:", submittedFilters);
-
-        console.log("Cloud Function Result:", result.data);
-
         const templates = result.data?.templates || [];
         setSuggestedMessages(templates);
 
@@ -127,7 +150,7 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
         setIsSubmitting(false);
       }
     },
-    [getMessageIdeas],
+    [getMessageIdeas, user?.uid],
   );
 
   const paginatedMessages = suggestedMessages.slice(
@@ -178,11 +201,11 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
         <>
           <Grid container spacing={3} sx={{ mt: 4 }}>
             {paginatedMessages.map((msg) => (
-              <Grid key={msg.id} size={{ xs: 12, md: 6, lg: 4 }}>
+              <Grid key={msg.id} size={{ xs: 12, md: 4 }}>
                 <Card
                   elevation={3}
                   sx={{
-                    height: 420, // Fixed height for uniformity
+                    height: 420,
                     display: "flex",
                     flexDirection: "column",
                     borderRadius: 3,
@@ -191,7 +214,7 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
                   <CardContent
                     sx={{
                       flexGrow: 1,
-                      overflowY: "auto", // Vertical scroll inside the card
+                      overflowY: "auto",
                       paddingBottom: 1,
                     }}
                   >
@@ -210,7 +233,7 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
                       </Typography>
                       <IconButton
                         size="small"
-                        onClick={() => handleToggleFavorite(msg.id)}
+                        onClick={() => handleToggleFavorite(msg)}
                         color={
                           (msg.favorite_count || 0) > 0 ? "error" : "default"
                         }
@@ -222,7 +245,7 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
                         )}
                       </IconButton>
                     </Stack>
-                    {/* --- DISPLAY TAGS CHIPS --- */}
+
                     {msg.tags && msg.tags.length > 0 && (
                       <Stack
                         direction="row"
@@ -275,7 +298,7 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
               onPageChange={handleChangePage}
               rowsPerPage={pageSize}
               onRowsPerPageChange={handleChangeRowsPerPage}
-              rowsPerPageOptions={[8, 16, 24]} // Your requested paging numbers
+              rowsPerPageOptions={[8, 16, 24]}
               sx={{ mt: 2 }}
             />
           )}

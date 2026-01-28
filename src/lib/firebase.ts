@@ -27,21 +27,21 @@ const requiredConfigKeys = [
 ] as const;
 
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  serviceAccountId: process.env.REACT_APP_SERVICE_ACCOUNT_ID,
-  recaptchaSiteKey: process.env.REACT_APP_RECAPTCHA_SITE_KEY?.trim(),
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  serviceAccountId: import.meta.env.VITE_SERVICE_ACCOUNT_ID,
+  recaptchaSiteKey: import.meta.env.VITE_RECAPTCHA_SITE_KEY?.trim(),
 };
 
-const vapidKey = process.env.REACT_APP_FIREBASE_VAPID_KEY?.trim();
+const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY?.trim();
 if (!vapidKey) {
   console.warn(
-    "[Firebase] VAPID key missing (REACT_APP_FIREBASE_VAPID_KEY). " +
-      "Web push notifications will not work until set in .env and Firebase console."
+    "[Firebase] VAPID key missing (VITE_FIREBASE_VAPID_KEY). " +
+      "Web push notifications will not work until set in .env and Firebase console.",
   );
 }
 
@@ -49,7 +49,7 @@ for (const key of requiredConfigKeys) {
   const value = firebaseConfig[key];
   if (!value || typeof value !== "string" || value.trim() === "") {
     throw new Error(
-      `[Firebase] Missing or invalid config key: ${key}. Check your .env files.`
+      `[Firebase] Missing or invalid config key: ${key}. Check your .env files.`,
     );
   }
 }
@@ -86,7 +86,7 @@ export const recordEvent = (eventName: string, params?: object) => {
 const RECAPTCHA_SITE_KEY = firebaseConfig.recaptchaSiteKey || "";
 
 if (typeof window !== "undefined") {
-  const isDev = process.env.NODE_ENV === "development";
+  const isDev = import.meta.env.DEV;
 
   if (!isDev && RECAPTCHA_SITE_KEY) {
     initializeAppCheck(app, {
@@ -110,7 +110,7 @@ if (typeof window !== "undefined") {
 
   try {
     if (isLocal) {
-      const debugToken = process.env.REACT_APP_APPCHECK_DEBUG_TOKEN?.trim();
+      const debugToken = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN?.trim();
 
       if (debugToken) {
         // Fixed registered token — safest for frequent dev (no rate limits)

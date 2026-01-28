@@ -1,5 +1,5 @@
 // src/components/ui/Logo.tsx
-import { ReactComponent as LogoSVG } from "../../assets/icons/logo4.svg";
+import LogoSVG from "../../assets/icons/logo4.svg?react";
 
 type LogoProps = {
   className?: string;
@@ -12,5 +12,6 @@ export default function Logo({
   width = 160,
   height = 60,
 }: LogoProps) {
+  // 2. Now LogoSVG is a true React Component, not a string path.
   return <LogoSVG className={className} width={width} height={height} />;
 }

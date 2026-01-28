@@ -110,47 +110,13 @@ export default function ResourcesManagement() {
       <Divider sx={{ mb: 4 }} />
 
       {/* Main Content */}
-      <Paper
-        elevation={3}
-        sx={{
-          p: { xs: 3, md: 4 },
-          borderRadius: 3,
-          backgroundColor: "background.paper",
-        }}
-      >
-        {canManageResources ? (
-          <CampaignResourcesManager />
-        ) : (
-          <Alert severity="info">
-            You do not have permission to manage campaign resources at this
-            time.
-          </Alert>
-        )}
-      </Paper>
-
-      {/* Future Expansion Section */}
-      <Box sx={{ mt: 6 }}>
-        <Typography variant="h5" gutterBottom>
-          Planned Enhancements
-        </Typography>
-        <Box component="ul" sx={{ pl: 3, mt: 1 }}>
-          <Typography component="li" variant="body1">
-            Full resource library with search and filtering
-          </Typography>
-          <Typography component="li" variant="body1">
-            Upload history and version control
-          </Typography>
-          <Typography component="li" variant="body1">
-            Preview for images/videos/documents
-          </Typography>
-          <Typography component="li" variant="body1">
-            Bulk upload and delete operations
-          </Typography>
-          <Typography component="li" variant="body1">
-            Usage tracking (which campaigns use which resources)
-          </Typography>
-        </Box>
-      </Box>
+      {canManageResources ? (
+        <CampaignResourcesManager />
+      ) : (
+        <Alert severity="info">
+          You do not have permission to manage campaign resources at this time.
+        </Alert>
+      )}
     </Box>
   );
 }
