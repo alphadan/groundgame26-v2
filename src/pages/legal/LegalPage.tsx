@@ -1,155 +1,182 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Box,
-  Container,
   Typography,
-  Tabs,
-  Tab,
-  Paper,
-  Divider,
   Button,
+  Checkbox,
+  Paper,
+  Container,
+  Divider,
+  Stack,
+  IconButton,
 } from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useNavigate } from "react-router-dom";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import PrintIcon from "@mui/icons-material/Print";
+import { LEGAL_CONFIG } from "../../constants/legal";
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
+// ICON IMPORTS
+import GavelIcon from "@mui/icons-material/Gavel";
+import SecurityIcon from "@mui/icons-material/Security";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
+import TimerIcon from "@mui/icons-material/Timer";
+import AppRegistrationIcon from "@mui/icons-material/AppRegistration";
+import PhonelinkLockIcon from "@mui/icons-material/PhonelinkLock";
 
-function CustomTabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div role="tabpanel" hidden={value !== index} {...other}>
-      {value === index && <Box sx={{ py: 4 }}>{children}</Box>}
-    </div>
-  );
-}
+const ICON_MAP: Record<string, React.ElementType> = {
+  privacy: VerifiedUserIcon,
+  noIncentives: GavelIcon,
+  noQuotas: AppRegistrationIcon,
+  threeDayRule: TimerIcon,
+  dataSecurity: PhonelinkLockIcon,
+  smsPacing: SecurityIcon,
+};
 
 export default function LegalPage() {
-  const [value, setValue] = useState(0);
   const navigate = useNavigate();
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
-    <Container maxWidth="md" sx={{ py: 8 }}>
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={() => navigate(-1)}
-        sx={{ mb: 4 }}
+    <Container maxWidth="md" sx={{ py: { xs: 4, md: 8 } }}>
+      {/* HEADER ACTIONS */}
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{ mb: 4, display: "print-none" }}
       >
-        Back
-      </Button>
-
-      <Typography variant="h3" fontWeight="800" gutterBottom>
-        Legal & Compliance
-      </Typography>
-      <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 4 }}>
-        Last Updated: January 14, 2026
-      </Typography>
-      <Typography variant="h6" sx={{ mb: 4 }}>
-        "I understand that voter data is sensitive and I agree to use this
-        application solely for authorized campaign activities."
-      </Typography>
-
-      <Paper elevation={0} sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs
-          value={value}
-          onChange={(_, newValue) => setValue(newValue)}
-          variant="fullWidth"
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(-1)}
+          sx={{ fontWeight: "bold" }}
         >
-          <Tab label="Privacy Policy" />
-          <Tab label="Data Usage Agreement" />
-        </Tabs>
-      </Paper>
+          Back
+        </Button>
+        <IconButton
+          onClick={handlePrint}
+          color="primary"
+          title="Print for your records"
+        >
+          <PrintIcon />
+        </IconButton>
+      </Stack>
 
-      <CustomTabPanel value={value} index={0}>
-        <Typography variant="h5" gutterBottom fontWeight="700">
-          1. Data Collection & Privacy
-        </Typography>
-        <Typography paragraph>
-          Ground Game 26 ("the App") is designed to facilitate Get Out The Vote
-          (GOTV) activities. We collect personally identifiable information
-          (PII) such as your name, email, and phone number to manage your
-          account and track campaign progress.
-        </Typography>
-
-        <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
-          2. Voter Data Sources
-        </Typography>
-        <Typography paragraph>
-          The voter lists provided within this app are sourced from official
-          government registration records. We do not sell this data. It is
-          accessed strictly for non-partisan outreach.
-        </Typography>
-
-        <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
-          3. Analytics & Tracking
-        </Typography>
-        <Typography paragraph>
-          We use Google Analytics 4 (GA4) to monitor app performance and
-          volunteer engagement. This includes tracking your role and geographic
-          area to optimize campaign distribution.
-        </Typography>
-      </CustomTabPanel>
-
-      <CustomTabPanel value={value} index={1}>
-        <Typography variant="h5" gutterBottom fontWeight="700">
-          Acceptable Use Policy
-        </Typography>
-        <Typography paragraph>
-          By accessing the Ground Game 26 platform, you agree to the following
-          legally binding terms regarding the handling of sensitive voter
-          information.
-        </Typography>
-
-        <Box sx={{ bgcolor: "grey.50", p: 3, borderRadius: 2, mb: 4 }}>
-          <Typography variant="subtitle2" color="primary" gutterBottom>
-            KEY RULES FOR VOLUNTEERS:
+      <Paper
+        elevation={0}
+        variant="outlined"
+        sx={{
+          p: { xs: 3, md: 6 },
+          borderRadius: 4,
+          border: "2px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Box textAlign="center" mb={6}>
+          <Typography
+            variant="h4"
+            fontWeight="700"
+            gutterBottom
+            sx={{ fontFamily: "Roboto", color: "primary.main" }}
+          >
+            Terms & Compliance
           </Typography>
-          <ul>
-            <li>
-              <Typography variant="body2" paragraph>
-                <strong>Non-Commercial Use:</strong> You may not use voter data
-                for any commercial, personal, or non-campaign purpose.
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2" paragraph>
-                <strong>No Data Harvesting:</strong> Scraping, exporting, or
-                distributing voter lists outside of the App is strictly
-                prohibited.
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2" paragraph>
-                <strong>Accountability:</strong> Every action you take—including
-                voter searches and profile edits—is logged with a timestamp and
-                your unique ID for security auditing.
-              </Typography>
-            </li>
-          </ul>
+          <Typography
+            variant="subtitle1"
+            color="text.secondary"
+            sx={{ fontFamily: "monospace", letterSpacing: 1 }}
+          >
+            VERSION: {LEGAL_CONFIG.CURRENT_VERSION} | EFFECTIVE:{" "}
+            {LEGAL_CONFIG.LAST_UPDATED}
+          </Typography>
         </Box>
 
-        <Typography variant="h6" gutterBottom>
-          Termination of Access
-        </Typography>
-        <Typography paragraph>
-          The Organization reserves the right to deactivate any role or user
-          account immediately if a violation of this Data Usage Agreement is
-          detected or suspected.
-        </Typography>
-      </CustomTabPanel>
+        <Box sx={{ mb: 6 }}>
+          <Typography variant="h6" fontWeight="bold" gutterBottom>
+            Statement of Purpose
+          </Typography>
+          <Typography variant="body1" color="text.secondary" paragraph>
+            As a volunteer for GroundGame26, you are entrusted with sensitive
+            voter data and the responsibility of upholding the integrity of the
+            electoral process in Pennsylvania. The following standards are
+            legally binding and were affirmed at the time of your account
+            activation.
+          </Typography>
+        </Box>
 
-      <Divider sx={{ my: 4 }} />
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        textAlign="center"
-        display="block"
-      >
-        Ground Game 26 • Built for 2026 Engagement • Secure Governance
-      </Typography>
+        <Divider sx={{ mb: 6 }} />
+
+        <Stack spacing={4}>
+          {LEGAL_CONFIG.REQUIRED_CHECKS.map((item, index) => {
+            const IconComponent = ICON_MAP[item.id] || SecurityIcon;
+
+            return (
+              <Box key={item.id} sx={{ pageBreakInside: "avoid" }}>
+                <Stack direction="row" spacing={3} alignItems="flex-start">
+                  {/* Boxes are checked and disabled because this is a record of what they already agreed to */}
+                  <Checkbox
+                    checked={true}
+                    disabled={true}
+                    sx={{
+                      mt: -0.5,
+                      "&.Mui-disabled": {
+                        color: "primary.main",
+                        opacity: 0.8,
+                      },
+                    }}
+                  />
+                  <Box>
+                    <Typography
+                      variant="h6"
+                      fontWeight="bold"
+                      color="primary.dark"
+                      sx={{ display: "flex", alignItems: "center", mb: 0.5 }}
+                    >
+                      <IconComponent sx={{ mr: 1.5, fontSize: 24 }} />
+                      {item.label}
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      color="text.primary"
+                      sx={{ lineHeight: 1.6, opacity: 0.9 }}
+                    >
+                      {item.description}
+                    </Typography>
+                  </Box>
+                </Stack>
+                {index < LEGAL_CONFIG.REQUIRED_CHECKS.length - 1 && (
+                  <Divider sx={{ mt: 4 }} />
+                )}
+              </Box>
+            );
+          })}
+        </Stack>
+
+        <Box
+          sx={{
+            mt: 8,
+            p: 3,
+            bgcolor: "action.hover",
+            borderRadius: 2,
+            textAlign: "center",
+          }}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mb: 1 }}
+          >
+            This document serves as your official record of agreement to the
+            2026 GroundGame26 Volunteer Terms.
+          </Typography>
+          <Typography variant="caption" fontWeight="bold">
+            Ground Game 26 • Secure Field Operations • PA Election Code
+            Compliant
+          </Typography>
+        </Box>
+      </Paper>
     </Container>
   );
 }

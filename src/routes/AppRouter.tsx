@@ -55,6 +55,7 @@ export default function AppRouter() {
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/volunteer" element={<VolunteerPage />} />
       <Route path="/surveys/:id" element={<SurveysPage />} />
+      <Route path="/legal" element={<LegalPage />} />
 
       {/* 2. AUTHENTICATION ENTRY POINT
           If NO user: Show LoginPage at both "/" and "/login"

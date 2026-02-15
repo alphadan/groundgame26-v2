@@ -8,6 +8,8 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 
 // Modular Component Imports

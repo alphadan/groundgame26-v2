@@ -2,8 +2,8 @@
 import React, { useState, useCallback } from "react";
 import { useAuth } from "../../../context/AuthContext";
 import { httpsCallable } from "firebase/functions";
-import { functions, analytics } from "../../../lib/firebase"; // Ensure analytics is exported from lib/firebase
-import { logEvent } from "firebase/analytics";
+import { functions } from "../../../lib/firebase";
+import { logEvent } from "../../../lib/analytics";
 import { FilterSelector } from "../../../components/FilterSelector";
 import {
   Box,
@@ -67,7 +67,7 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
     const isNowFavorite = !((msg.favorite_count || 0) > 0);
 
     // Log interaction to GA4
-    logEvent(analytics, "message_favorite_toggled", {
+    logEvent("message_favorite_toggled", {
       template_id: msg.id,
       subject: msg.subject_line,
       is_favorite: isNowFavorite,
@@ -93,12 +93,12 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
       onNotify(`"${msg.subject_line}" copied to clipboard!`);
 
       // 1. Log to GA4 for Campaign Intelligence
-      logEvent(analytics, "message_template_copied", {
+      logEvent("message_template_copied", {
         template_id: msg.id,
         subject: msg.subject_line,
         category: msg.category || "General",
         volunteer_uid: user?.uid,
-        timestamp: new Date().toISOString(),
+        timestamp: Date.now(),
       });
 
       // 2. Existing Cloud Function counter
@@ -117,7 +117,7 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
       setPage(0);
 
       // --- ANALYTICS: SEARCH CRITERIA ---
-      logEvent(analytics, "message_search_executed", {
+      logEvent("message_search_executed", {
         filter_party: submittedFilters.party || "all",
         filter_age: submittedFilters.ageGroup || "all",
         filter_turnout: submittedFilters.turnout || "all",

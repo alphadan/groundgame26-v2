@@ -1,8 +1,8 @@
 // src/app/resources/components/DownloadCenter.tsx
 import React, { useState } from "react";
 import { httpsCallable } from "firebase/functions";
-import { functions, analytics } from "../../../lib/firebase"; // Ensure analytics is exported from lib/firebase
-import { logEvent } from "firebase/analytics";
+import { functions } from "../../../lib/firebase";
+import { logEvent } from "../../../lib/analytics";
 import { useAuth } from "../../../context/AuthContext";
 import { FilterSelector } from "../../../components/FilterSelector";
 import {
@@ -51,13 +51,13 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
     if (!resource.url) return;
 
     // 1. Log the event for Looker Studio
-    logEvent(analytics, "resource_downloaded", {
+    logEvent("resource_downloaded", {
       resource_id: resource.id,
       title: resource.title,
       category: resource.category,
       scope: resource.scope,
       volunteer_uid: user?.uid || "anonymous",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
     });
 
     // 2. Open the file

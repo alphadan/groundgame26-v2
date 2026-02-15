@@ -1,15 +1,11 @@
-// src/pages/auth/ConsentScreen.tsx
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Box,
   Typography,
   Button,
   Checkbox,
-  FormControlLabel,
   Paper,
   Container,
-  Tabs,
-  Tab,
   Divider,
   Alert,
   AlertTitle,
@@ -19,193 +15,167 @@ import { doc, updateDoc } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { db, auth } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
+import { LEGAL_CONFIG } from "../../constants/legal";
 import Logo from "../../components/ui/Logo";
 
-const CURRENT_LEGAL_VERSION = "2026.01.14";
+// ICON IMPORTS BELONG HERE
+import GavelIcon from "@mui/icons-material/Gavel";
+import SecurityIcon from "@mui/icons-material/Security";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
+import TimerIcon from "@mui/icons-material/Timer";
+import AppRegistrationIcon from "@mui/icons-material/AppRegistration";
+import PhonelinkLockIcon from "@mui/icons-material/PhonelinkLock";
+
+// The Mapper: Links the 'id' string from legal.ts to the actual MUI Component
+const ICON_MAP: Record<string, React.ElementType> = {
+  privacy: VerifiedUserIcon,
+  noIncentives: GavelIcon,
+  noQuotas: AppRegistrationIcon,
+  threeDayRule: TimerIcon,
+  dataSecurity: PhonelinkLockIcon,
+  smsPacing: SecurityIcon,
+};
 
 export default function ConsentScreen() {
   const { user } = useAuth();
-  const [tabValue, setTabValue] = useState(0);
-  const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleAgree = async () => {
-    if (!user?.uid || !agreed) return;
-    setLoading(true);
+  // Initialize checks state from the config file
+  const [checks, setChecks] = useState<Record<string, boolean>>(() =>
+    LEGAL_CONFIG.REQUIRED_CHECKS.reduce(
+      (acc, check) => ({ ...acc, [check.id]: false }),
+      {},
+    ),
+  );
 
+  const canSubmit = useMemo(
+    () => Object.values(checks).every(Boolean),
+    [checks],
+  );
+
+  const handleAgree = async () => {
+    if (!user?.uid || !canSubmit) return;
+    setLoading(true);
     try {
       const userRef = doc(db, "users", user.uid);
-
-      // Audit Trail Data
       await updateDoc(userRef, {
         has_agreed_to_terms: true,
-        terms_agreed_at: Date.now(), // Stored as a Number (ms)
+        terms_agreed_at: Date.now(),
         legal_consent: {
-          version: "2026.01.14",
+          version: LEGAL_CONFIG.CURRENT_VERSION,
           agreed_at_ms: Date.now(),
           user_agent: navigator.userAgent,
-          ip_verified: true, // Optional: placeholder for server-side IP logging
         },
       });
-      // The AuthContext listener will automatically pivot the user to the Dashboard
-    } catch (err) {
+      // App.tsx should detect the change and navigate automatically
+    } catch (err: any) {
       console.error("Consent Error:", err);
-      setLoading(true);
+      setLoading(false);
+      alert(`Activation Error: ${err.message}`);
     }
   };
 
   return (
-    <Box
-      sx={{
-        bgcolor: "background.default",
-        minHeight: "100vh",
-        py: { xs: 2, md: 6 },
-      }}
-    >
+    <Box sx={{ bgcolor: "background.default", minHeight: "100vh", py: 4 }}>
       <Container maxWidth="md">
-        <Paper elevation={3} sx={{ p: { xs: 3, md: 5 }, borderRadius: 4 }}>
-          <Box sx={{ textAlign: "center", mb: 3 }}>
-            <Logo width={160} />
+        <Paper elevation={4} sx={{ p: { xs: 3, md: 5 }, borderRadius: 4 }}>
+          <Box textAlign="center" mb={4}>
+            <Logo width={140} />
+            <Typography
+              variant="h4"
+              fontWeight="800"
+              sx={{ mt: 2, fontFamily: "Roboto", color: "secondary.main" }}
+            >
+              Volunteer Activation
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ fontFamily: "monospace" }}
+            >
+              VERSION: {LEGAL_CONFIG.CURRENT_VERSION}
+            </Typography>
           </Box>
 
-          <Typography
-            variant="h4"
-            fontWeight="800"
-            gutterBottom
-            textAlign="center"
-          >
-            Legal & Compliance
-          </Typography>
-          <Typography
-            variant="subtitle1"
-            color="text.secondary"
-            textAlign="center"
-            sx={{ mb: 3 }}
-          >
-            Last Updated: January 14, 2026 (v{CURRENT_LEGAL_VERSION})
-          </Typography>
-
-          {/* CARRIER SUSPENSION WARNING */}
           <Alert
             severity="error"
-            variant="outlined"
-            sx={{ mb: 3, borderColor: "error.main" }}
+            variant="filled"
+            sx={{ mb: 4, borderRadius: 2 }}
           >
             <AlertTitle sx={{ fontWeight: "bold" }}>
-              SMS Messaging Warning
+              CRITICAL COMPLIANCE NOTICE
             </AlertTitle>
-            <Typography variant="body2">
-              <strong>Carrier Suspension:</strong> Sending more than 10 messages
-              per hour can cause providers (Verizon/T-Mobile) to flag your
-              number as automated spam. This may lead to{" "}
-              <strong>Account Lockdown</strong> or permanent suspension of your
-              SMS abilities. Please pace your outreach manually.
-            </Typography>
+            Voter bribery is a Third-Degree Felony in Pennsylvania. GroundGame26
+            enforces zero-tolerance for incentivized registration.
           </Alert>
 
-          <Paper elevation={0} sx={{ borderBottom: 1, borderColor: "divider" }}>
-            <Tabs
-              value={tabValue}
-              onChange={(_, v) => setTabValue(v)}
-              variant="fullWidth"
-            >
-              <Tab label="Privacy Policy" sx={{ fontWeight: "bold" }} />
-              <Tab label="Data Usage" sx={{ fontWeight: "bold" }} />
-            </Tabs>
-          </Paper>
+          <Stack spacing={3}>
+            {LEGAL_CONFIG.REQUIRED_CHECKS.map((item, index) => {
+              const IconComponent = ICON_MAP[item.id] || SecurityIcon; // Fallback to security icon if missing
 
-          {/* MOBILE FRIENDLY SCROLL BOX */}
-          <Box
-            sx={{
-              mt: 2,
-              p: 2,
-              height: "300px",
-              overflowY: "auto",
-              bgcolor: "action.hover",
-              borderRadius: 2,
-              border: "1px solid",
-              borderColor: "divider",
-              // Smooth scrolling for iOS
-              WebkitOverflowScrolling: "touch",
-            }}
-          >
-            {tabValue === 0 && (
-              <Box>
-                <Typography variant="h6" gutterBottom fontWeight="700">
-                  1. Data Collection & Privacy
-                </Typography>
-                <Typography variant="body2" paragraph>
-                  Ground Game 26 collects PII such as name, email, and phone
-                  number to manage your account.
-                </Typography>
-                <Typography variant="h6" gutterBottom fontWeight="700">
-                  2. Voter Data Sources
-                </Typography>
-                <Typography variant="body2" paragraph>
-                  Voter lists are sourced from official government records. We
-                  do not sell this data.
-                </Typography>
-              </Box>
-            )}
-
-            {tabValue === 1 && (
-              <Box>
-                <Typography variant="h6" gutterBottom fontWeight="700">
-                  Acceptable Use Policy
-                </Typography>
-                <Typography variant="body2" paragraph>
-                  <strong>Non-Commercial Use:</strong> You may not use voter
-                  data for personal or non-campaign purposes.
-                </Typography>
-                <Typography variant="body2" paragraph>
-                  <strong>Accountability:</strong> Every action—including
-                  searches and profile edits—is logged with a timestamp and your
-                  unique ID for security auditing.
-                </Typography>
-              </Box>
-            )}
-          </Box>
-
-          <Divider sx={{ my: 4 }} />
-
-          <Box sx={{ mb: 4 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  color="primary"
-                />
-              }
-              label={
-                <Typography variant="body1" fontWeight="600">
-                  "I understand that voter data is sensitive and I agree to use
-                  this application solely for authorized campaign activities."
-                </Typography>
-              }
-            />
-          </Box>
-
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <Button
-              variant="outlined"
-              fullWidth
-              size="large"
-              onClick={() => signOut(auth)}
-            >
-              Logout (Disagree)
-            </Button>
-            <Button
-              variant="contained"
-              fullWidth
-              size="large"
-              disabled={!agreed || loading}
-              onClick={handleAgree}
-              sx={{ fontWeight: "bold" }}
-            >
-              {loading ? "Processing..." : "I Agree & Continue"}
-            </Button>
+              return (
+                <Box key={item.id}>
+                  <Stack direction="row" spacing={2} alignItems="flex-start">
+                    <Checkbox
+                      checked={checks[item.id]}
+                      onChange={() =>
+                        setChecks((prev) => ({
+                          ...prev,
+                          [item.id]: !prev[item.id],
+                        }))
+                      }
+                      sx={{ mt: -0.5 }}
+                    />
+                    <Box>
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight="bold"
+                        color="primary"
+                        sx={{ display: "flex", alignItems: "center", mb: 0.5 }}
+                      >
+                        <IconComponent sx={{ mr: 1, fontSize: 20 }} />{" "}
+                        {item.label}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ lineHeight: 1.5 }}
+                      >
+                        {item.description}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  {index < LEGAL_CONFIG.REQUIRED_CHECKS.length - 1 && (
+                    <Divider sx={{ mt: 3 }} />
+                  )}
+                </Box>
+              );
+            })}
           </Stack>
+
+          <Box sx={{ mt: 6 }}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <Button
+                variant="outlined"
+                fullWidth
+                size="large"
+                onClick={() => signOut(auth)}
+                sx={{ py: 1.5 }}
+              >
+                Logout (Disagree)
+              </Button>
+              <Button
+                variant="contained"
+                fullWidth
+                size="large"
+                disabled={!canSubmit || loading}
+                onClick={handleAgree}
+                sx={{ py: 1.5, fontWeight: "bold" }}
+              >
+                {loading ? "Activating..." : "Complete Activation"}
+              </Button>
+            </Stack>
+          </Box>
         </Paper>
       </Container>
     </Box>

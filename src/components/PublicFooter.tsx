@@ -1,17 +1,6 @@
-// src/components/layout/PublicFooter.tsx
 import React from "react";
-import {
-  Box,
-  Typography,
-  Link,
-  Stack,
-  Container,
-  IconButton,
-} from "@mui/material";
+import { Box, Typography, Link, Stack, Container } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
-import FacebookIcon from "@mui/icons-material/Facebook";
-import TwitterIcon from "@mui/icons-material/X"; // Updated for X/Twitter
-import InstagramIcon from "@mui/icons-material/Instagram";
 
 export const PublicFooter = () => {
   return (
@@ -28,13 +17,12 @@ export const PublicFooter = () => {
     >
       <Container maxWidth="md">
         <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={4}
-          justifyContent="space-between"
-          alignItems={{ xs: "center", md: "flex-start" }}
-          textAlign={{ xs: "center", md: "left" }}
+          direction={{ xs: "column", sm: "row" }}
+          spacing={{ xs: 2, sm: 4 }}
+          justifyContent="center"
+          alignItems="center"
+          sx={{ mb: 3 }}
         >
-          {/* Quick Links */}
           <Link
             component={RouterLink}
             to="/volunteer"
@@ -63,6 +51,18 @@ export const PublicFooter = () => {
             Contact Us
           </Link>
         </Stack>
+
+        <Box textAlign="center">
+          <Typography variant="caption" color="text.secondary">
+            © 2026 Ground Game 26. Built for Civic Education & Voter Engagement.
+          </Typography>
+        </Box>
+        <Box textAlign="center">
+          <Typography variant="caption" color="text.secondary">
+            Paid for by GroundGame26. Not authorized by any candidate or
+            candidate's committee.
+          </Typography>
+        </Box>
       </Container>
     </Box>
   );

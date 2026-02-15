@@ -7,8 +7,7 @@ import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
 import { useDncMap } from "../../hooks/useDncMap";
 import { awardPoints } from "../../services/rewardsService";
-import { analytics } from "../../lib/firebase";
-import { logEvent } from "firebase/analytics";
+import { logEvent } from "../../lib/analytics";
 
 import {
   Box,
@@ -75,7 +74,7 @@ const useDynamicVoters = (filters: FilterValues | null) => {
 
       try {
         // LOG SEARCH EVENT FOR CAMPAIGN INTELLIGENCE
-        logEvent(analytics, "voter_search_executed", {
+        logEvent("voter_search_executed", {
           search_term: filters.name,
           search_street: filters.street || "none",
           precinct_id: filters.precinct || "all",
@@ -120,7 +119,7 @@ export default function NameSearchPage() {
     if (!user?.uid) return;
 
     // 3. LOG CUSTOM EVENT TO GA4
-    logEvent(analytics, "search_result_contact", {
+    logEvent("search_result_contact", {
       contact_method: type,
       voter_id: voterId,
       voter_name: voterName,

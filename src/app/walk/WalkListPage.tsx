@@ -6,8 +6,7 @@ import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
 import { useDncMap } from "../../hooks/useDncMap";
 import { awardPoints } from "../../services/rewardsService";
-import { analytics } from "../../lib/firebase";
-import { logEvent } from "firebase/analytics";
+import { logEvent } from "../../lib/analytics";
 
 import {
   Box,
@@ -81,14 +80,14 @@ export default function WalkListPage() {
     if (!user?.uid) return;
 
     // 3. LOG EVENT TO GA4
-    logEvent(analytics, "canvass_action_logged", {
+    logEvent("canvass_action_logged", {
       action_type: action, // 'walk' (doorbell), 'sms', or 'email'
       voter_id: row.voter_id,
       voter_address: row.address || "unknown",
       precinct_id: filters?.precinct || "unknown",
       volunteer_uid: user.uid,
       volunteer_name: user.displayName || "Admin",
-      timestamp: new Date().toISOString(),
+      timestamp: Date.now(),
     });
 
     // Logic: Points logic can be adjusted here

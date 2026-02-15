@@ -332,6 +332,7 @@ export default function SettingsPage() {
               bgcolor: "background.paper",
               border: "1px solid",
               borderColor: "divider",
+              height: "100%",
             }}
           >
             <Typography
@@ -342,6 +343,7 @@ export default function SettingsPage() {
             >
               <Gavel fontSize="small" /> Legal Consent
             </Typography>
+
             <Stack spacing={2}>
               <Box
                 sx={{
@@ -350,26 +352,35 @@ export default function SettingsPage() {
                   alignItems: "center",
                 }}
               >
-                <Typography variant="body2">Privacy Policy & Terms:</Typography>
+                <Typography variant="body2">Current Status:</Typography>
                 <Chip
                   size="small"
                   label={
                     userProfile?.has_agreed_to_terms
-                      ? "Accepted"
-                      : "Not Accepted"
+                      ? "Fully Compliant"
+                      : "Action Required"
                   }
                   color={
                     userProfile?.has_agreed_to_terms ? "success" : "warning"
                   }
                 />
               </Box>
+
               <Box>
                 <Typography
                   variant="caption"
                   color="text.secondary"
                   display="block"
                 >
-                  <strong>Agreed at:</strong>{" "}
+                  <strong>Revision:</strong>{" "}
+                  {userProfile?.legal_consent?.version || "N/A"}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                >
+                  <strong>Signed:</strong>{" "}
                   {userProfile?.legal_consent?.agreed_at_ms
                     ? new Date(
                         userProfile.legal_consent.agreed_at_ms,
@@ -397,6 +408,24 @@ export default function SettingsPage() {
                   {userProfile?.legal_consent?.user_agent || "System Native"}
                 </Typography>
               </Box>
+
+              <Divider sx={{ my: 1 }} />
+
+              {/* ACTION LINK BACK TO LEGAL STANDARDS */}
+              <Button
+                variant="text"
+                size="small"
+                color="primary"
+                startIcon={<Info />}
+                onClick={() => navigate("/legal")}
+                sx={{
+                  justifyContent: "flex-start",
+                  px: 0,
+                  textTransform: "none",
+                }}
+              >
+                Review My Signed Terms & PA Compliance Rules
+              </Button>
             </Stack>
           </Paper>
         </Grid>

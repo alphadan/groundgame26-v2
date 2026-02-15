@@ -6,8 +6,7 @@ import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
 import { useDncMap } from "../../hooks/useDncMap";
 import { awardPoints } from "../../services/rewardsService";
-import { analytics } from "../../lib/firebase";
-import { logEvent } from "firebase/analytics";
+import { logEvent } from "../../lib/analytics";
 
 import {
   Box,
@@ -180,7 +179,7 @@ export default function VoterListPage() {
     if (!user?.uid) return;
 
     // 2. LOG EVENT TO FIREBASE ANALYTICS
-    logEvent(analytics, "voter_contact_initiated", {
+    logEvent("voter_contact_initiated", {
       contact_method: type,
       voter_id: voterId,
       voter_name: voterName,
