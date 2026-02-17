@@ -86,7 +86,7 @@ export default function ConsentScreen() {
               fontWeight="800"
               sx={{ mt: 2, fontFamily: "Roboto", color: "secondary.main" }}
             >
-              Volunteer Activation
+              Consent Agreement
             </Typography>
             <Typography
               variant="caption"

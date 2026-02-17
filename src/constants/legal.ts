@@ -7,7 +7,7 @@ export const LEGAL_CONFIG = {
       id: "privacy",
       label: "Data Privacy & Sources",
       description:
-        "I will protect voter PII and never share data outside this app. Voter lists are sourced from official government records for GOP outreach only.",
+        "I will protect personal voter data (PII) and never share data outside this app. Voter lists are sourced from official government records for GOP outreach only.",
     },
     {
       id: "noIncentives",
