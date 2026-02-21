@@ -45,11 +45,13 @@ interface RoleFormProps {
 }
 
 const ROLE_OPTIONS: UserRole[] = [
-  "committeeperson",
-  "area_chair",
-  "candidate",
-  "volunteer",
+  "developer",
+  "county_chair",
   "state_rep_district",
+  "area_chair",
+  "committeeperson",
+  "volunteer",
+  "candidate",
 ];
 
 export default function RoleForm({ onSuccess, onCancel }: RoleFormProps) {

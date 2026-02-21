@@ -52,9 +52,9 @@
   "scripts": {
     "dev": "vite",
     "start": "vite",
-    "build": "rimraf dist && node scripts/inject-firebase-config.js && tsc && vite build",
+    "build": "node scripts/inject-firebase-config.js && tsc && vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && firebase deploy"
+    "deploy": "npm run build && firebase deploy --only hosting"
   },
   "eslintConfig": {
     "extends": [

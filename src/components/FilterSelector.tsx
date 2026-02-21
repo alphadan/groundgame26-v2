@@ -55,7 +55,7 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
   disabled = false,
   demographicFilters = [],
   showLocationFilters = true,
-  showAdditionalCriteria = true
+  showAdditionalCriteria = true,
 }) => {
   const theme = useTheme();
 
@@ -86,14 +86,24 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
 
   return (
     <Paper
-      elevation={3}
       sx={{
-        p: { xs: 3, sm: 4 },
-        borderRadius: 3,
-        bgcolor: "background.paper",
+        p: { xs: 0, sm: 4 },
+        borderRadius: { xs: 0, sm: 3 },
+        bgcolor: { xs: "transparent", sm: "background.paper" },
+        boxShadow: {
+          xs: "none",
+          sm: theme.shadows[3],
+        },
       }}
     >
-      <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
+      <Typography
+        fontWeight="bold"
+        color="primary"
+        gutterBottom
+        sx={{
+          fontSize: { xs: "1.25rem", sm: "1.5rem" },
+        }}
+      >
         Filters
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={4}>
@@ -144,13 +154,14 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
           )}
 
           {/* Submit */}
-          <Box sx={{ textAlign: "right" }}>
+          <Box sx={{ textAlign: { xs: "center", sm: "right" }, mt: 2 }}>
             <Button
               type="submit"
               variant="contained"
               size="large"
               disabled={disabled || isLoading}
               sx={{
+                width: { xs: "100%", sm: "auto" },
                 px: 6,
                 py: 1.5,
                 fontWeight: "bold",

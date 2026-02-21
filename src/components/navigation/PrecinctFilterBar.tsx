@@ -83,10 +83,13 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
 
   return (
     <Stack
-      direction={{ xs: "column", sm: "row" }}
+      direction={{ xs: "column", md: "row" }}
       spacing={2}
-      alignItems="center"
-      sx={{ mb: 4 }}
+      alignItems={{ xs: "stretch", md: "center" }}
+      sx={{
+        minWidth: { md: 160 },
+        width: { xs: "100%", md: "auto" },
+      }}
     >
       <Typography variant="subtitle2" fontWeight="bold">
         Focus View:
@@ -117,7 +120,10 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
       {/* Area Dropdown */}
       <FormControl
         size="small"
-        sx={{ minWidth: 140 }}
+        sx={{
+          minWidth: { md: 140 },
+          width: { xs: "100%", md: "auto" },
+        }}
         disabled={!selectedCounty}
       >
         <InputLabel>Area</InputLabel>

@@ -1,4 +1,3 @@
-// src/app/admin/roles/AssignUserDialog.tsx
 import React, { useState } from "react";
 import {
   Dialog,
@@ -13,10 +12,9 @@ import {
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../../../lib/firebase";
+import { db, recordEvent } from "../../../lib/firebase";
 import { useCloudFunctions } from "../../../hooks/useCloudFunctions";
-import { recordEvent } from "../../../lib/firebase"; // Check path to your firebase.ts
-import { useAuth } from "../../../context/AuthContext"; // Import your hook
+import { useAuth } from "../../../context/AuthContext";
 
 interface AssignUserDialogProps {
   open: boolean;
@@ -34,7 +32,7 @@ export default function AssignUserDialog({
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { userProfile } = useAuth();
+  const { user } = useAuth(); // Using user for the recordEvent
   const { callFunction } = useCloudFunctions();
 
   // 1. Fetch all active users for the selection list
@@ -45,7 +43,7 @@ export default function AssignUserDialog({
       const snap = await getDocs(q);
       return snap.docs.map((doc) => ({
         id: doc.id,
-        label: `${doc.data().display_name} (${doc.data().email})`,
+        label: `${doc.data().display_name || "No Name"} (${doc.data().email})`,
       }));
     },
     enabled: open,
@@ -57,17 +55,18 @@ export default function AssignUserDialog({
     setError(null);
 
     try {
-      // 2. Call the Cloud Function to perform the atomic assignment
       await callFunction("adminAssignUserToRole", {
         roleDocId: roleId,
         targetUid: selectedUid,
       });
+
       recordEvent("role_assigned", {
         role_id: roleId,
-        assigned_by: userProfile?.uid,
+        assigned_by: user?.uid,
+        target_uid: selectedUid,
       });
+
       onSuccess();
-      onClose();
     } catch (err: any) {
       setError(err.message || "Failed to assign user.");
     } finally {
@@ -89,10 +88,13 @@ export default function AssignUserDialog({
           options={users}
           loading={isLoading}
           onChange={(_, val) => setSelectedUid(val?.id || null)}
+          getOptionLabel={(option) => option.label}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
           renderInput={(params) => (
             <TextField
               {...params}
               label="Search Users"
+              placeholder="Start typing name or email..."
               helperText="Only active users are shown"
               InputProps={{
                 ...params.InputProps,
@@ -109,8 +111,8 @@ export default function AssignUserDialog({
           )}
         />
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} color="inherit">
+      <DialogActions sx={{ p: 2, pt: 0 }}>
+        <Button onClick={onClose} color="inherit" disabled={isSubmitting}>
           Cancel
         </Button>
         <Button
@@ -118,7 +120,11 @@ export default function AssignUserDialog({
           onClick={handleAssign}
           disabled={!selectedUid || isSubmitting}
         >
-          {isSubmitting ? <CircularProgress size={24} /> : "Confirm Assignment"}
+          {isSubmitting ? (
+            <CircularProgress size={24} color="inherit" />
+          ) : (
+            "Confirm Assignment"
+          )}
         </Button>
       </DialogActions>
     </Dialog>

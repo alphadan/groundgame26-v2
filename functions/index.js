@@ -42,6 +42,18 @@ const ROLE_PRIORITY = [
   "base",
 ];
 
+const ROLE_HIERARCHY_VALUES = {
+  developer: 0,
+  state_admin: 1,
+  county_chair: 2,
+  state_rep_district: 3,
+  area_chair: 4,
+  committeeperson: 5,
+  volunteer: 6,
+  candidate: 7,
+  base: 8,
+};
+
 // ================================================================
 // PERMISSIONS MAPPING
 // ================================================================
@@ -428,7 +440,7 @@ export const queryVotersDynamic = onCall(
     let sql = `
       SELECT 
         voter_id, full_name, gender, age, party, precinct, area_district,
-        address, city, email, phone_mobile, phone_home, has_mail_ballot,
+        address, address_num, city, email, phone_mobile, phone_home, has_mail_ballot,
         modeled_party, turnout_score_general, turnout_score_primary, date_registered, likely_mover, zip_code
       FROM \`${table}\`
       WHERE 1=1
@@ -532,8 +544,8 @@ export const queryVotersDynamic = onCall(
     }
 
     sql += ` ORDER BY 
-        REGEXP_REPLACE(address, r'^[0-9]+', '') ASC,
-        SAFE_CAST(REGEXP_EXTRACT(address, r'^[0-9]+') AS INT64) ASC,
+        REGEXP_REPLACE(address, r'^[0-9]+\\s+', '') ASC,
+        address_num ASC,
         full_name ASC `;
 
     console.log("Final SQL:", sql);

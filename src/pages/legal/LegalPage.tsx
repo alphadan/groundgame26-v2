@@ -81,7 +81,7 @@ export default function LegalPage() {
             gutterBottom
             sx={{ fontFamily: "Roboto", color: "primary.main" }}
           >
-            Terms & Compliance
+            Consent Agreement
           </Typography>
           <Typography
             variant="subtitle1"
