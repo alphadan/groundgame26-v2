@@ -1,12 +1,13 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useDynamicVoters } from "../../hooks/useDynamicVoters";
+import { useInteractionMap } from "../../hooks/useInteractionMap";
+import { useDncMap } from "../../hooks/useDncMap";
 import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
-import { useDncMap } from "../../hooks/useDncMap";
 import { awardPoints } from "../../services/rewardsService";
-import { logEvent } from "../../lib/analytics";
-import { RewardAction } from "../../services/rewardsService";
+import { db, recordEvent } from "../../lib/firebase";
+import { collection, doc, setDoc } from "firebase/firestore";
 
 import {
   Box,
@@ -22,20 +23,18 @@ import {
   Chip,
   Divider,
   useMediaQuery,
+  Tooltip,
 } from "@mui/material";
-import { Download as DownloadIcon } from "@mui/icons-material";
-import DoorbellIcon from "@mui/icons-material/Doorbell";
-import BoltIcon from "@mui/icons-material/Bolt";
-import ApartmentIcon from "@mui/icons-material/Apartment";
-import HowToVoteIcon from "@mui/icons-material/HowToVote";
-import MapIcon from "@mui/icons-material/Map";
-import { FilterValues } from "../../types";
+import {
+  Doorbell as DoorbellIcon,
+  Block as BlockIcon,
+  Map as MapIcon,
+} from "@mui/icons-material";
 import {
   DataGrid,
   GridColDef,
   GridToolbarContainer,
   GridToolbarQuickFilter,
-  GridRenderCellParams,
 } from "@mui/x-data-grid";
 
 interface Voter {
@@ -46,81 +45,98 @@ interface Voter {
   address?: string;
   address_num?: number;
   precinct?: string;
-  phone_mobile?: string;
-  phone_home?: string;
-  email?: string;
-  city?: string;
-  zip_code?: number | string;
-  turnout_score_primary?: number;
 }
 
 const PURPLE_MAIN = "#673ab7";
 
 export default function WalkListPage() {
   const theme = useTheme();
-  // Using 'md' as the threshold for switching to mobile cards
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { user, isLoaded: authLoaded } = useAuth();
+
+  const [dbFilters, setDbFilters] = useState<any>(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "" });
+
+  // Suppression Hooks
   const dncMap = useDncMap();
+  const interactionMap = useInteractionMap(dbFilters?.precinct);
 
-  const [dbFilters, setDbFilters] = useState<FilterValues | null>(null);
-  const [activeSubFilter, setActiveSubFilter] = useState<string | null>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-
+  // Data Loading
   const {
     data: rawVoters = [],
     isLoading,
     error,
   } = useDynamicVoters(dbFilters);
 
-  // --- 1. REFINEMENT & SORTING LOGIC ---
+  // --- 1. DATA STABILIZATION & LOGIC ---
   const filteredVoters = useMemo(() => {
-    let result = [...rawVoters];
-
-    if (activeSubFilter === "communal") {
-      const addressCounts: Record<string, number> = {};
-      result.forEach((v) => {
-        const addr = v.address || "Unknown";
-        addressCounts[addr] = (addressCounts[addr] || 0) + 1;
-      });
-      result = result.filter((v) => addressCounts[v.address || ""] > 8);
-    }
-
-    if (activeSubFilter === "high_primary") {
-      result = result.filter(
-        (v) =>
-          v.party === "R" && [3, 4].includes(Number(v.turnout_score_primary)),
-      );
-    }
-
-    // Group by Street, then sort by Address Number (Walking Order)
-    return result.sort((a, b) => {
+    // 1. Sort logic (unchanged)
+    const sorted = [...rawVoters].sort((a, b) => {
       const streetA = (a.address || "").replace(/^[0-9]+\s+/, "").toLowerCase();
       const streetB = (b.address || "").replace(/^[0-9]+\s+/, "").toLowerCase();
       if (streetA !== streetB) return streetA.localeCompare(streetB);
-      return (a.address_num || 0) - (b.address_num || 0);
+      return (Number(a.address_num) || 0) - (Number(b.address_num) || 0);
     });
-  }, [rawVoters, activeSubFilter]);
 
-  // --- 2. ACTION HANDLERS ---
-  const toggleSubFilter = (id: string) => {
-    setActiveSubFilter((prev) => (prev === id ? null : id));
-  };
+    // 2. Map with Type-Safe Checks
+    return sorted.map((voter, index, array) => {
+      const prev = index > 0 ? array[index - 1] : null;
 
-  const handleRewardAction = async (
-    action: RewardAction,
-    label: string,
-    row: Voter,
-  ) => {
-    if (!user?.uid) return;
+      // Force IDs to strings to match Firestore keys
+      const vId = String(voter.voter_id);
+      const isDnc = dncMap.has(vId);
+      const isRecentlyVisited = interactionMap.has(vId);
+
+      return {
+        ...voter,
+        isFirstInHouse: !prev || prev.address !== voter.address,
+        isDnc,
+        isRecentlyVisited,
+        isLocked: isDnc || isRecentlyVisited,
+      };
+    });
+    // Added precinct to dependencies to ensure fresh alignment
+  }, [rawVoters, dncMap, interactionMap, dbFilters?.precinct]);
+
+  // --- 2. ACTION HANDLER ---
+  const handleVisit = async (voter: Voter) => {
+    if (!user?.uid) {
+      console.error("No User UID found");
+      return;
+    }
+
     try {
-      await awardPoints(user.uid, action, 1);
-      setSnackbarMessage(`Logged ${label} for ${row.full_name}`);
-      setSnackbarOpen(true);
-      logEvent("voter_interaction", { action, voter_id: row.voter_id });
+      console.log("Starting visit log for:", voter.voter_id);
+      await awardPoints(user.uid, "walk", 1);
+      console.log("Points awarded successfully");
+
+      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+      const expiry = Date.now() + THIRTY_DAYS_MS;
+
+      const interactionId = `${voter.voter_id}_walk`;
+      const docRef = doc(collection(db, "voter_interactions"), interactionId);
+
+      await setDoc(docRef, {
+        voter_id: voter.voter_id,
+        volunteer_uid: user.uid,
+        interaction_type: "walk",
+        timestamp: Date.now(),
+        expires_at: expiry,
+        precinct: dbFilters?.precinct || "unknown",
+      });
+
+      console.log("Firestore document written successfully!");
+      setSnackbar({
+        open: true,
+        message: `Visit logged for ${voter.full_name}`,
+      });
+      recordEvent("voter_visit_logged", { voter_id: voter.voter_id });
     } catch (e) {
-      console.error(e);
+      console.error("CRITICAL ERROR in handleVisit:", e);
+      setSnackbar({
+        open: true,
+        message: "Error logging visit. Check console.",
+      });
     }
   };
 
@@ -129,70 +145,61 @@ export default function WalkListPage() {
     window.open(url, "_blank");
   };
 
-  // --- 3. DESKTOP COLUMNS ---
-  const columns: GridColDef<Voter>[] = useMemo(
+  // --- 3. DATAGRID COLUMNS (DESKTOP) ---
+  const columns: GridColDef[] = useMemo(
     () => [
       {
-        field: "address_num",
-        headerName: "#",
-        width: 70,
-        type: "number",
-        renderCell: ({ row }) => (
-          <Typography variant="body2" color="text.secondary">
-            {row.address_num}
-          </Typography>
-        ),
-      },
-      {
         field: "address",
-        headerName: "Household / Address",
+        headerName: "Household",
         flex: 1.5,
-        minWidth: 220,
-        renderCell: (params: GridRenderCellParams<Voter>) => {
-          const { row, api, id } = params;
-          const rowIndex = api.getRowIndexRelativeToVisibleRows(id);
-          const prevRowId =
-            rowIndex > 0 ? api.getRowIdFromRowIndex(rowIndex - 1) : null;
-          const prevRow = prevRowId
-            ? (api.getRowModels().get(prevRowId) as any)
-            : null;
-          const isNewHouse = !prevRow || prevRow.address !== row.address;
-
-          return (
-            <Box sx={{ py: 1 }}>
-              {isNewHouse ? (
-                <Typography
-                  variant="body2"
-                  fontWeight="900"
-                  color="primary.main"
-                >
-                  {row.address}
-                </Typography>
-              ) : (
-                <Typography
-                  variant="caption"
-                  color="text.disabled"
-                  sx={{ pl: 2, fontStyle: "italic" }}
-                >
-                  (Same Household)
-                </Typography>
-              )}
-            </Box>
-          );
-        },
+        renderCell: ({ row }) => (
+          <Box sx={{ py: 1 }}>
+            {row.isFirstInHouse ? (
+              <Typography variant="body2" fontWeight="900" color="primary.main">
+                {row.address}
+              </Typography>
+            ) : (
+              <Typography
+                variant="caption"
+                color="text.disabled"
+                sx={{ pl: 2, fontStyle: "italic" }}
+              >
+                (Same Household)
+              </Typography>
+            )}
+          </Box>
+        ),
       },
       {
         field: "full_name",
         headerName: "Voter Name",
         flex: 1.2,
-        minWidth: 180,
         renderCell: ({ row }) => (
-          <Typography
-            variant="body2"
-            color={dncMap.has(row.voter_id) ? "error.main" : "text.primary"}
-          >
-            {row.full_name}
-          </Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography
+              variant="body2"
+              sx={{ textDecoration: row.isLocked ? "line-through" : "none" }}
+            >
+              {row.full_name}
+            </Typography>
+            {row.isDnc && (
+              <Chip
+                label="DNC"
+                size="small"
+                color="error"
+                variant="outlined"
+                sx={{ height: 20 }}
+              />
+            )}
+            {row.isRecentlyVisited && (
+              <Chip
+                label="Visited"
+                size="small"
+                color="success"
+                sx={{ height: 20 }}
+              />
+            )}
+          </Stack>
         ),
       },
       {
@@ -200,12 +207,13 @@ export default function WalkListPage() {
         headerName: "Age",
         width: 70,
         align: "center",
+        headerAlign: "center",
         renderCell: ({ value }) => (
           <Chip
-            label={value || "U"}
+            label={value || "?"}
             size="small"
             variant="outlined"
-            sx={{ fontWeight: "bold" }}
+            sx={{ fontWeight: "bold", borderColor: "grey.300" }}
           />
         ),
       },
@@ -218,14 +226,14 @@ export default function WalkListPage() {
             label={value || "U"}
             size="small"
             sx={{
-              fontWeight: "bold",
               bgcolor:
                 value === "R"
-                  ? "error.light"
+                  ? "error.main"
                   : value === "D"
-                    ? "info.light"
+                    ? "info.main"
                     : "grey.400",
               color: "white",
+              fontWeight: "bold",
             }}
           />
         ),
@@ -234,99 +242,146 @@ export default function WalkListPage() {
         field: "actions",
         headerName: "Actions",
         width: 150,
-        sortable: false,
-        renderCell: ({ row }) => (
-          <Stack direction="row" spacing={1} alignItems="center">
-            <IconButton
-              size="small"
-              sx={{ color: PURPLE_MAIN }}
-              onClick={() => handleRewardAction("walk", "Visit", row)}
-            >
-              <DoorbellIcon fontSize="small" />
-            </IconButton>
-            <Divider orientation="vertical" flexItem />
-            <VoterNotes
-              voterId={row.voter_id}
-              fullName={row.full_name}
-              address={row.address}
-            />
-          </Stack>
-        ),
+        renderCell: ({ row }) => {
+          if (row.isLocked)
+            return <BlockIcon color="error" sx={{ opacity: 0.5 }} />;
+          return (
+            <Stack direction="row" spacing={1}>
+              <IconButton
+                size="small"
+                sx={{ color: PURPLE_MAIN }}
+                onClick={() => handleVisit(row)}
+              >
+                <DoorbellIcon fontSize="small" />
+              </IconButton>
+              <VoterNotes
+                voterId={row.voter_id}
+                fullName={row.full_name}
+                address={row.address}
+              />
+            </Stack>
+          );
+        },
       },
     ],
-    [dncMap, theme.palette],
+    [],
   );
 
   // --- 4. MOBILE CARD VIEW ---
-  const VoterCard = ({ row }: { row: Voter }) => (
+  const VoterCard = ({ row }: { row: any }) => (
     <Paper
       elevation={2}
       sx={{
         p: 2,
         mb: 2,
         borderRadius: 2,
-        borderLeft: `6px solid ${row.party === "R" ? theme.palette.error.main : row.party === "D" ? theme.palette.info.main : "grey"}`,
+        opacity: row.isLocked ? 0.6 : 1,
+        bgcolor: row.isLocked ? "grey.50" : "background.paper",
+        borderLeft: `6px solid ${
+          row.isLocked
+            ? theme.palette.error.main
+            : row.party === "R"
+              ? theme.palette.error.main
+              : row.party === "D"
+                ? theme.palette.info.main
+                : "grey"
+        }`,
       }}
     >
       <Stack spacing={1.5}>
-        <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+          }}
+        >
           <Box>
             <Typography
               variant="subtitle1"
               fontWeight="bold"
-              color={dncMap.has(row.voter_id) ? "error.main" : "text.primary"}
+              sx={{ textDecoration: row.isLocked ? "line-through" : "none" }}
             >
               {row.full_name}
             </Typography>
-            <Button
-              size="small"
-              startIcon={<MapIcon fontSize="small" />}
-              onClick={() => openInMaps(row.address || "")}
-              sx={{ p: 0, textTransform: "none", fontWeight: 800 }}
-            >
-              {row.address}
-            </Button>
+            <Typography variant="caption" color="text.secondary">
+              ID: {row.voter_id} • Precinct: {row.precinct || "N/A"}
+            </Typography>
           </Box>
           <Stack direction="row" spacing={0.5}>
             <Chip label={row.age || "?"} size="small" variant="outlined" />
             <Chip
               label={row.party || "U"}
               size="small"
-              color={
-                row.party === "R"
-                  ? "error"
-                  : row.party === "D"
-                    ? "info"
-                    : "default"
-              }
+              sx={{
+                bgcolor:
+                  row.party === "R"
+                    ? "error.main"
+                    : row.party === "D"
+                      ? "info.main"
+                      : "grey.400",
+                color: "white",
+              }}
             />
           </Stack>
         </Box>
 
-        <Divider />
+        {(row.isDnc || row.isRecentlyVisited) && (
+          <Stack direction="row" spacing={1}>
+            {row.isDnc && (
+              <Chip
+                label="DNC"
+                size="small"
+                color="error"
+                icon={<BlockIcon sx={{ fontSize: "1rem !important" }} />}
+              />
+            )}
+            {row.isRecentlyVisited && (
+              <Chip
+                label="Visited"
+                size="small"
+                color="success"
+                variant="outlined"
+              />
+            )}
+          </Stack>
+        )}
 
-        <Box
+        <Button
+          size="small"
+          startIcon={<MapIcon />}
+          onClick={() => openInMaps(row.address || "")}
           sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            justifyContent: "flex-start",
+            p: 0,
+            textTransform: "none",
+            fontWeight: 800,
           }}
         >
-          <Typography variant="caption" color="text.secondary">
-            ID: {row.voter_id} • Precinct: {row.precinct}
-          </Typography>
+          {row.address}
+        </Button>
+
+        <Divider />
+
+        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
           <Stack direction="row" spacing={1.5}>
-            <IconButton
-              sx={{ color: PURPLE_MAIN, border: `1px solid ${PURPLE_MAIN}` }}
-              onClick={() => handleRewardAction("walk", "Visit", row)}
-            >
-              <DoorbellIcon />
-            </IconButton>
             <VoterNotes
               voterId={row.voter_id}
               fullName={row.full_name}
               address={row.address}
             />
+            {!row.isLocked && (
+              <IconButton
+                onClick={() => handleVisit(row)}
+                sx={{
+                  color: PURPLE_MAIN,
+                  border: `1px solid ${PURPLE_MAIN}`,
+                  p: "4px",
+                }}
+              >
+                <DoorbellIcon />
+              </IconButton>
+            )}
           </Stack>
         </Box>
       </Stack>
@@ -342,7 +397,7 @@ export default function WalkListPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 4 }, maxWidth: 1400, margin: "auto" }}>
-      <Typography variant="h4" fontWeight="bold" gutterBottom color="primary">
+      <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom>
         Household Walk List
       </Typography>
 
@@ -355,7 +410,6 @@ export default function WalkListPage() {
           "party",
           "turnout",
           "ageGroup",
-          "mailBallot",
         ]}
       />
 
@@ -367,73 +421,22 @@ export default function WalkListPage() {
 
       {dbFilters && (
         <Box sx={{ mt: 4 }}>
-          {/* Sub-Filter Bar */}
-          <Paper
-            sx={{
-              p: 2,
-              mb: 1,
-              bgcolor: "grey.50",
-              borderRadius: isMobile ? 2 : "12px 12px 0 0",
-            }}
-          >
-            <Stack
-              direction="row"
-              spacing={2}
-              alignItems="center"
-              flexWrap="wrap"
-            >
-              <Stack direction="row" spacing={1} alignItems="center">
-                <BoltIcon color="primary" fontSize="small" />
-                <Typography variant="subtitle2" fontWeight="bold">
-                  Refine:
-                </Typography>
-              </Stack>
-              <Chip
-                label="Communal (8+)"
-                onClick={() => toggleSubFilter("communal")}
-                color={activeSubFilter === "communal" ? "primary" : "default"}
-              />
-              <Chip
-                label="High Primary GOP"
-                onClick={() => toggleSubFilter("high_primary")}
-                color={
-                  activeSubFilter === "high_primary" ? "primary" : "default"
-                }
-              />
-              {activeSubFilter && (
-                <Button size="small" onClick={() => setActiveSubFilter(null)}>
-                  Reset
-                </Button>
-              )}
-            </Stack>
-          </Paper>
-
           {isMobile ? (
-            // MOBILE RESPONSIVE FOLDED VIEW
-
-            <Box sx={{ mt: 2 }}>
-              {filteredVoters.map((v) => (
-                <VoterCard key={v.voter_id} row={v} />
-              ))}
-            </Box>
+            filteredVoters.map((v) => <VoterCard key={v.voter_id} row={v} />)
           ) : (
-            // DESKTOP DATAGRID VIEW
-
             <Paper
               elevation={3}
-              sx={{
-                height: 800,
-                borderRadius: "0 0 12px 12px",
-                overflow: "hidden",
-              }}
+              sx={{ height: 800, borderRadius: 3, overflow: "hidden" }}
             >
               <DataGrid
                 rows={filteredVoters}
-                getRowId={(row) => row.voter_id}
+                getRowId={(r) => r.voter_id}
                 columns={columns}
                 rowHeight={75}
                 loading={isLoading}
-                disableRowSelectionOnClick
+                getRowClassName={(params) =>
+                  params.row.isLocked ? "muted-row" : ""
+                }
                 slots={{
                   toolbar: () => (
                     <GridToolbarContainer
@@ -445,6 +448,14 @@ export default function WalkListPage() {
                       <GridToolbarQuickFilter />
                     </GridToolbarContainer>
                   ),
+                }}
+                sx={{
+                  border: "none",
+                  "& .muted-row": {
+                    bgcolor: "grey.50",
+                    opacity: 0.6,
+                    pointerEvents: "none",
+                  },
                 }}
               />
             </Paper>
@@ -469,14 +480,11 @@ export default function WalkListPage() {
       )}
 
       <Snackbar
-        open={snackbarOpen}
+        open={snackbar.open}
         autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-      >
-        <Alert severity="success" variant="filled">
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        message={snackbar.message}
+      />
     </Box>
   );
 }

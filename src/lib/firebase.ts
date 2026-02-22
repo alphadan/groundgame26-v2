@@ -14,7 +14,7 @@ import {
 } from "firebase/app-check";
 
 import { getMessaging, Messaging } from "firebase/messaging";
-import { getAnalytics, logEvent } from "firebase/analytics";
+import { getAnalytics, logEvent as firebaseLogEvent } from "firebase/analytics";
 
 // === 1. Strict Config Validation ===
 const requiredConfigKeys = [
@@ -78,7 +78,7 @@ export const analytics =
 
 export const recordEvent = (eventName: string, params?: object) => {
   if (analytics) {
-    logEvent(analytics, eventName, params);
+    firebaseLogEvent(analytics, eventName, params);
   }
 };
 
