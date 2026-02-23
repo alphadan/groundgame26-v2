@@ -42,26 +42,6 @@ export const VoterNotes: React.FC<VoterNotesProps> = ({
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [notesError, setNotesError] = useState<string | null>(null);
 
-  // Fetch note count on mount (lightweight)
-  useEffect(() => {
-    if (!voterId) {
-      setNoteCount(0);
-      return;
-    }
-
-    const fetchCount = async () => {
-      try {
-        const result = await getVoterNotes({ voterIds: [voterId] });
-        const fetchedNotes = (result.data as any).notes || [];
-        setNoteCount(fetchedNotes.length);
-      } catch (err) {
-        console.error("Failed to fetch note count:", err);
-        setNoteCount(0);
-      }
-    };
-
-    fetchCount();
-  }, [voterId]);
 
   // Fetch full notes when dialog opens
   useEffect(() => {

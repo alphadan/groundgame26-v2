@@ -38,15 +38,7 @@ import {
   GridToolbarQuickFilter,
 } from "@mui/x-data-grid";
 
-interface Voter {
-  voter_id: string;
-  full_name?: string;
-  age?: number | string;
-  party?: string;
-  address?: string;
-  address_num?: number;
-  precinct?: string;
-}
+import { Voter } from "../../types";
 
 const PURPLE_MAIN = "#673ab7";
 
@@ -450,24 +442,43 @@ export default function WalkListPage() {
           {isMobile ? (
             <>
               {/* NEW: Sort Toggle Row for Mobile */}
-              <Stack 
-                direction="row" 
-                justifyContent="space-between" 
-                alignItems="center" 
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
                 sx={{ mb: 2, px: 1 }}
               >
-                <Typography variant="body2" color="text.secondary" fontWeight="bold">
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  fontWeight="bold"
+                >
                   {filteredVoters.length} Households
                 </Typography>
                 <Button
                   size="small"
-                  startIcon={<SortIcon sx={{ transform: sortOrder === 'desc' ? 'rotate(180deg)' : 'none' }} />}
-                  onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+                  startIcon={
+                    <SortIcon
+                      sx={{
+                        transform:
+                          sortOrder === "desc" ? "rotate(180deg)" : "none",
+                      }}
+                    />
+                  }
+                  onClick={() =>
+                    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+                  }
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: 700,
+                  }}
                   variant="outlined"
                   color="primary"
                 >
-                  {sortOrder === 'asc' ? "Sorting: Ascending" : "Sorting: Descending"}
+                  {sortOrder === "asc"
+                    ? "Sorting: Ascending"
+                    : "Sorting: Descending"}
                 </Button>
               </Stack>
 

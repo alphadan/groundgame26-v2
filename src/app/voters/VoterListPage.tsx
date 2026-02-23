@@ -1,10 +1,11 @@
 // src/app/voters/VoterListPage.tsx
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useDynamicVoters } from "../../hooks/useDynamicVoters";
 import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
 import { useDncMap } from "../../hooks/useDncMap";
+import { useInteractionMap } from "../../hooks/useInteractionMap";
 import { awardPoints } from "../../services/rewardsService";
 import { logEvent } from "../../lib/analytics";
 
@@ -24,6 +25,8 @@ import {
   AlertTitle,
   Button,
   Avatar,
+  Paper,
+  Collapse,
 } from "@mui/material";
 import BoltIcon from "@mui/icons-material/Bolt";
 import {
@@ -32,8 +35,10 @@ import {
   MailOutline,
   Block,
   Download as DownloadIcon,
+  Sort as SortIcon,
 } from "@mui/icons-material";
-import { FilterValues } from "../../types";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { Voter, FilterValues } from "../../types";
 import {
   DataGrid,
   GridColDef,
@@ -41,33 +46,18 @@ import {
   GridToolbarQuickFilter,
 } from "@mui/x-data-grid";
 
-interface Voter {
-  voter_id: string;
-  full_name?: string;
-  age?: number | string;
-  party?: string;
-  gender?: string;
-  address?: string;
-  city?: string;
-  zip_code?: string;
-  precinct?: string;
-  phone_mobile?: string;
-  phone_home?: string;
-  email?: string;
-  modeled_party?: string;
-  turnout_score_general?: string;
-  has_mail_ballot?: boolean;
-}
-
 const REWARD_PURPLE = "#673ab7";
 
 export default function VoterListPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [filters, setFilters] = useState<FilterValues | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
   const { user, claims, isLoaded: authLoaded } = useAuth();
   const dncMap = useDncMap();
+  const interactionMap = useInteractionMap(filters?.precinct);
 
-  const [filters, setFilters] = useState<FilterValues | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [isRewardToast, setIsRewardToast] = useState(false);
@@ -101,7 +91,44 @@ export default function VoterListPage() {
     },
   ];
 
-  const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
+  const { data: rawVoters = [], isLoading, error } = useDynamicVoters(filters);
+
+  const voters = useMemo(() => {
+    let result = [...rawVoters];
+
+    // Apply Sort
+    result.sort((a, b) => {
+      const nameA = (a.full_name || "").toLowerCase();
+      const nameB = (b.full_name || "").toLowerCase();
+      const comp = nameA.localeCompare(nameB);
+      return sortOrder === "asc" ? comp : -comp;
+    });
+
+    // Apply Suppression & Grouping Flags
+    return result.map((voter, index, array): Voter => {
+      const prev = index > 0 ? array[index - 1] : null;
+      const vId = String(voter.voter_id);
+
+      const isDnc = dncMap.has(vId);
+      const isRecentlyContacted = interactionMap.has(vId);
+
+      return {
+        ...voter,
+        isFirstInHouse: !prev || prev.address !== voter.address,
+        isDnc,
+        isRecentlyContacted,
+        isLocked: isDnc || isRecentlyContacted,
+      };
+    });
+  }, [rawVoters, dncMap, interactionMap, filters?.precinct, sortOrder]);
+
+  useEffect(() => {
+    if (interactionMap.size > 0) {
+      console.log(
+        `PHASE 1 SUCCESS: Found ${interactionMap.size} suppressed voters in this precinct.`,
+      );
+    }
+  }, [interactionMap]);
 
   // Permission Check
   const canDownload = !!claims?.permissions?.can_manage_resources;
@@ -172,24 +199,50 @@ export default function VoterListPage() {
   // --- REWARDED & ANALYTICS ACTION HANDLER ---
   const handleContactAction = async (
     type: "sms" | "email" | "phone",
-    voterName: string,
-    protocolUrl: string,
-    voterId: string, // ADDED FOR TRACKING
+    voter: Voter,
   ) => {
     if (!user?.uid) return;
+
+    const phone = voter.phone_mobile || voter.phone_home;
+    const normalizedPhone = phone?.replace(/\D/g, "");
+    const protocolUrl =
+      type === "sms"
+        ? `sms:${normalizedPhone}`
+        : type === "phone"
+          ? `tel:${normalizedPhone}`
+          : `mailto:${voter.email}`;
 
     // 2. LOG EVENT TO FIREBASE ANALYTICS
     logEvent("voter_contact_initiated", {
       contact_method: type,
-      voter_id: voterId,
-      voter_name: voterName,
+      voter_id: voter.voter_id,
+      voter_name: voter.full_name,
       precinct: filters?.precinct || "none",
       volunteer_uid: user.uid,
       volunteer_name: user.displayName || "Admin",
     });
 
     try {
+      const now = Date.now();
+      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+      const expiry = now + THIRTY_DAYS_MS;
+      const interactionId = `${voter.voter_id}_contact`;
+      const docRef = doc(collection(db, "voter_interactions"), interactionId);
+      await setDoc(docRef, {
+        voter_id: String(voter.voter_id),
+        volunteer_uid: user.uid,
+        interaction_type: type, // stores "sms", "phone", or "email"
+        timestamp: now,
+        expires_at: expiry,
+        precinct: String(filters?.precinct || voter.precinct || "unknown"),
+      });
+
       await awardPoints(user.uid, type === "phone" ? "sms" : type, 1);
+      recordEvent("voter_contact_initiated", {
+        type,
+        voter_id: voter.voter_id,
+        voter_name: voter.full_name,
+      });
       setIsRewardToast(true);
       setSnackbarMessage(`+1 point earned for contacting ${voterName}!`);
       setSnackbarOpen(true);
@@ -197,6 +250,7 @@ export default function VoterListPage() {
         window.location.href = protocolUrl;
       }, 1000);
     } catch (err) {
+      console.error("Failed to log contact:", e);
       window.location.href = protocolUrl;
     }
   };
@@ -329,7 +383,7 @@ export default function VoterListPage() {
       },
       {
         field: "contact",
-        headerName: "Contact & Rewards",
+        headerName: "Actions",
         width: 280,
         sortable: false,
         renderCell: ({ row }) => {
@@ -429,90 +483,151 @@ export default function VoterListPage() {
       </Box>
     );
 
+  const VoterCard = ({ row }: { row: Voter }) => {
+    return (
+      <Paper
+        elevation={row.isLocked ? 0 : 2}
+        sx={{
+          p: 2,
+          mb: 2,
+          borderRadius: 2,
+          opacity: row.isLocked ? 0.6 : 1,
+          bgcolor: row.isLocked ? "grey.50" : "background.paper",
+          borderLeft: `6px solid ${
+            row.isLocked
+              ? "grey"
+              : row.party === "R"
+                ? "#B22234"
+                : row.party === "D"
+                  ? "#3C3B6E"
+                  : "#ccc"
+          }`,
+        }}
+      >
+        <Stack spacing={2}>
+          {/* Row 1: Name and Metadata */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+            }}
+          >
+            <Box>
+              <Typography
+                variant="subtitle1"
+                fontWeight="bold"
+                sx={{ textDecoration: row.isLocked ? "line-through" : "none" }}
+              >
+                {row.full_name}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                ID: {row.voter_id} • Precinct: {row.precinct}
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={0.5}>
+              <Chip label={row.age || "?"} size="small" variant="outlined" />
+              <Chip
+                label={row.party || "U"}
+                size="small"
+                sx={{
+                  bgcolor:
+                    row.party === "R"
+                      ? "error.main"
+                      : row.party === "D"
+                        ? "info.main"
+                        : "grey.400",
+                  color: "white",
+                  fontWeight: "bold",
+                }}
+              />
+            </Stack>
+          </Box>
+
+          {/* Row 2: Address */}
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+            {row.address}
+          </Typography>
+
+          {/* Row 3: Suppression Badges */}
+          {(row.isDnc || row.isRecentlyContacted) && (
+            <Stack direction="row" spacing={1}>
+              {row.isDnc && (
+                <Chip
+                  label="DNC"
+                  size="small"
+                  color="error"
+                  variant="outlined"
+                  icon={<Block sx={{ fontSize: "1rem !important" }} />}
+                />
+              )}
+              {row.isRecentlyContacted && (
+                <Chip
+                  label="Contacted"
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                />
+              )}
+            </Stack>
+          )}
+
+          <Divider />
+
+          {/* Row 4: Static Action Buttons (No Collapse) */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Stack direction="row" spacing={1}>
+              <IconButton
+                disabled={row.isLocked || !row.email}
+                color="primary"
+                onClick={() => handleContactAction("email", row)}
+                sx={{ border: "1px solid", borderColor: "divider" }}
+              >
+                <MailOutline />
+              </IconButton>
+              <IconButton
+                disabled={
+                  row.isLocked || (!row.phone_mobile && !row.phone_home)
+                }
+                color="success"
+                onClick={() => handleContactAction("phone", row)}
+                sx={{ border: "1px solid", borderColor: "divider" }}
+              >
+                <Phone />
+              </IconButton>
+              <IconButton
+                disabled={row.isLocked || !row.phone_mobile}
+                color="info"
+                onClick={() => handleContactAction("sms", row)}
+                sx={{ border: "1px solid", borderColor: "divider" }}
+              >
+                <Message />
+              </IconButton>
+            </Stack>
+
+            {/* Note: VoterNotes is kept separate to handle its own loading state only when opened */}
+            <VoterNotes
+              voterId={row.voter_id}
+              fullName={row.full_name || ""}
+              address={row.address || ""}
+            />
+          </Box>
+        </Stack>
+      </Paper>
+    );
+  };
+
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
       <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom>
         Voter Contact List
       </Typography>
-      <Box sx={{ mb: 4 }}>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-          <BoltIcon color="primary" fontSize="small" />
-          <Typography
-            variant="subtitle2"
-            fontWeight="bold"
-            color="text.secondary"
-          >
-            Quick Targets (Specialized Search)
-          </Typography>
-        </Stack>
-
-        <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ gap: 1.5 }}>
-          {PRESET_FILTERS.map((preset) => {
-            const active = isPresetActive(preset.filters);
-            const isDisabled = preset.disabled;
-
-            return (
-              <Tooltip
-                key={preset.label}
-                title={isDisabled ? "Filter coming soon in next update" : ""}
-              >
-                <span>
-                  <Chip
-                    label={preset.label}
-                    onClick={
-                      isDisabled
-                        ? undefined
-                        : () => applyQuickFilter(preset.filters)
-                    }
-                    onDelete={active ? () => setFilters(null) : undefined}
-                    color={active ? "primary" : "default"}
-                    variant={active ? "filled" : "outlined"}
-                    disabled={isDisabled}
-                    avatar={
-                      <Avatar
-                        sx={{
-                          bgcolor: "transparent",
-                          fontSize: "1.2rem",
-                          filter: isDisabled ? "grayscale(1)" : "none",
-                          opacity: isDisabled ? 0.5 : 1,
-                        }}
-                      >
-                        {preset.icon}
-                      </Avatar>
-                    }
-                    sx={{
-                      borderRadius: "12px",
-                      fontWeight: 600,
-                      height: 44,
-                      px: 1,
-                      "&:hover": isDisabled
-                        ? {}
-                        : {
-                            transform: "translateY(-1px)",
-                            boxShadow: 2,
-                          },
-                      border:
-                        active || isDisabled
-                          ? undefined
-                          : `1px solid ${theme.palette.primary.light}`,
-                    }}
-                  />
-                </span>
-              </Tooltip>
-            );
-          })}
-          {filters && (
-            <Button
-              size="small"
-              variant="text"
-              onClick={() => setFilters(null)}
-              sx={{ color: theme.palette.error.main, fontWeight: "bold" }}
-            >
-              Clear All
-            </Button>
-          )}
-        </Stack>
-      </Box>
 
       <FilterSelector
         onSubmit={handleSubmit}
@@ -526,12 +641,72 @@ export default function VoterListPage() {
         ]}
       />
 
-      {filters?.turnout_score_primary !== undefined && (
-        <Alert severity="warning" sx={{ mt: 4, borderRadius: 2 }}>
-          <strong>Specialized Filter Active:</strong> High Primary Turnout
-          (Score: {filters.turnout_score_primary}) is currently applied.
-        </Alert>
-      )}
+      {/* QUICK TARGETS / HORIZONTAL SCROLL CONTAINER */}
+      <Box sx={{ mt: 2, mb: 1 }}>
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+          <BoltIcon color="primary" fontSize="small" />
+          <Typography
+            variant="caption"
+            fontWeight="bold"
+            color="text.secondary"
+            sx={{ textTransform: "uppercase" }}
+          >
+            Quick Targets
+          </Typography>
+        </Stack>
+
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "row",
+            overflowX: "auto", // Enables horizontal scrolling
+            pb: 1, // Space for the scrollbar so it doesn't cut off the chips
+            gap: 1,
+            // Hide scrollbar for Chrome, Safari and Opera
+            "&::-webkit-scrollbar": { display: "none" },
+            // Hide scrollbar for IE, Edge and Firefox
+            msOverflowStyle: "none",
+            scrollbarWidth: "none",
+          }}
+        >
+          {PRESET_FILTERS.map((preset) => {
+            const active = isPresetActive(preset.filters);
+            const isDisabled = preset.disabled;
+
+            return (
+              <Chip
+                key={preset.label}
+                label={preset.label}
+                onClick={
+                  isDisabled
+                    ? undefined
+                    : () => applyQuickFilter(preset.filters)
+                }
+                onDelete={
+                  active
+                    ? () => setFilters({ precinct: filters?.precinct })
+                    : undefined
+                }
+                color={active ? "primary" : "default"}
+                variant={active ? "filled" : "outlined"}
+                disabled={isDisabled}
+                sx={{
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  height: 32,
+                  px: 0.5,
+                  fontSize: "0.85rem",
+                  // This is critical for horizontal scrolling to work
+                  flexShrink: 0,
+                  transition: "all 0.2s",
+                }}
+              />
+            );
+          })}
+        </Box>
+      </Box>
+
+      <Divider sx={{ my: 3 }} />
 
       {voters.length > 0 && (
         <>
@@ -568,21 +743,76 @@ export default function VoterListPage() {
                   "&:hover": { bgcolor: "#8B1A1A" },
                 }}
               >
-                Download Voter Export (CSV)
+                Download (CSV)
               </Button>
             </Box>
           )}
+          {isMobile ? (
+            // --- MOBILE VIEW ---
+            <Box sx={{ mt: 2 }}>
+              {/* Sort Toggle Row */}
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                sx={{ mb: 2, px: 1 }}
+              >
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  fontWeight="bold"
+                >
+                  {voters.length} Voters Found
+                </Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={
+                    <SortIcon
+                      sx={{
+                        transform:
+                          sortOrder === "desc" ? "rotate(180deg)" : "none",
+                      }}
+                    />
+                  }
+                  onClick={() =>
+                    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+                  }
+                >
+                  {sortOrder === "asc" ? "A-Z" : "Z-A"}
+                </Button>
+              </Stack>
 
-          <Box sx={{ height: 800, width: "100%" }}>
-            <DataGrid
-              rows={voters}
-              getRowId={(row) => row.voter_id}
-              columns={columns}
-              rowHeight={70}
-              slots={{ toolbar: CustomToolbar }}
-              sx={{ borderRadius: 3, boxShadow: 2, border: "none" }}
-            />
-          </Box>
+              {/* The Card List */}
+              {voters.map((voter) => (
+                <VoterCard key={voter.voter_id} row={voter} />
+              ))}
+            </Box>
+          ) : (
+            <Box sx={{ height: 800, width: "100%", mt: 2 }}>
+              <DataGrid
+                rows={voters}
+                getRowId={(row) => row.voter_id}
+                columns={columns}
+                rowHeight={70}
+                slots={{ toolbar: CustomToolbar }}
+                // This is what turns the row grey on desktop
+                getRowClassName={(params) =>
+                  params.row.isLocked ? "muted-row" : ""
+                }
+                sx={{
+                  borderRadius: 3,
+                  boxShadow: 2,
+                  border: "none",
+                  "& .muted-row": {
+                    bgcolor: "grey.50",
+                    opacity: 0.6,
+                    pointerEvents: "none",
+                  },
+                }}
+              />
+            </Box>
+          )}
         </>
       )}
 

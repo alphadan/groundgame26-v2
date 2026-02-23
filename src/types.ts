@@ -225,6 +225,31 @@ export interface UserFavorite {
   created_at: number;
 }
 
+export interface Voter {
+  // Core Data Fields
+  voter_id: string;
+  full_name?: string;
+  age?: number | string;
+  party?: string;
+  gender?: string;
+  address?: string;
+  address_num?: number; // Used for numeric sorting in WalkList
+  city?: string;
+  zip_code?: string;
+  precinct?: string;
+  phone_mobile?: string;
+  phone_home?: string;
+  email?: string;
+  modeled_party?: string;
+  turnout_score_general?: string;
+  has_mail_ballot?: boolean;
+  isFirstInHouse?: boolean; // For household grouping
+  isDnc?: boolean; // From useDncMap
+  isRecentlyContacted?: boolean; // From useInteractionMap
+  isRecentlyVisited?: boolean; // From useInteractionMap (Walk-specific)
+  isLocked?: boolean; // Combined suppression flag
+}
+
 export interface VoterNotesProps {
   voterId: string | null;
   fullName?: string;
@@ -242,7 +267,7 @@ export interface VoterNote {
 export interface VoterInteraction {
   voter_id: string;
   volunteer_uid: string;
-  interaction_type: "walk" | "call" | "sms";
+  interaction_type: "walk" | "call" | "sms" | "email" | "survey";
   timestamp: number; // Date.now
   expires_at: number; // Date.now + 30 days
   precinct: string;
