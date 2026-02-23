@@ -239,6 +239,15 @@ export interface VoterNote {
   created_at: number;
 }
 
+export interface VoterInteraction {
+  voter_id: string;
+  volunteer_uid: string;
+  interaction_type: "walk" | "call" | "sms";
+  timestamp: number; // Date.now
+  expires_at: number; // Date.now + 30 days
+  precinct: string;
+}
+
 export interface CampaignResource {
   id: string;
   title: string;

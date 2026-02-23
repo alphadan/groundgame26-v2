@@ -203,135 +203,174 @@ export default function MainLayout({ children }: { children?: ReactNode }) {
           sx={{
             borderBottom: "1px solid",
             borderColor: "divider",
-            bgcolor: "background.paper", // Theme aware AppBar
+            bgcolor: "background.paper",
           }}
         >
-          <Toolbar sx={{ py: isMobile ? 1.5 : 0 }}>
+          <Toolbar sx={{ py: isMobile ? 1 : 0 }}>
             <Stack
-              direction={isMobile ? "column" : "row"}
-              spacing={isMobile ? 2 : 0}
+              direction="column"
               sx={{ width: "100%" }}
-              alignItems="center"
-              justifyContent="space-between"
+              spacing={isMobile ? 1.5 : 0}
             >
+              {/* ROW 1: Mobile (Menu + Actions) / Desktop (Everything) */}
               <Stack
                 direction="row"
                 alignItems="center"
-                justifyContent={isMobile ? "space-between" : "flex-start"}
-                sx={{ width: isMobile ? "100%" : "auto" }}
+                justifyContent="space-between"
+                sx={{ width: "100%" }}
               >
-                {!isDesktop && (
-                  <IconButton
-                    color="inherit"
-                    edge="start"
-                    onClick={() => setMobileOpen(true)}
-                  >
-                    <MenuIcon />
-                  </IconButton>
-                )}
+                {/* Left Side: Hamburger Menu */}
+                <Box sx={{ display: "flex", alignItems: "center" }}>
+                  {!isDesktop && (
+                    <IconButton
+                      color="inherit"
+                      edge="start"
+                      onClick={() => setMobileOpen(true)}
+                      sx={{ mr: 1 }}
+                    >
+                      <MenuIcon />
+                    </IconButton>
+                  )}
 
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  sx={{
-                    flexGrow: isMobile ? 1 : 0,
-                    justifyContent: isMobile ? "center" : "flex-start",
-                    ml: isDesktop ? 0 : 1,
-                  }}
-                >
-                  {realBadges.map((badge) => (
-                    <Tooltip key={badge.id} title={badge.badge_title}>
-                      <Typography
+                  {/* On Desktop, Badges stay here next to the menu/logo area */}
+                  {!isMobile && (
+                    <Stack direction="row" spacing={1} sx={{ ml: 2 }}>
+                      {realBadges.map((badge) => (
+                        <Tooltip key={badge.id} title={badge.badge_title}>
+                          <Typography
+                            sx={{
+                              fontSize: "1.5rem",
+                              cursor: "default",
+                              transition: "transform 0.2s",
+                              "&:hover": {
+                                transform: "scale(1.3) rotate(10deg)",
+                              },
+                            }}
+                          >
+                            {badge.badge_unicode}
+                          </Typography>
+                        </Tooltip>
+                      ))}
+                    </Stack>
+                  )}
+                </Box>
+
+                {/* Right Side: Settings + Avatar */}
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {/* On Desktop, Points stay here */}
+                  {!isMobile && (
+                    <Tooltip title="Your Rewards Points" arrow>
+                      <Box
                         sx={{
-                          fontSize: isMobile ? "1.8rem" : "1.5rem",
-                          cursor: "default",
-                          transition: "transform 0.2s",
-                          "&:hover": { transform: "scale(1.3) rotate(10deg)" },
+                          display: "flex",
+                          alignItems: "center",
+                          bgcolor: "primary.50",
+                          px: 2,
+                          py: 0.5,
+                          borderRadius: "24px",
+                          border: "2px solid",
+                          borderColor: "#4527a0",
+                          cursor: "pointer",
+                          mr: 1,
                         }}
+                        onClick={() => navigate("/settings")}
                       >
-                        {badge.badge_unicode}
-                      </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{ fontWeight: 900, mr: 1, color: "#4527a0" }}
+                        >
+                          POINTS:
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 900,
+                            fontFamily: "'Roboto Mono', monospace",
+                          }}
+                        >
+                          {userProfile?.points_balance?.toLocaleString() || 0}
+                        </Typography>
+                      </Box>
                     </Tooltip>
-                  ))}
+                  )}
+
+                  <IconButton
+                    size="small"
+                    onClick={() => navigate("/settings")}
+                  >
+                    <Settings />
+                  </IconButton>
+
+                  <IconButton onClick={handleAvatarClick} sx={{ p: 0 }}>
+                    <Avatar
+                      src={user?.photoURL ?? ""}
+                      sx={{
+                        width: 38,
+                        height: 38,
+                        bgcolor: "gold.main",
+                        border: "2px solid white",
+                        boxShadow: 2,
+                      }}
+                    >
+                      {(user?.displayName || user?.email || "U")
+                        .charAt(0)
+                        .toUpperCase()}
+                    </Avatar>
+                  </IconButton>
                 </Stack>
-                {isMobile && <Box sx={{ width: 40 }} />}
               </Stack>
 
-              <Stack
-                direction="row"
-                spacing={2}
-                alignItems="center"
-                justifyContent={isMobile ? "center" : "flex-end"}
-              >
-                <Tooltip title="Your Rewards Points" arrow>
+              {/* ROW 2: Mobile ONLY (Badges + Points) */}
+              {isMobile && (
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ width: "100%", pt: 0.5 }}
+                >
+                  {/* Badges on the Left */}
+                  <Stack direction="row" spacing={1}>
+                    {realBadges.map((badge) => (
+                      <Typography key={badge.id} sx={{ fontSize: "1.8rem" }}>
+                        {badge.badge_unicode}
+                      </Typography>
+                    ))}
+                  </Stack>
+
+                  {/* Points on the Right */}
                   <Box
                     sx={{
                       display: "flex",
                       alignItems: "center",
                       bgcolor: "primary.50",
-                      px: 2,
-                      py: 0.5,
+                      px: 1.5,
+                      py: 0.2,
                       borderRadius: "24px",
                       border: "2px solid",
                       borderColor: "#4527a0",
-                      boxShadow: "0px 2px 4px rgba(0,0,0,0.05)",
-                      cursor: "pointer",
-                      "&:hover": { bgcolor: "primary.100" },
                     }}
                     onClick={() => navigate("/settings")}
                   >
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          fontWeight: 900,
-                          textTransform: "uppercase",
-                          fontSize: "0.7rem",
-                          color: "#4527a0",
-                          letterSpacing: 0.5,
-                        }}
-                      >
-                        Points:
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: 900,
-                          color: "text.primary",
-                          fontFamily: "'Roboto Mono', monospace",
-                          fontSize: "1.1rem",
-                        }}
-                      >
-                        {userProfile?.points_balance?.toLocaleString() || 0}
-                      </Typography>
-                    </Stack>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontWeight: 900,
+                        mr: 0.5,
+                        color: "#4527a0",
+                        fontSize: "0.65rem",
+                      }}
+                    >
+                      POINTS:
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ fontWeight: 900, fontSize: "0.9rem" }}
+                    >
+                      {userProfile?.points_balance?.toLocaleString() || 0}
+                    </Typography>
                   </Box>
-                </Tooltip>
-
-                <IconButton size="small" onClick={() => navigate("/settings")}>
-                  <Settings />
-                </IconButton>
-
-                <IconButton onClick={handleAvatarClick} sx={{ p: 0 }}>
-                  <Avatar
-                    src={user?.photoURL ?? ""}
-                    sx={{
-                      width: 38,
-                      height: 38,
-                      bgcolor: "gold.main",
-                      color: "gold.contrastText",
-                      fontWeight: "bold",
-                      fontSize: "1rem",
-                      border: "2px solid white",
-                      boxShadow: 2,
-                    }}
-                  >
-                    {(user?.displayName || user?.email || "U")
-                      .charAt(0)
-                      .toUpperCase()}
-                  </Avatar>
-                </IconButton>
-              </Stack>
+                </Stack>
+              )}
             </Stack>
           </Toolbar>
         </AppBar>

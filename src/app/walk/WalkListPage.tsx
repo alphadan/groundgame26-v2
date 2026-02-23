@@ -29,6 +29,7 @@ import {
   Doorbell as DoorbellIcon,
   Block as BlockIcon,
   Map as MapIcon,
+  Sort as SortIcon,
 } from "@mui/icons-material";
 import {
   DataGrid,
@@ -53,6 +54,7 @@ export default function WalkListPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { user, isLoaded: authLoaded } = useAuth();
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   const [dbFilters, setDbFilters] = useState<any>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "" });
@@ -68,35 +70,57 @@ export default function WalkListPage() {
     error,
   } = useDynamicVoters(dbFilters);
 
-  // --- 1. DATA STABILIZATION & LOGIC ---
+  // --- 1. DATA STABILIZATION, SORTING & SUPPRESSION LOGIC ---
   const filteredVoters = useMemo(() => {
-    // 1. Sort logic (unchanged)
-    const sorted = [...rawVoters].sort((a, b) => {
+    // 1. Create a shallow copy to avoid mutating the source data
+    let result = [...rawVoters];
+
+    // 2. Primary Sort Logic (Street Name -> House Number)
+    result.sort((a, b) => {
       const streetA = (a.address || "").replace(/^[0-9]+\s+/, "").toLowerCase();
       const streetB = (b.address || "").replace(/^[0-9]+\s+/, "").toLowerCase();
-      if (streetA !== streetB) return streetA.localeCompare(streetB);
-      return (Number(a.address_num) || 0) - (Number(b.address_num) || 0);
+
+      let comparison = 0;
+
+      // Sort by Street Name first
+      if (streetA !== streetB) {
+        comparison = streetA.localeCompare(streetB);
+      } else {
+        // If streets are the same, sort by House Number (numeric)
+        comparison =
+          (Number(a.address_num) || 0) - (Number(b.address_num) || 0);
+      }
+
+      // Apply Mobile Sort Toggle (flips the result if 'desc')
+      return sortOrder === "asc" ? comparison : -comparison;
     });
 
-    // 2. Map with Type-Safe Checks
-    return sorted.map((voter, index, array) => {
+    // 3. Map with Type-Safe Suppression Checks
+    // We do this inside the memo so the DataGrid doesn't re-calculate on every scroll frame
+    return result.map((voter, index, array) => {
       const prev = index > 0 ? array[index - 1] : null;
 
-      // Force IDs to strings to match Firestore keys
+      // Ensure ID is a string for consistent .has() lookups
       const vId = String(voter.voter_id);
+
+      // Check both Suppression Maps
       const isDnc = dncMap.has(vId);
       const isRecentlyVisited = interactionMap.has(vId);
+      const isLocked = isDnc || isRecentlyVisited;
 
       return {
         ...voter,
+        // Household grouping logic:
+        // Only "true" if the address changed from the previous row
         isFirstInHouse: !prev || prev.address !== voter.address,
         isDnc,
         isRecentlyVisited,
-        isLocked: isDnc || isRecentlyVisited,
+        isLocked,
       };
     });
-    // Added precinct to dependencies to ensure fresh alignment
-  }, [rawVoters, dncMap, interactionMap, dbFilters?.precinct]);
+
+    // Dependencies: If any of these change, the list re-calculates
+  }, [rawVoters, dncMap, interactionMap, dbFilters?.precinct, sortOrder]);
 
   // --- 2. ACTION HANDLER ---
   const handleVisit = async (voter: Voter) => {
@@ -108,21 +132,23 @@ export default function WalkListPage() {
     try {
       console.log("Starting visit log for:", voter.voter_id);
       await awardPoints(user.uid, "walk", 1);
-      console.log("Points awarded successfully");
 
+      // Perfect 30-day math: Use a constant to be 100% precise
       const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-      const expiry = Date.now() + THIRTY_DAYS_MS;
+      const now = Date.now(); // <--- Capture "now" once for consistency
+      const expiry = now + THIRTY_DAYS_MS;
 
       const interactionId = `${voter.voter_id}_walk`;
       const docRef = doc(collection(db, "voter_interactions"), interactionId);
 
       await setDoc(docRef, {
-        voter_id: voter.voter_id,
+        // We force everything to String to ensure the hook can find it
+        voter_id: String(voter.voter_id), // <--- CRITICAL FIX
         volunteer_uid: user.uid,
         interaction_type: "walk",
-        timestamp: Date.now(),
+        timestamp: now,
         expires_at: expiry,
-        precinct: dbFilters?.precinct || "unknown",
+        precinct: String(dbFilters?.precinct || "unknown"), // <--- CRITICAL FIX
       });
 
       console.log("Firestore document written successfully!");
@@ -398,7 +424,7 @@ export default function WalkListPage() {
   return (
     <Box sx={{ p: { xs: 2, sm: 4 }, maxWidth: 1400, margin: "auto" }}>
       <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom>
-        Household Walk List
+        Walk List
       </Typography>
 
       <FilterSelector
@@ -422,7 +448,33 @@ export default function WalkListPage() {
       {dbFilters && (
         <Box sx={{ mt: 4 }}>
           {isMobile ? (
-            filteredVoters.map((v) => <VoterCard key={v.voter_id} row={v} />)
+            <>
+              {/* NEW: Sort Toggle Row for Mobile */}
+              <Stack 
+                direction="row" 
+                justifyContent="space-between" 
+                alignItems="center" 
+                sx={{ mb: 2, px: 1 }}
+              >
+                <Typography variant="body2" color="text.secondary" fontWeight="bold">
+                  {filteredVoters.length} Households
+                </Typography>
+                <Button
+                  size="small"
+                  startIcon={<SortIcon sx={{ transform: sortOrder === 'desc' ? 'rotate(180deg)' : 'none' }} />}
+                  onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+                  variant="outlined"
+                  color="primary"
+                >
+                  {sortOrder === 'asc' ? "Sorting: Ascending" : "Sorting: Descending"}
+                </Button>
+              </Stack>
+
+              {filteredVoters.map((v) => (
+                <VoterCard key={v.voter_id} row={v} />
+              ))}
+            </>
           ) : (
             <Paper
               elevation={3}

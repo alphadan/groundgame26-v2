@@ -2470,6 +2470,11 @@ export const onNotificationPreferenceUpdated = functions.firestore
     }
   });
 
+// ================================================================
+//  HANDLES UPDATES OF NOTIFICATION PREFERENCES FROM USER SETTINGS
+// ================================================================
+
+
 export const onnotificationpreferenceupdated = onDocumentUpdated(
   "users/{uid}",
   async (event) => {
@@ -2516,3 +2521,34 @@ export const onnotificationpreferenceupdated = onDocumentUpdated(
     }
   },
 );
+
+// ================================================================
+//  HANDLES CHRON CLEAN UP OF EXPIRED INTERACTIONS WITH VOTERS
+//  PREVENTS VOTERS FROM BEING OVER CONTACTED FROM DIFFERENT VOLUNTEERS 
+// ================================================================
+
+
+export const cleanupExpiredInteractions = functions.pubsub
+  .schedule("0 0 * * *")
+  .onRun(async (context) => {
+    const now = Date.now();
+    const collectionRef = db.collection("voter_interactions");
+    
+    // Query all docs where expires_at has passed
+    const expiredQuery = collectionRef.where("expires_at", "<", now);
+    const snapshot = await expiredQuery.get();
+
+    if (snapshot.empty) {
+      console.log("No expired interactions to clean up.");
+      return null;
+    }
+
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+    console.log(`Successfully deleted ${snapshot.size} expired interactions.`);
+    return null;
+  });
