@@ -6,6 +6,7 @@ import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
 import { useDncMap } from "../../hooks/useDncMap";
 import { useInteractionMap } from "../../hooks/useInteractionMap";
+import { logVoterContact } from "../../services/voterService";
 import { awardPoints } from "../../services/rewardsService";
 import { logEvent } from "../../lib/analytics";
 
@@ -212,45 +213,22 @@ export default function VoterListPage() {
           ? `tel:${normalizedPhone}`
           : `mailto:${voter.email}`;
 
-    // 2. LOG EVENT TO FIREBASE ANALYTICS
-    logEvent("voter_contact_initiated", {
-      contact_method: type,
-      voter_id: voter.voter_id,
-      voter_name: voter.full_name,
-      precinct: filters?.precinct || "none",
-      volunteer_uid: user.uid,
-      volunteer_name: user.displayName || "Admin",
-    });
-
     try {
-      const now = Date.now();
-      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-      const expiry = now + THIRTY_DAYS_MS;
-      const interactionId = `${voter.voter_id}_contact`;
-      const docRef = doc(collection(db, "voter_interactions"), interactionId);
-      await setDoc(docRef, {
-        voter_id: String(voter.voter_id),
-        volunteer_uid: user.uid,
-        interaction_type: type, // stores "sms", "phone", or "email"
-        timestamp: now,
-        expires_at: expiry,
-        precinct: String(filters?.precinct || voter.precinct || "unknown"),
-      });
-
+      await logVoterContact(voter, type, user.uid);
       await awardPoints(user.uid, type === "phone" ? "sms" : type, 1);
-      recordEvent("voter_contact_initiated", {
-        type,
-        voter_id: voter.voter_id,
-        voter_name: voter.full_name,
-      });
       setIsRewardToast(true);
-      setSnackbarMessage(`+1 point earned for contacting ${voterName}!`);
+
+      // FIX: Change voterName to voter.full_name
+      setSnackbarMessage(`+1 point earned for contacting ${voter.full_name}!`);
+
       setSnackbarOpen(true);
       setTimeout(() => {
         window.location.href = protocolUrl;
       }, 1000);
     } catch (err) {
-      console.error("Failed to log contact:", e);
+      // This is defined as 'err'
+      // FIX: Change 'e' to 'err' to match the catch block above
+      console.error("Failed to log contact:", err);
       window.location.href = protocolUrl;
     }
   };
@@ -410,12 +388,7 @@ export default function VoterListPage() {
                     size="small"
                     color="success"
                     onClick={() =>
-                      handleContactAction(
-                        "phone",
-                        row.full_name || "Voter",
-                        `tel:${normalizedPhone}`,
-                        row.voter_id, // PASSING ID FOR ANALYTICS
-                      )
+                      handleContactAction("phone", row)
                     }
                   >
                     <Phone fontSize="small" />
@@ -428,12 +401,7 @@ export default function VoterListPage() {
                     size="small"
                     color="info"
                     onClick={() =>
-                      handleContactAction(
-                        "sms",
-                        row.full_name || "Voter",
-                        `sms:${normalizedPhone}`,
-                        row.voter_id, // PASSING ID FOR ANALYTICS
-                      )
+                      handleContactAction("sms", row)
                     }
                   >
                     <Message fontSize="small" />
@@ -446,12 +414,7 @@ export default function VoterListPage() {
                     size="small"
                     color="primary"
                     onClick={() =>
-                      handleContactAction(
-                        "email",
-                        row.full_name || "Voter",
-                        `mailto:${row.email}`,
-                        row.voter_id, // PASSING ID FOR ANALYTICS
-                      )
+                      handleContactAction("email", row)
                     }
                   >
                     <MailOutline fontSize="small" />

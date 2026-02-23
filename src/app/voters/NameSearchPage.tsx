@@ -1,424 +1,364 @@
-// src/app/voters/NameSearchPage.tsx
-import React, { useState, useCallback, useMemo } from "react";
-import { useAuth } from "../../context/AuthContext";
+import React, { useState } from "react";
 import { useCloudFunctions } from "../../hooks/useCloudFunctions";
 import { useQuery } from "@tanstack/react-query";
 import { FilterSelector } from "../../components/FilterSelector";
 import { VoterNotes } from "../../components/VoterNotes";
-import { useDncMap } from "../../hooks/useDncMap";
-import { awardPoints } from "../../services/rewardsService";
-import { logEvent } from "../../lib/analytics";
-
 import {
   Box,
   Typography,
   Chip,
-  Alert,
   CircularProgress,
   IconButton,
-  Tooltip,
   Stack,
   useTheme,
   useMediaQuery,
-  Snackbar,
+  Paper,
+  TextField,
+  InputAdornment,
   Divider,
 } from "@mui/material";
 import {
   Phone,
   Message,
-  Block,
-  MailOutline,
   SearchOff,
+  Search as SearchIcon,
+  Home as HomeIcon,
+  Person as PersonIcon,
 } from "@mui/icons-material";
-import {
-  DataGrid,
-  GridColDef,
-  GridToolbarContainer,
-  GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
-
-const REWARD_PURPLE = "#673ab7";
-
-interface FilterValues {
-  county: string;
-  area: string;
-  precinct: string;
-  name?: string;
-  street?: string;
-  modeledParty?: string;
-  turnout?: string;
-  ageGroup?: string;
-  mailBallot?: string;
-  gender?: string;
-}
-
-interface Voter {
-  voter_id: string;
-  full_name?: string;
-  address?: string;
-  party?: string;
-  gender?: string;
-  phone_mobile?: string;
-  phone_home?: string;
-  email?: string;
-}
-
-const useDynamicVoters = (filters: FilterValues | null) => {
-  const { callFunction } = useCloudFunctions();
-
-  return useQuery({
-    queryKey: ["nameSearchVoters", filters],
-    queryFn: async (): Promise<Voter[]> => {
-      if (!filters || !filters.name || filters.name.trim().length < 3)
-        return [];
-
-      try {
-        // LOG SEARCH EVENT FOR CAMPAIGN INTELLIGENCE
-        logEvent("voter_search_executed", {
-          search_term: filters.name,
-          search_street: filters.street || "none",
-          precinct_id: filters.precinct || "all",
-        });
-
-        const result = await callFunction<{ voters: Voter[] }>(
-          "queryVotersDynamic",
-          filters,
-        );
-        return result.voters ?? [];
-      } catch (err) {
-        console.error("Name search query failed:", err);
-        throw err;
-      }
-    },
-    enabled: !!filters && !!filters.name && filters.name.trim().length >= 3,
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-};
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
 
 export default function NameSearchPage() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const { user, isLoaded: authLoaded } = useAuth();
-  const dncMap = useDncMap();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const { callFunction } = useCloudFunctions();
 
-  const [filters, setFilters] = useState<FilterValues | null>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [isRewardToast, setIsRewardToast] = useState(false);
+  const [geoFilters, setGeoFilters] = useState<any>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [triggerSearch, setTriggerSearch] = useState("");
 
-  const { data: voters = [], isLoading, error } = useDynamicVoters(filters);
+  // --- DATA FETCHING ---
+  const { data: voters = [], isLoading } = useQuery({
+    queryKey: ["voterSearch", geoFilters, triggerSearch],
+    queryFn: async () => {
+      if (!triggerSearch || triggerSearch.length < 3) return [];
+      const result = await callFunction<{ voters: any[] }>(
+        "searchVotersUniversal",
+        {
+          term: triggerSearch,
+          ...geoFilters,
+        },
+      );
+      return result.voters ?? [];
+    },
+    enabled: !!triggerSearch && triggerSearch.length >= 3,
+  });
 
-  // --- REWARD & ANALYTICS HANDLER ---
-  const handleContactAction = async (
-    type: "sms" | "email" | "phone",
-    voterName: string,
-    protocolUrl: string,
-    voterId: string, // 2. ADDED VOTER_ID FOR ANALYTICS
-  ) => {
-    if (!user?.uid) return;
-
-    // 3. LOG CUSTOM EVENT TO GA4
-    logEvent("search_result_contact", {
-      contact_method: type,
-      voter_id: voterId,
-      voter_name: voterName,
-      volunteer_uid: user.uid,
-      precinct_id: filters?.precinct || "none",
-    });
-
-    try {
-      await awardPoints(user.uid, type === "phone" ? "sms" : type, 1);
-      setIsRewardToast(true);
-      setSnackbarMessage(`+1 point earned for contacting ${voterName}!`);
-      setSnackbarOpen(true);
-      setTimeout(() => {
-        window.location.href = protocolUrl;
-      }, 800);
-    } catch (err) {
-      // Fallback: Ensure user still gets to the dialer/app even if points fail
-      window.location.href = protocolUrl;
-    }
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setTriggerSearch(searchInput);
   };
 
-  const handleSubmit = useCallback((submittedFilters: FilterValues) => {
-    if (!submittedFilters.name || submittedFilters.name.trim().length < 3) {
-      setIsRewardToast(false);
-      setSnackbarMessage("Please enter at least 3 characters to search");
-      setSnackbarOpen(true);
-      return;
-    }
-    setFilters(submittedFilters);
-  }, []);
+  // --- MOBILE CARD COMPONENT ---
+  const VoterCard = ({ row }: { row: any }) => {
+    const phone = row.phone_mobile || row.phone_home;
+    return (
+      <Paper elevation={2} sx={{ p: 2, mb: 2, borderRadius: 3 }}>
+        <Stack spacing={1}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="start"
+          >
+            <Box>
+              <Typography variant="subtitle1" fontWeight="bold">
+                {row.full_name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {row.address}
+              </Typography>
+            </Box>
+            <Chip
+              label={row.party || "U"}
+              size="small"
+              sx={{
+                bgcolor:
+                  row.party === "R"
+                    ? "error.main"
+                    : row.party === "D"
+                      ? "info.main"
+                      : "grey.400",
+                color: "white",
+                fontWeight: "bold",
+              }}
+            />
+          </Stack>
 
-  const columns: GridColDef<Voter>[] = useMemo(
-    () => [
-      {
-        field: "full_name",
-        headerName: "Voter / Address",
-        flex: 1.5,
-        minWidth: 200,
-        renderCell: (params) => (
-          <Stack sx={{ py: 1 }}>
-            <Typography variant="body2" fontWeight="bold">
-              {params.row.full_name || "Unknown"}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {params.row.address || "No address"}
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: "bold", color: "text.secondary" }}
+            >
+              Age: {row.age || "?"} • {row.gender || "Unknown"}
             </Typography>
           </Stack>
-        ),
-      },
-      {
-        field: "gender",
-        headerName: "Sex",
-        width: 70,
-        align: "center",
-        headerAlign: "center",
-        renderCell: (params) => (
-          <Typography variant="body2" fontWeight="bold">
-            {params.value || "—"}
-          </Typography>
-        ),
-      },
-      {
-        field: "party",
-        headerName: "Party",
-        width: 80,
-        align: "center",
-        headerAlign: "center",
-        renderCell: (params) => (
-          <Chip
-            label={params.value || "U"}
-            size="small"
-            sx={{
-              fontWeight: "bold",
-              bgcolor:
-                params.value === "R"
-                  ? "#B22234"
-                  : params.value === "D"
-                    ? "#3C3B6E"
-                    : "grey.400",
-              color: "white",
-              width: 35,
-            }}
-          />
-        ),
-      },
-      {
-        field: "actions",
-        headerName: "Contact & Rewards",
-        flex: 1,
-        minWidth: 180,
-        sortable: false,
-        align: "right",
-        headerAlign: "right",
-        renderCell: (params) => {
-          const row = params.row;
-          const phone = row.phone_mobile || row.phone_home;
-          const normalizedPhone = phone?.replace(/\D/g, "") || "";
-          const isDnc =
-            dncMap.has(row.voter_id) ||
-            (normalizedPhone && dncMap.has(normalizedPhone));
 
-          if (isDnc) {
-            return (
-              <Tooltip title="Do Not Contact">
-                <Chip
-                  icon={<Block sx={{ fontSize: "14px !important" }} />}
-                  label="DNC"
-                  color="error"
-                  variant="outlined"
+          <Divider sx={{ my: 1 }} />
+
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Stack direction="row" spacing={1}>
+              {phone && (
+                <IconButton
+                  color="success"
                   size="small"
-                />
-              </Tooltip>
-            );
-          }
-
-          return (
-            <Stack direction="row" spacing={1} alignItems="center">
-              {!isMobile && phone && (
-                <Typography variant="caption" sx={{ mr: 1 }}>
-                  {phone}
-                </Typography>
+                  onClick={() => (window.location.href = `tel:${phone}`)}
+                >
+                  <Phone />
+                </IconButton>
               )}
               {phone && (
                 <IconButton
-                  size="small"
-                  color="success"
-                  onClick={() =>
-                    handleContactAction(
-                      "phone",
-                      row.full_name!,
-                      `tel:${normalizedPhone}`,
-                      row.voter_id, // 4. PASSING ID
-                    )
-                  }
-                >
-                  <Phone fontSize="small" />
-                </IconButton>
-              )}
-              {row.phone_mobile && (
-                <IconButton
-                  size="small"
                   color="info"
-                  onClick={() =>
-                    handleContactAction(
-                      "sms",
-                      row.full_name!,
-                      `sms:${normalizedPhone}`,
-                      row.voter_id, // 4. PASSING ID
-                    )
-                  }
-                >
-                  <Message fontSize="small" />
-                </IconButton>
-              )}
-              {row.email && (
-                <IconButton
                   size="small"
-                  color="primary"
-                  onClick={() =>
-                    handleContactAction(
-                      "email",
-                      row.full_name!,
-                      `mailto:${row.email}`,
-                      row.voter_id, // 4. PASSING ID
-                    )
-                  }
+                  onClick={() => (window.location.href = `sms:${phone}`)}
                 >
-                  <MailOutline fontSize="small" />
+                  <Message />
                 </IconButton>
               )}
-              <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-              <VoterNotes
-                voterId={row.voter_id}
-                fullName={row.full_name}
-                address={row.address}
-              />
             </Stack>
-          );
-        },
-      },
-    ],
-    [dncMap, isMobile, handleContactAction],
-  );
-
-  const CustomToolbar = () => (
-    <GridToolbarContainer sx={{ p: 1, justifyContent: "space-between" }}>
-      <Typography variant="subtitle1" fontWeight="bold" sx={{ ml: 1 }}>
-        Search Results ({voters.length})
-      </Typography>
-      <GridToolbarQuickFilter />
-    </GridToolbarContainer>
-  );
-
-  if (!authLoaded) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "70vh",
-        }}
-      >
-        <CircularProgress color="primary" size={60} />
-      </Box>
+            <VoterNotes
+              voterId={row.voter_id}
+              fullName={row.full_name}
+              address={row.address}
+            />
+          </Stack>
+        </Stack>
+      </Paper>
     );
-  }
+  };
+
+  // --- DATAGRID COLUMNS (DESKTOP) ---
+  const columns: GridColDef[] = [
+    {
+      field: "full_name",
+      headerName: "Voter",
+      flex: 1,
+      renderCell: ({ row }) => (
+        <Stack sx={{ py: 1 }}>
+          <Typography variant="body2" fontWeight="bold">
+            {row.full_name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {row.address}
+          </Typography>
+        </Stack>
+      ),
+    },
+    {
+      field: "age",
+      headerName: "Age",
+      width: 70,
+      align: "center",
+      headerAlign: "center",
+      renderCell: ({ value }) => (
+        <Chip
+          label={value || "?"}
+          size="small"
+          variant="outlined"
+          sx={{ fontWeight: "bold" }}
+        />
+      ),
+    },
+    {
+      field: "gender",
+      headerName: "Sex",
+      width: 70,
+      align: "center",
+      renderCell: ({ value }) => (
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: "bold",
+            fontSize: "1rem",
+            color:
+              value === "F"
+                ? "primary.light"
+                : value === "M"
+                  ? "secondary.dark"
+                  : "grey.400",
+          }}
+        >
+          {value || ""}
+        </Typography>
+      ),
+    },
+    {
+      field: "party",
+      headerName: "Party",
+      width: 80,
+      renderCell: ({ value }) => (
+        <Chip
+          label={value || "U"}
+          size="small"
+          sx={{
+            bgcolor:
+              value === "R"
+                ? "error.main"
+                : value === "D"
+                  ? "info.main"
+                  : "grey.400",
+            color: "white",
+            fontWeight: "bold",
+          }}
+        />
+      ),
+    },
+    {
+      field: "actions",
+      headerName: "Contact",
+      width: 150,
+      sortable: false,
+      renderCell: ({ row }) => {
+        const phone = row.phone_mobile || row.phone_home;
+        return (
+          <Stack direction="row" spacing={1}>
+            {phone && (
+              <IconButton
+                size="small"
+                color="success"
+                onClick={() => (window.location.href = `tel:${phone}`)}
+              >
+                <Phone />
+              </IconButton>
+            )}
+            {phone && (
+              <IconButton
+                size="small"
+                color="info"
+                onClick={() => (window.location.href = `sms:${phone}`)}
+              >
+                <Message />
+              </IconButton>
+            )}
+            <VoterNotes
+              voterId={row.voter_id}
+              fullName={row.full_name}
+              address={row.address}
+            />
+          </Stack>
+        );
+      },
+    },
+  ];
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-      <Typography variant="h4" gutterBottom fontWeight="900" color="primary">
-        Name Search
-      </Typography>
-      <Typography variant="h6" color="text.secondary" gutterBottom>
-        Search the county database by voter name or address
+    <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, margin: "auto" }}>
+      <Typography variant="h4" fontWeight="900" color="primary" gutterBottom>
+        Voter Search
       </Typography>
 
-      <FilterSelector
-        onSubmit={handleSubmit}
-        isLoading={isLoading}
-        demographicFilters={["name", "street", "gender"]}
-      />
-
-      {error && (
-        <Alert severity="error" sx={{ mt: 3 }}>
-          Search failed. Please check your connection and try again.
-        </Alert>
-      )}
-
-      <Box sx={{ mt: 4, height: 650, width: "100%" }}>
-        <DataGrid
-          rows={voters}
-          columns={columns}
-          getRowId={(row) => row.voter_id}
-          loading={isLoading}
-          slots={{
-            toolbar: CustomToolbar,
-            noRowsOverlay: () => (
-              <Stack
-                height="100%"
-                alignItems="center"
-                justifyContent="center"
-                spacing={1}
-              >
-                <SearchOff sx={{ fontSize: 48, color: "text.disabled" }} />
-                <Typography color="text.secondary">
-                  {filters
-                    ? "No voters found matching those criteria"
-                    : "Enter a name above to begin"}
-                </Typography>
-              </Stack>
-            ),
-          }}
-          getRowHeight={() => "auto"}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 25 } },
-          }}
-          pageSizeOptions={[25, 50, 100]}
-          disableRowSelectionOnClick
-          sx={{
-            borderRadius: 3,
-            boxShadow: 4,
-            bgcolor: "background.paper",
-            border: "none",
-            "& .MuiDataGrid-columnHeaders": {
-              bgcolor: "grey.100",
-              fontWeight: "bold",
-            },
-            "& .MuiDataGrid-cell": {
-              borderBottom: "1px solid",
-              borderColor: "grey.200",
-              py: 1,
-            },
-          }}
-          slotProps={{
-            noRowsOverlay: {
-              sx: { height: "100%" },
-            },
-          }}
+      <Box sx={{ mb: 3 }}>
+        <FilterSelector
+          onSubmit={setGeoFilters}
+          isLoading={isLoading}
+          demographicFilters={[]}
         />
       </Box>
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      <Paper
+        component="form"
+        onSubmit={handleSearch}
+        sx={{
+          p: 1,
+          display: "flex",
+          alignItems: "center",
+          mb: 4,
+          borderRadius: 3,
+          opacity: geoFilters ? 1 : 0.5,
+          pointerEvents: geoFilters ? "auto" : "none",
+        }}
       >
-        <Alert
-          severity={isRewardToast ? "success" : "info"}
-          variant="filled"
-          sx={{
-            bgcolor: isRewardToast ? REWARD_PURPLE : undefined,
-            fontWeight: "bold",
+        <TextField
+          fullWidth
+          placeholder={
+            geoFilters
+              ? "Search by Name or Address..."
+              : "Select geographic filters first..."
+          }
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          variant="standard"
+          sx={{ ml: 1, flex: 1 }}
+          InputProps={{
+            disableUnderline: true,
+            startAdornment: (
+              <InputAdornment position="start">
+                {/^\d/.test(searchInput) ? <HomeIcon /> : <PersonIcon />}
+              </InputAdornment>
+            ),
           }}
+        />
+        <IconButton
+          type="submit"
+          color="primary"
+          disabled={searchInput.length < 3}
         >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+          <SearchIcon />
+        </IconButton>
+      </Paper>
+
+      <Box sx={{ minHeight: 400 }}>
+        {isLoading ? (
+          <Stack alignItems="center" mt={5}>
+            <CircularProgress />
+          </Stack>
+        ) : voters.length > 0 ? (
+          // --- RESPONSIVE RENDER ---
+          isMobile ? (
+            <Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mb: 2, display: "block" }}
+              >
+                Showing {voters.length} results
+              </Typography>
+              {voters.map((voter: any) => (
+                <VoterCard key={voter.voter_id} row={voter} />
+              ))}
+            </Box>
+          ) : (
+            <Paper
+              elevation={3}
+              sx={{
+                height: 600,
+                width: "100%",
+                borderRadius: 3,
+                overflow: "hidden",
+              }}
+            >
+              <DataGrid
+                rows={voters}
+                columns={columns}
+                getRowId={(r) => r.voter_id}
+                disableRowSelectionOnClick
+              />
+            </Paper>
+          )
+        ) : (
+          <Stack alignItems="center" mt={5} sx={{ opacity: 0.5 }}>
+            <SearchOff sx={{ fontSize: 64 }} />
+            <Typography>
+              {triggerSearch
+                ? "No matches in this area."
+                : "Enter 3+ characters to begin."}
+            </Typography>
+          </Stack>
+        )}
+      </Box>
     </Box>
   );
 }

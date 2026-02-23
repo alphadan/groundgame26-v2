@@ -1,5 +1,5 @@
-import * as functions from "firebase-functions/v1";
 import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { setGlobalOptions } from "firebase-functions/v2";
 import {
   onDocumentWritten,
@@ -189,66 +189,6 @@ export const getVotersByPrecinct = onCall(async (request) => {
     throw new HttpsError("internal", "Failed to fetch voters from BigQuery.");
   }
 });
-
-// ================================================================
-// SEARCH VOTERS BY NAME — FINAL v2 VERSION (Dec 2025)
-// ================================================================
-
-export const searchVotersByNameV2 = onCall(
-  {
-    cors: [/localhost:\d+$/, /127\.0\.0\.1:\d+$/, "https://groundgame26.com"],
-    region: "us-central1",
-    timeoutSeconds: 30,
-  },
-  async (request) => {
-    if (!request.auth?.uid) {
-      throw new HttpsError("unauthenticated", "Authentication required");
-    }
-
-    const { name } = request.data || {};
-
-    if (!name || typeof name !== "string" || name.trim().length < 3) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Name must be at least 3 characters",
-      );
-    }
-
-    const searchTerm = name.trim().toLowerCase();
-
-    const table = `groundgame26-v2.groundgame26_voters.chester_county`;
-
-    const sql = `
-      SELECT 
-        voter_id,
-        full_name,
-        age,
-        party,
-        precinct,
-        address,
-        phone_mobile,
-        modeled_party
-      FROM \`${table}\`
-      WHERE LOWER(full_name) LIKE @searchTerm
-      ORDER BY full_name
-      LIMIT 100
-    `;
-
-    try {
-      const [rows] = await bigquery.query({
-        query: sql,
-        params: { searchTerm: `%${searchTerm}%` },
-        location: "US",
-      });
-
-      console.log(`Name search for "${name}" returned ${rows.length} results`);
-      return { voters: rows };
-    } catch (error) {
-      console.error("Name search BigQuery error:", error);
-      throw new HttpsError("internal", "Search failed — please try again");
-    }
-  },
-);
 
 // ================================================================
 // GET DASHBOARD STATS — FINAL, WORKING FOR CHESTER COUNTY TABLE
@@ -2411,144 +2351,152 @@ export const adminCreateOrUpdateSurvey = onCall(
 //  HANDLES NOTIFICATION PREFERENCES FROM USER SETTINGS CHANGES
 // ================================================================
 
-export const onNotificationPreferenceUpdated = functions.firestore
-  .document("users/{uid}")
-  .onUpdate(async (change, context) => {
-    const beforeData = change.before.data();
-    const afterData = change.after.data();
-    const uid = context.params.uid;
-
-    const beforePrefs = beforeData.notification_preferences || {};
-    const afterPrefs = afterData.notification_preferences || {};
-
-    // 1. Identify which topic changed
-    const topics = Object.keys(afterPrefs).filter(
-      (key) => key !== "last_updated",
-    );
-
-    for (const topicId of topics) {
-      if (beforePrefs[topicId] !== afterPrefs[topicId]) {
-        const isSubscribing = afterPrefs[topicId] === true;
-
-        console.log(
-          `User ${uid} is ${isSubscribing ? "subscribing to" : "unsubscribing from"} ${topicId}`,
-        );
-
-        // 2. Get the user's FCM Tokens
-        // Logic assumes tokens are stored in /users/{uid}/fcmTokens/{tokenDoc}
-        const tokensSnapshot = await admin
-          .firestore()
-          .collection("users")
-          .doc(uid)
-          .collection("fcmTokens")
-          .get();
-
-        const tokens = tokensSnapshot.docs.map((doc) => doc.id);
-
-        if (tokens.length === 0) {
-          console.log(`No FCM tokens found for user ${uid}.`);
-          continue;
-        }
-
-        // 3. Perform the FCM Topic Sync
-        try {
-          if (isSubscribing) {
-            await admin.messaging().subscribeToTopic(tokens, topicId);
-            console.log(
-              `Successfully subscribed ${tokens.length} tokens to ${topicId}`,
-            );
-          } else {
-            await admin.messaging().unsubscribeFromTopic(tokens, topicId);
-            console.log(
-              `Successfully unsubscribed ${tokens.length} tokens from ${topicId}`,
-            );
-          }
-        } catch (error) {
-          console.error(`Error syncing topics for user ${uid}:`, error);
-        }
-      }
-    }
-  });
-
-// ================================================================
-//  HANDLES UPDATES OF NOTIFICATION PREFERENCES FROM USER SETTINGS
-// ================================================================
-
-
-export const onnotificationpreferenceupdated = onDocumentUpdated(
-  "users/{uid}",
+export const onNotificationPreferenceUpdatedV2 = onDocumentUpdated(
+  "users/{uid}/preferences/notifications",
   async (event) => {
-    const beforeData = event.data?.before.data();
-    const afterData = event.data?.after.data();
-    const uid = event.params.uid;
+    const newValue = event.data?.after.data();
+    const oldValue = event.data?.before.data();
 
-    if (!beforeData || !afterData) return;
-
-    const beforePrefs = beforeData.notification_preferences || {};
-    const afterPrefs = afterData.notification_preferences || {};
-
-    // Get all keys except our metadata timestamp
-    const topics = Object.keys(afterPrefs).filter(
-      (key) => key !== "last_updated",
-    );
-
-    for (const topicId of topics) {
-      if (beforePrefs[topicId] !== afterPrefs[topicId]) {
-        const isSubscribing = afterPrefs[topicId] === true;
-
-        // Get tokens from the sub-collection
-        const tokensSnap = await admin
-          .firestore()
-          .collection("users")
-          .doc(uid)
-          .collection("fcmTokens")
-          .get();
-
-        const tokens = tokensSnap.docs.map((doc) => doc.id);
-
-        if (tokens.length === 0) continue;
-
-        try {
-          if (isSubscribing) {
-            await admin.messaging().subscribeToTopic(tokens, topicId);
-          } else {
-            await admin.messaging().unsubscribeFromTopic(tokens, topicId);
-          }
-        } catch (error) {
-          console.error(`FCM Topic Sync Error for ${uid}:`, error);
-        }
-      }
+    if (newValue?.enabled !== oldValue?.enabled) {
+      logger.info(`Notification settings changed for ${event.params.uid}`);
     }
   },
 );
 
 // ================================================================
 //  HANDLES CHRON CLEAN UP OF EXPIRED INTERACTIONS WITH VOTERS
-//  PREVENTS VOTERS FROM BEING OVER CONTACTED FROM DIFFERENT VOLUNTEERS 
+//  PREVENTS VOTERS FROM BEING OVER CONTACTED FROM DIFFERENT VOLUNTEERS
 // ================================================================
 
-
-export const cleanupExpiredInteractions = functions.pubsub
-  .schedule("0 0 * * *")
-  .onRun(async (context) => {
+export const cleanupExpiredInteractions = onSchedule(
+  {
+    schedule: "0 0 * * *", // Runs every day at midnight
+    region: "us-central1", // Match your other functions for latency consistency
+    memory: "256MiB", // Lightweight task
+    retryCount: 3, // Optional: Automatically retries on failure
+  },
+  async (event) => {
     const now = Date.now();
     const collectionRef = db.collection("voter_interactions");
-    
-    // Query all docs where expires_at has passed
-    const expiredQuery = collectionRef.where("expires_at", "<", now);
-    const snapshot = await expiredQuery.get();
 
-    if (snapshot.empty) {
-      console.log("No expired interactions to clean up.");
-      return null;
+    try {
+      // Query all docs where expires_at has passed
+      const expiredQuery = collectionRef.where("expires_at", "<", now);
+      const snapshot = await expiredQuery.get();
+
+      if (snapshot.empty) {
+        logger.info("No expired interactions to clean up.");
+        return;
+      }
+
+      const batch = db.batch();
+      snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+
+      // Using v2 logger for better structured logging
+      logger.info(
+        `Successfully deleted ${snapshot.size} expired interactions.`,
+        {
+          executionTime: event.scheduleTime,
+          count: snapshot.size,
+        },
+      );
+    } catch (error) {
+      logger.error("Cleanup job failed:", error);
+      throw error; // Throwing ensures the scheduler registers a failure
     }
+  },
+);
 
-    const batch = db.batch();
-    snapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref);
+// ================================================================
+//  HANDLES VOTER NAME OR ADDRESS SEARCHES FROM APP
+// ================================================================
+
+export const searchVotersUniversal = onCall(
+  {
+    cors: [/localhost:\d+$/, /127\.0\.0\.1:\d+$/, "https://groundgame26.com"],
+    region: "us-central1",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    if (!request.auth?.uid)
+      throw new HttpsError("unauthenticated", "Authentication required");
+
+    const filters = request.data || {};
+    const table = `groundgame26-v2.groundgame26_voters.chester_county`;
+
+    let sql = `SELECT voter_id, full_name, address, party, age, gender, precinct, email, phone_mobile, phone_home 
+             FROM \`${table}\` WHERE 1=1`;
+
+    const params = {};
+
+    // --- LOGGING INPUT ---
+    logger.info("Search Request Received", {
+      term: filters.term,
+      precinct: filters.precinct,
+      area: filters.area,
+      uid: request.auth.uid,
     });
 
-    await batch.commit();
-    console.log(`Successfully deleted ${snapshot.size} expired interactions.`);
-    return null;
-  });
+    // 1. Enforce Geographic Permissions
+    if (filters.area && filters.area.trim() !== "") {
+      sql += ` AND area_district = @area`;
+      params.area = filters.area.trim();
+    }
+    if (filters.precinct && filters.precinct.trim() !== "") {
+      const normalized = filters.precinct.trim().replace(/^0+/, "") || "0";
+      logger.log("Params: precinct", normalized);
+      sql += ` AND precinct = @precinct`;
+      params.precinct = normalized;
+    }
+
+    // 2. Smart Search Logic
+    if (filters.term) {
+      const cleanTerm = filters.term.trim().toLowerCase();
+
+      if (/^\d/.test(cleanTerm)) {
+        // Address Match
+        sql += ` AND LOWER(address) LIKE @addr`;
+        params.addr = `${cleanTerm}%`;
+      } else {
+        // Name Match: Split into tokens (e.g., "Daniel Keane" -> ["daniel", "keane"])
+        const tokens = cleanTerm.split(/\s+/).filter((t) => t.length > 0);
+
+        if (tokens.length > 1) {
+          // Case: "Daniel Keane" - ensures BOTH tokens exist in full_name
+          tokens.forEach((token, idx) => {
+            const pName = `token${idx}`;
+            sql += ` AND LOWER(full_name) LIKE @${pName}`;
+            params[pName] = `%${token}%`;
+          });
+        } else {
+          // Case: "DanielKeane" - matches against actual name OR name with spaces removed
+          sql += ` AND (LOWER(full_name) LIKE @name OR LOWER(REPLACE(full_name, ' ', '')) LIKE @name)`;
+          params.name = `%${cleanTerm}%`;
+        }
+      }
+    }
+
+    sql += ` ORDER BY 
+        REGEXP_REPLACE(address, r'^[0-9]+\\s+', '') ASC,
+        address_num ASC,
+        full_name ASC LIMIT 100`;
+
+    try {
+      const [rows] = await bigquery.query({
+        query: sql,
+        params,
+        location: "US",
+      });
+      logger.info("Query successful", { count: rows.length });
+      return { voters: rows };
+    } catch (error) {
+      logger.error("BigQuery Search Error", { error: error.message, sql });
+      throw new HttpsError("internal", "Query failed — check server logs");
+    }
+  },
+);
