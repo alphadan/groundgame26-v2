@@ -26,6 +26,7 @@ const auth = getAuth();
 const storage = getStorage();
 const bucket = storage.bucket("groundgame26-v2.firebasestorage.app");
 const bigquery = new BigQuery();
+const VOTER_TABLE = `groundgame26-v2.groundgame26_voters.20260220_chester_county`;
 
 // ================================================================
 // ROLE_PRIORITY MAPPING
@@ -117,9 +118,8 @@ export const queryVoters = onRequest(
       // We use a more flexible check to ensure it's hitting the correct table
       const lowerSql = sql.toLowerCase();
       const isValidTable =
-        lowerSql.includes(
-          "from `groundgame26-v2.groundgame26_voters.chester_county`",
-        ) || lowerSql.includes("from `groundgame26_voters.chester_county`"); // Fallback for local testing
+        lowerSql.includes("from \`${VOTER_TABLE}\`") ||
+        lowerSql.includes("from \`${VOTER_TABLE}\`"); // Fallback for local testing
 
       if (!isValidTable) {
         console.warn("BLOCKED: Unauthorized table access attempt:", sql);
@@ -171,7 +171,7 @@ export const getVotersByPrecinct = onCall(async (request) => {
   // 3. BigQuery uses named placeholders with @ but the params object
   // needs to match that key exactly.
   const sql = `
-    SELECT * FROM \`groundgame26-v2.groundgame26_voters.chester_county\` 
+    SELECT * FROM \`${VOTER_TABLE}\` 
     WHERE precinct = @precinctCode 
     AND active = TRUE 
     `;
@@ -224,17 +224,17 @@ export const getDashboardStats = onCall(
       );
     }
 
-    const table = `groundgame26-v2.groundgame26_voters.chester_county`;
+    const table = VOTER_TABLE;
 
     let sql = `
       SELECT 
-        COUNTIF(party = 'R') AS total_r,
-        COUNTIF(party = 'D') AS total_d,
-        COUNTIF(party NOT IN ('R','D') AND party IS NOT NULL) AS total_nf,
+        COUNTIF(political_party = 'R') AS total_r,
+        COUNTIF(political_party = 'D') AS total_d,
+        COUNTIF(political_party NOT IN ('R','D') AND political_party IS NOT NULL) AS total_nf,
 
-        COUNTIF(has_mail_ballot = TRUE AND party = 'R') AS mail_r,
-        COUNTIF(has_mail_ballot = TRUE AND party = 'D') AS mail_d,
-        COUNTIF(has_mail_ballot = TRUE AND party NOT IN ('R','D') AND party IS NOT NULL) AS mail_nf,
+        COUNTIF(vbm_apptype IS NOT NULL AND vbm_apptype != '' AND political_party = 'R') AS mail_r,
+        COUNTIF(vbm_apptype IS NOT NULL AND vbm_apptype != '' AND political_party = 'D') AS mail_d,
+        COUNTIF(vbm_apptype IS NOT NULL AND AND vbm_apptype != '' political_party NOT IN ('R','D') AND political_party IS NOT NULL) AS mail_nf,
 
         COUNTIF(modeled_party = '1 - Hard Republican') AS hard_r,
         COUNTIF(modeled_party LIKE '2 - Weak%') AS weak_r,
@@ -242,31 +242,31 @@ export const getDashboardStats = onCall(
         COUNTIF(modeled_party LIKE '4 - Weak%') AS weak_d,
         COUNTIF(modeled_party = '5 - Hard Democrat') AS hard_d,
 
-        COUNTIF(age_group = '18-25' AND party = 'R') AS age_18_25_r,
-        COUNTIF(age_group = '18-25' AND party = 'NF') AS age_18_25_i,
-        COUNTIF(age_group = '18-25' AND party = 'D') AS age_18_25_d,
-        COUNTIF(age_group = '26-40' AND party = 'R') AS age_26_40_r,
-        COUNTIF(age_group = '26-40' AND party = 'NF') AS age_26_40_i,
-        COUNTIF(age_group = '26-40' AND party = 'D') AS age_26_40_d,
-        COUNTIF(age_group = '41-70' AND party = 'R') AS age_41_70_r,
-        COUNTIF(age_group = '41-70' AND party = 'NF') AS age_41_70_i,
-        COUNTIF(age_group = '41-70' AND party = 'D') AS age_41_70_d,
-        COUNTIF(age_group = '71+' AND party = 'R') AS age_71_plus_r,
-        COUNTIF(age_group = '71+' AND party = 'NF') AS age_71_plus_i,
-        COUNTIF(age_group = '71+' AND party = 'D') AS age_71_plus_d,
+        COUNTIF(age_group = '18-25' AND political_party = 'R') AS age_18_25_r,
+        COUNTIF(age_group = '18-25' AND political_party = 'NF') AS age_18_25_i,
+        COUNTIF(age_group = '18-25' AND political_party = 'D') AS age_18_25_d,
+        COUNTIF(age_group = '26-40' AND political_party = 'R') AS age_26_40_r,
+        COUNTIF(age_group = '26-40' AND political_party = 'NF') AS age_26_40_i,
+        COUNTIF(age_group = '26-40' AND political_party = 'D') AS age_26_40_d,
+        COUNTIF(age_group = '41-70' AND political_party = 'R') AS age_41_70_r,
+        COUNTIF(age_group = '41-70' AND political_party = 'NF') AS age_41_70_i,
+        COUNTIF(age_group = '41-70' AND political_party = 'D') AS age_41_70_d,
+        COUNTIF(age_group = '71+' AND political_party = 'R') AS age_71_plus_r,
+        COUNTIF(age_group = '71+' AND political_party = 'NF') AS age_71_plus_i,
+        COUNTIF(age_group = '71+' AND political_party = 'D') AS age_71_plus_d,
 
-        COUNTIF(has_mail_ballot = TRUE AND age_group = '18-25' AND party = 'R') AS mail_age_18_25_r,
-        COUNTIF(has_mail_ballot = TRUE AND age_group = '18-25' AND party = 'NF') AS mail_age_18_25_i,
-        COUNTIF(has_mail_ballot = TRUE AND age_group = '18-25' AND party = 'D') AS mail_age_18_25_d,
-        COUNTIF(has_mail_ballot = TRUE AND age_group = '26-40' AND party = 'R') AS mail_age_26_40_r,
-        COUNTIF(has_mail_ballot = TRUE AND age_group = '26-40' AND party = 'NF') AS mail_age_26_40_i,
-        COUNTIF(has_mail_ballot = TRUE AND age_group = '26-40' AND party = 'D') AS mail_age_26_40_d,
-        COUNTIF(has_mail_ballot = TRUE AND age_group = '41-70' AND party = 'R') AS mail_age_41_70_r,
-        COUNTIF(has_mail_ballot = TRUE AND age_group = '41-70' AND party = 'NF') AS mail_age_41_70_i,
-        COUNTIF(has_mail_ballot = TRUE AND age_group = '41-70' AND party = 'D') AS mail_age_41_70_d,
-        COUNTIF(has_mail_ballot = TRUE AND age_group = '71+' AND party = 'R') AS mail_age_71_plus_r,
-        COUNTIF(has_mail_ballot = TRUE AND age_group = '71+' AND party = 'NF') AS mail_age_71_plus_i,
-        COUNTIF(has_mail_ballot = TRUE AND age_group = '71+' AND party = 'D') AS mail_age_71_plus_d
+        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '18-25' AND political_party = 'R') AS mail_age_18_25_r,
+        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '18-25' AND political_party = 'NF') AS mail_age_18_25_i,
+        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '18-25' AND political_party = 'D') AS mail_age_18_25_d,
+        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '26-40' AND political_party = 'R') AS mail_age_26_40_r,
+        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '26-40' AND political_party = 'NF') AS mail_age_26_40_i,
+        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '26-40' AND political_party = 'D') AS mail_age_26_40_d,
+        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '41-70' AND political_party = 'R') AS mail_age_41_70_r,
+        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '41-70' AND political_party = 'NF') AS mail_age_41_70_i,
+        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '41-70' AND political_party = 'D') AS mail_age_41_70_d,
+        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '71+' AND political_party = 'R') AS mail_age_71_plus_r,
+        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '71+' AND political_party = 'NF') AS mail_age_71_plus_i,
+        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '71+' AND political_party = 'D') AS mail_age_71_plus_d
       FROM \`${table}\`
       WHERE 1=1
     `;
@@ -275,7 +275,7 @@ export const getDashboardStats = onCall(
 
     // Use correct column name: area_district
     if (areaCode) {
-      sql += ` AND area_district = @areaCode`;
+      sql += ` AND area = @areaCode`;
       params.areaCode = areaCode;
     }
 
@@ -326,16 +326,16 @@ export const getVotersByPrecinctV2 = onCall(
     // Normalize: remove leading zeros
     const normalizedPrecinct = precinctCode.replace(/^0+/, "") || "0";
 
-    const table = `groundgame26-v2.groundgame26_voters.chester_county`;
+    const table = VOTER_TABLE;
 
     const sql = `
       SELECT 
-        voter_id, full_name, age, gender, party, modeled_party,
-        phone_home, phone_mobile, address, turnout_score_general,
-        mail_ballot_returned, likely_mover, precinct, area_district
+        pavoterid, full_name, age, sex, political_party, rncfiles_calculatedparty,
+        phone_primary, phone_home, phone_mobile, address, rncfiles_generalfrequency,
+        vbn_ballotreturned, rncfiles_moved, precinct, area
       FROM \`${table}\`
       WHERE precinct = @normalizedPrecinct
-      ORDER BY turnout_score_general DESC
+      ORDER BY rncfiles_generalfrequency DESC
     `;
 
     try {
@@ -375,11 +375,11 @@ export const queryVotersDynamic = onCall(
     const filters = request.data || {};
     console.log("Received filters:", filters); // Debug log
 
-    const table = `groundgame26-v2.groundgame26_voters.chester_county`;
+    const table = VOTER_TABLE;
 
     let sql = `
       SELECT 
-        voter_id, full_name, gender, age, party, precinct, area_district,
+        voter_id, full_name, gender, age, political_party, precinct, area_district,
         address, address_num, city, email, phone_mobile, phone_home, has_mail_ballot,
         modeled_party, turnout_score_general, turnout_score_primary, date_registered, likely_mover, zip_code
       FROM \`${table}\`
@@ -421,10 +421,10 @@ export const queryVotersDynamic = onCall(
       params.modeledParty = filters.modeledParty.trim();
     }
 
-    // === Party ===
-    if (filters.party && filters.party.trim() !== "") {
-      sql += ` AND party = @party`;
-      params.party = filters.party.trim();
+    // === political_party ===
+    if (filters.political_party && filters.political_party.trim() !== "") {
+      sql += ` AND political_party = @party`;
+      params.political_party = filters.political_party.trim();
     }
 
     // === Turnout General Score ===
@@ -509,127 +509,6 @@ export const queryVotersDynamic = onCall(
   },
 );
 
-export const queryVotersDynamicRNC = onCall(
-  {
-    cors: [/localhost:\d+$/, /127\.0\.0\.1:\d+$/, "https://groundgame26.com"],
-    region: "us-central1",
-    timeoutSeconds: 60,
-    memory: "512MiB",
-  },
-  async (request) => {
-    if (!request.auth?.uid) {
-      throw new HttpsError("unauthenticated", "Authentication required");
-    }
-
-    const filters = request.data || {};
-    console.log("Received filters:", filters); // Debug log
-
-    const table = `groundgame26-v2.groundgame26_voters.chester_county_rnc_master_202512`;
-
-    let sql = `
-      SELECT 
-        statevoterid, firstname, lastname, fullname, gender, age, agegroup, officialparty, precinctname,
-        precinctnumber, primaryaddress1, primarycity, mobile, landline, officialparty,
-        calculatedparty, generalregularity, primaryregularity, registrationdate, moved, primaryzip, VBM_AppReturnedDate
-      FROM \`${table}\`
-      WHERE 1=1
-    `;
-
-    const params = {};
-
-    // === Precinct ===
-    if (filters.precinct && filters.precinct.trim() !== "") {
-      const normalized = filters.precinct.trim().replace(/^0+/, "") || "0";
-
-      console.log("Params precinct:", normalized);
-      logger.log("Params: precinct", normalized);
-
-      sql += ` AND PrecinctNumber = @precinct`;
-
-      // Convert the string to a Number so BigQuery sees it as an INT64
-      params.precinct = Number(normalized);
-    }
-
-    // === Name ===
-    if (filters.name && filters.name.trim() !== "") {
-      sql += ` AND LOWER(FullName) LIKE @name`;
-      params.name = `%${filters.name.trim().toLowerCase()}%`;
-    }
-
-    // === Street ===
-    if (filters.street && filters.street.trim() !== "") {
-      sql += ` AND LOWER(primaryaddress1) LIKE @street`;
-      params.street = `%${filters.street.trim().toLowerCase()}%`;
-    }
-
-    // === Modeled Party ===
-    if (filters.modeledParty && filters.modeledParty.trim() !== "") {
-      sql += ` AND calculatedparty = @modeledParty`;
-      params.modeledParty = filters.modeledParty.trim();
-    }
-
-    // === Party ===
-    if (filters.party && filters.party.trim() !== "") {
-      sql += ` AND officialparty = @party`;
-      params.party = filters.party.trim();
-    }
-
-    // === Turnout Score ===
-    if (filters.turnout && filters.turnout.trim() !== "") {
-      const score = parseInt(filters.turnout.trim());
-      if (!isNaN(score)) {
-        sql += ` AND generalregularity = @turnout`;
-        params.turnout = score;
-      }
-    }
-
-    // === Age Group ===
-    if (filters.ageGroup && filters.ageGroup.trim() !== "") {
-      sql += ` AND AgeGroup = @ageGroup`;
-      params.ageGroup = filters.ageGroup.trim();
-    }
-
-    // === Mail Ballot ===
-    if (filters.mailBallot && filters.mailBallot.trim() !== "") {
-      if (filters.mailBallot === "true") {
-        sql += ` AND VBM_AppReturnedDate = IS NOT NULL`;
-      } else if (filters.mailBallot === "false") {
-        sql += ` AND VBM_AppReturnedDate = IS NULL`;
-      }
-    }
-
-    // === Zip Code ===
-    if (filters.zipCode && filters.zipCode.trim() !== "") {
-      const zip = filters.zipCode.trim();
-      if (/^\d{5}$/.test(zip)) {
-        sql += ` AND PrimaryZip = @zipCode`;
-        params.zipCode = parseInt(zip);
-      }
-    }
-
-    sql += ` ORDER BY fullname LIMIT 2000`;
-
-    console.log("Final SQL:", sql);
-    logger.log("Final SQL:", sql);
-    console.log("Params:", params);
-    logger.log("Params:", params);
-
-    try {
-      const [rows] = await bigquery.query({
-        query: sql,
-        params,
-        location: "US",
-      });
-
-      console.log(`Dynamic query returned ${rows.length} voters`);
-      return { voters: rows };
-    } catch (error) {
-      console.error("Dynamic query failed:", error);
-      throw new HttpsError("internal", "Query failed — check server logs");
-    }
-  },
-);
-
 // ================================================================
 // GET MESSAGE IDEAS
 // ================================================================
@@ -653,14 +532,14 @@ export const getMessageIdeas = onCall(async (request) => {
   let query = db.collection("message_templates").where("active", "==", true);
 
   try {
-    // Defensive check for Party (Mapping 'R' to 'Republican' if necessary
+    // Defensive check for political_party (Mapping 'R' to 'Republican' if necessary
     // should ideally happen on frontend, but we handle it here too)
     const partyValue =
-      data.party === "R"
+      data.political_party === "R"
         ? "Republican"
-        : data.party === "D"
+        : data.political_party === "D"
           ? "Democratic"
-          : data.party;
+          : data.political_party;
 
     // Helper to safely apply OR filters
     const applyOrFilter = (queryRef, field, value) => {
@@ -677,7 +556,7 @@ export const getMessageIdeas = onCall(async (request) => {
 
     // Apply filters
     query = applyOrFilter(query, "age_group", data.ageGroup);
-    query = applyOrFilter(query, "party", partyValue);
+    query = applyOrFilter(query, "political_party", partyValue);
     query = applyOrFilter(query, "turnout_score_general", data.turnout);
     query = applyOrFilter(query, "has_mail_ballot", data.mailBallot);
     query = applyOrFilter(query, "gender", data.gender);
@@ -1872,7 +1751,7 @@ export const searchVotersByPhoneV2 = onCall(
       );
     }
 
-    const table = `groundgame26-v2.groundgame26_voters.chester_county`;
+    const table = VOTER_TABLE;
 
     // 3. SQL Query with Normalization
     // Use REGEXP_REPLACE to remove non-digits from the stored phone field for comparison
@@ -1881,7 +1760,7 @@ export const searchVotersByPhoneV2 = onCall(
         voter_id,
         full_name,
         age,
-        party,
+        political_party,
         precinct,
         address,
         phone_mobile,
@@ -2427,9 +2306,9 @@ export const searchVotersUniversal = onCall(
       throw new HttpsError("unauthenticated", "Authentication required");
 
     const filters = request.data || {};
-    const table = `groundgame26-v2.groundgame26_voters.chester_county`;
+    const table = VOTER_TABLE;
 
-    let sql = `SELECT voter_id, full_name, address, party, age, gender, precinct, email, phone_mobile, phone_home 
+    let sql = `SELECT voter_id, full_name, address, political_party, age, gender, precinct, email, phone_mobile, phone_home 
              FROM \`${table}\` WHERE 1=1`;
 
     const params = {};
