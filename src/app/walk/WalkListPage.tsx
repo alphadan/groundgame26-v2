@@ -93,7 +93,9 @@ export default function WalkListPage() {
       const prev = index > 0 ? array[index - 1] : null;
 
       // Ensure ID is a string for consistent .has() lookups
-      const vId = String(voter.voter_id);
+      const vId = voter.voter_id
+        ? String(voter.voter_id)
+        : `temp-${voter.address}-${index}`;
 
       // Check both Suppression Maps
       const isDnc = dncMap.has(vId);
@@ -102,6 +104,9 @@ export default function WalkListPage() {
 
       return {
         ...voter,
+        voter_id: vId,
+        gender: voter.sex,
+        party: voter.political_party,
         // Household grouping logic:
         // Only "true" if the address changed from the previous row
         isFirstInHouse: !prev || prev.address !== voter.address,
@@ -236,7 +241,7 @@ export default function WalkListPage() {
         ),
       },
       {
-        field: "party",
+        field: "political_party",
         headerName: "Party",
         width: 80,
         renderCell: ({ value }) => (
@@ -483,7 +488,11 @@ export default function WalkListPage() {
               </Stack>
 
               {filteredVoters.map((v) => (
-                <VoterCard key={v.voter_id} row={v} />
+                <VoterCard
+                  key={v.voter_id}
+                  row={v}
+                  sx={{ mt: v.isFirstInHouse ? 4 : 1 }}
+                />
               ))}
             </>
           ) : (

@@ -1,0 +1,56 @@
+1. Remove Columns: 
+2. Add Columns: full_name, address, has_mail_ballot, age_group, email
+3. Rename Table & Sheet
+5. Format Numbers (Dates) Custom String
+4. Create BigQuery tables
+   - Advance Settings skip 1 row as header
+5. Insert tables (append)
+
+INSERT INTO `groundgame26-v2.groundgame26_voters.20250225_chester_county`
+SELECT * FROM `groundgame26-v2.groundgame26_voters.penn_450_20250225`;
+
+6. Conconcatate full_name
+
+UPDATE `groundgame26-v2.groundgame26_voters.20260225_chester_county`
+SET full_name = ARRAY_TO_STRING(
+  [TRIM(first_name), TRIM(middle_name), TRIM(last_name), TRIM(suffix)], 
+  ' '
+)
+WHERE TRUE
+
+7. Conconcatate address
+
+UPDATE `groundgame26-v2.groundgame26_voters.20260225_chester_county`
+SET address = ARRAY_TO_STRING(
+  [
+    CAST(house_int AS STRING),
+    NULLIF(TRIM(housenosuffix), ''),
+    NULLIF(TRIM(streetnamecomplete), ''),
+    NULLIF(TRIM(apt_), '')
+  ], 
+  ' '
+)
+WHERE TRUE
+
+8. Calculated age_group field
+
+UPDATE `groundgame26-v2.groundgame26_voters.20260225_chester_county`
+SET age_group = CASE 
+    WHEN age BETWEEN 18 AND 25 THEN '18-25'
+    WHEN age > 25 AND age <= 40 THEN '26-40'
+    WHEN age >= 41 AND age <= 70 THEN '41-70'
+    WHEN age > 70 THEN '71+'
+    ELSE 'Unknown'
+END
+WHERE age IS NOT NULL;
+
+9. Calculated modeled_party field
+
+
+UPDATE `groundgame26-v2.groundgame26_voters.20260225_chester_county`
+SET has_mail_ballot = CASE 
+    WHEN vbm_apptype IS NOT NULL AND vbm_apptype != '' THEN TRUE 
+    ELSE FALSE 
+END
+WHERE TRUE
+

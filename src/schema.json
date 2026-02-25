@@ -1,6 +1,6 @@
 [
   {
-    "name": "area",
+    "name": "area_district",
     "mode": "NULLABLE",
     "type": "STRING",
     "description": "",
@@ -14,14 +14,7 @@
     "fields": []
   },
   {
-    "name": "pavoterid",
-    "mode": "NULLABLE",
-    "type": "STRING",
-    "description": "",
-    "fields": []
-  },
-  {
-    "name": "full_name",
+    "name": "voter_id",
     "mode": "NULLABLE",
     "type": "STRING",
     "description": "",
@@ -50,6 +43,13 @@
   },
   {
     "name": "suffix",
+    "mode": "NULLABLE",
+    "type": "STRING",
+    "description": "",
+    "fields": []
+  },
+  {
+    "name": "full_name",
     "mode": "NULLABLE",
     "type": "STRING",
     "description": "",
@@ -120,6 +120,13 @@
   },
   {
     "name": "apt_",
+    "mode": "NULLABLE",
+    "type": "STRING",
+    "description": "",
+    "fields": []
+  },
+  {
+    "name": "address",
     "mode": "NULLABLE",
     "type": "STRING",
     "description": "",
@@ -273,7 +280,7 @@
     "fields": []
   },
   {
-    "name": "phonenumhome",
+    "name": "phone_home",
     "mode": "NULLABLE",
     "type": "STRING",
     "description": "",
@@ -343,6 +350,13 @@
     "fields": []
   },
   {
+    "name": "has_mail_ballot",
+    "mode": "NULLABLE",
+    "type": "BOOLEAN",
+    "description": "",
+    "fields": []
+  },
+  {
     "name": "vbm_appissueddate",
     "mode": "NULLABLE",
     "type": "STRING",
@@ -385,7 +399,7 @@
     "fields": []
   },
   {
-    "name": "phome_mobile",
+    "name": "phone_mobile",
     "mode": "NULLABLE",
     "type": "STRING",
     "description": "",
@@ -434,21 +448,21 @@
     "fields": []
   },
   {
-    "name": "rncfiles_generalfrequency",
+    "name": "turnout_score_general",
     "mode": "NULLABLE",
     "type": "INTEGER",
     "description": "",
     "fields": []
   },
   {
-    "name": "rncfiles_primaryfrequency",
+    "name": "turnout_score_primary",
     "mode": "NULLABLE",
     "type": "INTEGER",
     "description": "",
     "fields": []
   },
   {
-    "name": "rncfiles_moved",
+    "name": "likely_moved",
     "mode": "NULLABLE",
     "type": "BOOLEAN",
     "description": "",
@@ -505,6 +519,13 @@
   },
   {
     "name": "federal_voter",
+    "mode": "NULLABLE",
+    "type": "STRING",
+    "description": "",
+    "fields": []
+  },
+  {
+    "name": "email",
     "mode": "NULLABLE",
     "type": "STRING",
     "description": "",

@@ -197,13 +197,23 @@ export default function AnalysisPage() {
   const customChartsData = useMemo(() => {
     if (!voters.length) return null;
 
-    // 1. Voter Registration (By Party)
+    // 1. Voter Registration (By political_party)
     const registrationData = [
-      { label: "GOP", val: voters.filter((v) => v.party === "R").length },
-      { label: "DEM", val: voters.filter((v) => v.party === "D").length },
+      {
+        label: "GOP",
+        val: voters.filter((v) => v.political_party?.toUpperCase() === "R")
+          .length,
+      },
+      {
+        label: "DEM",
+        val: voters.filter((v) => v.political_party?.toUpperCase() === "D")
+          .length,
+      },
       {
         label: "Other",
-        val: voters.filter((v) => !["R", "D"].includes(v.party || "")).length,
+        val: voters.filter(
+          (v) => !["R", "D"].includes(v.political_party?.toUpperCase() || ""),
+        ).length,
       },
     ];
 
@@ -212,19 +222,26 @@ export default function AnalysisPage() {
     const mailInData = [
       {
         label: "GOP",
-        val: voters.filter((v) => v.party === "R" && v.has_mail_ballot === true)
-          .length,
+        val: voters.filter(
+          (v) =>
+            v.political_party?.toUpperCase() === "R" &&
+            v.has_mail_ballot === true,
+        ).length,
       },
       {
         label: "DEM",
-        val: voters.filter((v) => v.party === "D" && v.has_mail_ballot === true)
-          .length,
+        val: voters.filter(
+          (v) =>
+            v.political_party?.toUpperCase() === "D" &&
+            v.has_mail_ballot === true,
+        ).length,
       },
       {
         label: "Other",
         val: voters.filter(
           (v) =>
-            !["R", "D"].includes(v.party || "") && v.has_mail_ballot === true,
+            !["R", "D"].includes(v.political_party?.toUpperCase() || "") &&
+            v.has_mail_ballot === true,
         ).length,
       },
     ];

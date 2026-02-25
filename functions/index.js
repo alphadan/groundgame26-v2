@@ -26,7 +26,7 @@ const auth = getAuth();
 const storage = getStorage();
 const bucket = storage.bucket("groundgame26-v2.firebasestorage.app");
 const bigquery = new BigQuery();
-const VOTER_TABLE = `groundgame26-v2.groundgame26_voters.20260220_chester_county`;
+const VOTER_TABLE = `groundgame26-v2.groundgame26_voters.20260225_chester_county`;
 
 // ================================================================
 // ROLE_PRIORITY MAPPING
@@ -232,41 +232,21 @@ export const getDashboardStats = onCall(
         COUNTIF(political_party = 'D') AS total_d,
         COUNTIF(political_party NOT IN ('R','D') AND political_party IS NOT NULL) AS total_nf,
 
-        COUNTIF(vbm_apptype IS NOT NULL AND vbm_apptype != '' AND political_party = 'R') AS mail_r,
-        COUNTIF(vbm_apptype IS NOT NULL AND vbm_apptype != '' AND political_party = 'D') AS mail_d,
-        COUNTIF(vbm_apptype IS NOT NULL AND AND vbm_apptype != '' political_party NOT IN ('R','D') AND political_party IS NOT NULL) AS mail_nf,
+        COUNTIF(has_mail_ballot AND political_party = 'R') AS mail_r,
+        COUNTIF(has_mail_ballot AND political_party = 'D') AS mail_d,
+        COUNTIF(has_mail_ballot AND political_party NOT IN ('R','D')) AS mail_nf,
 
         COUNTIF(modeled_party = '1 - Hard Republican') AS hard_r,
-        COUNTIF(modeled_party LIKE '2 - Weak%') AS weak_r,
+        COUNTIF(modeled_party = '2 - Weak Republican') AS weak_r,
         COUNTIF(modeled_party = '3 - Swing') AS swing,
-        COUNTIF(modeled_party LIKE '4 - Weak%') AS weak_d,
+        COUNTIF(modeled_party = '4 - Weak Democrat') AS weak_d,
         COUNTIF(modeled_party = '5 - Hard Democrat') AS hard_d,
 
-        COUNTIF(age_group = '18-25' AND political_party = 'R') AS age_18_25_r,
-        COUNTIF(age_group = '18-25' AND political_party = 'NF') AS age_18_25_i,
-        COUNTIF(age_group = '18-25' AND political_party = 'D') AS age_18_25_d,
-        COUNTIF(age_group = '26-40' AND political_party = 'R') AS age_26_40_r,
-        COUNTIF(age_group = '26-40' AND political_party = 'NF') AS age_26_40_i,
-        COUNTIF(age_group = '26-40' AND political_party = 'D') AS age_26_40_d,
-        COUNTIF(age_group = '41-70' AND political_party = 'R') AS age_41_70_r,
-        COUNTIF(age_group = '41-70' AND political_party = 'NF') AS age_41_70_i,
-        COUNTIF(age_group = '41-70' AND political_party = 'D') AS age_41_70_d,
-        COUNTIF(age_group = '71+' AND political_party = 'R') AS age_71_plus_r,
-        COUNTIF(age_group = '71+' AND political_party = 'NF') AS age_71_plus_i,
-        COUNTIF(age_group = '71+' AND political_party = 'D') AS age_71_plus_d,
-
-        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '18-25' AND political_party = 'R') AS mail_age_18_25_r,
-        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '18-25' AND political_party = 'NF') AS mail_age_18_25_i,
-        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '18-25' AND political_party = 'D') AS mail_age_18_25_d,
-        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '26-40' AND political_party = 'R') AS mail_age_26_40_r,
-        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '26-40' AND political_party = 'NF') AS mail_age_26_40_i,
-        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '26-40' AND political_party = 'D') AS mail_age_26_40_d,
-        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '41-70' AND political_party = 'R') AS mail_age_41_70_r,
-        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '41-70' AND political_party = 'NF') AS mail_age_41_70_i,
-        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '41-70' AND political_party = 'D') AS mail_age_41_70_d,
-        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '71+' AND political_party = 'R') AS mail_age_71_plus_r,
-        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '71+' AND political_party = 'NF') AS mail_age_71_plus_i,
-        COUNTIF(vbm_apptype IS NOT NULL AND age_group = '71+' AND political_party = 'D') AS mail_age_71_plus_d
+        COUNTIF(has_mail_ballot AND age_group = '18-25' AND political_party = 'R') AS mail_age_18_25_r,
+        COUNTIF(has_mail_ballot AND age_group = '26-40' AND political_party = 'R') AS mail_age_26_40_r,
+        COUNTIF(has_mail_ballot AND age_group = '41-70' AND political_party = 'R') AS mail_age_41_70_r,
+        COUNTIF(has_mail_ballot AND age_group = '70+' AND political_party = 'R') AS mail_age_71_plus_r
+        
       FROM \`${table}\`
       WHERE 1=1
     `;
@@ -330,12 +310,12 @@ export const getVotersByPrecinctV2 = onCall(
 
     const sql = `
       SELECT 
-        pavoterid, full_name, age, sex, political_party, rncfiles_calculatedparty,
-        phone_primary, phone_home, phone_mobile, address, rncfiles_generalfrequency,
-        vbn_ballotreturned, rncfiles_moved, precinct, area
+        voter_id, full_name, age, sex, political_party, modeled_party,
+        phone_primary, phone_home, phone_mobile, address, turnout_score_general,
+        vbn_ballotreturned, likely_moved, precinct, area_district
       FROM \`${table}\`
       WHERE precinct = @normalizedPrecinct
-      ORDER BY rncfiles_generalfrequency DESC
+      ORDER BY turnout_score_general DESC
     `;
 
     try {
@@ -379,9 +359,9 @@ export const queryVotersDynamic = onCall(
 
     let sql = `
       SELECT 
-        voter_id, full_name, gender, age, political_party, precinct, area_district,
-        address, address_num, city, email, phone_mobile, phone_home, has_mail_ballot,
-        modeled_party, turnout_score_general, turnout_score_primary, date_registered, likely_mover, zip_code
+        voter_id, full_name, sex, age, political_party, precinct, area_district,
+        address, house_int, city, email, phone_mobile, phone_home, has_mail_ballot,
+        modeled_party, turnout_score_general, turnout_score_primary, date_registered, likely_moved, zip_code
       FROM \`${table}\`
       WHERE 1=1
     `;
@@ -422,9 +402,9 @@ export const queryVotersDynamic = onCall(
     }
 
     // === political_party ===
-    if (filters.political_party && filters.political_party.trim() !== "") {
+    if (filters.party && filters.party.trim() !== "") {
       sql += ` AND political_party = @party`;
-      params.political_party = filters.political_party.trim();
+      params.party = filters.party.trim();
     }
 
     // === Turnout General Score ===
@@ -451,9 +431,9 @@ export const queryVotersDynamic = onCall(
       params.ageGroup = filters.ageGroup.trim();
     }
 
-    // === Gender ===
+    // === Sex ===
     if (filters.gender && filters.gender.trim() !== "") {
-      sql += ` AND gender = @gender`;
+      sql += ` AND sex = @gender`;
       params.gender = filters.gender.trim();
     }
 
@@ -467,10 +447,9 @@ export const queryVotersDynamic = onCall(
       const isMailBallot = String(filters.mailBallot).toLowerCase() === "true";
 
       if (isMailBallot) {
-        sql += ` AND has_mail_ballot = TRUE`;
+        sql += ` AND has_mail_ballot IS TRUE`;
       } else {
-        // Captures records explicitly set to false OR records that are null
-        sql += ` AND (has_mail_ballot = FALSE OR has_mail_ballot IS NULL)`;
+        sql += ` AND has_mail_ballot IS NOT TRUE`;
       }
     }
 
@@ -485,12 +464,10 @@ export const queryVotersDynamic = onCall(
 
     sql += ` ORDER BY 
         REGEXP_REPLACE(address, r'^[0-9]+\\s+', '') ASC,
-        address_num ASC,
+        house_int ASC,
         full_name ASC `;
 
-    console.log("Final SQL:", sql);
     logger.log("Final SQL:", sql);
-    console.log("Params:", params);
     logger.log("Params:", params);
 
     try {
@@ -559,7 +536,7 @@ export const getMessageIdeas = onCall(async (request) => {
     query = applyOrFilter(query, "political_party", partyValue);
     query = applyOrFilter(query, "turnout_score_general", data.turnout);
     query = applyOrFilter(query, "has_mail_ballot", data.mailBallot);
-    query = applyOrFilter(query, "gender", data.gender);
+    query = applyOrFilter(query, "sex", data.gender);
 
     const snapshot = await query.limit(96).get();
 
@@ -2308,7 +2285,7 @@ export const searchVotersUniversal = onCall(
     const filters = request.data || {};
     const table = VOTER_TABLE;
 
-    let sql = `SELECT voter_id, full_name, address, political_party, age, gender, precinct, email, phone_mobile, phone_home 
+    let sql = `SELECT voter_id, full_name, address, political_party, sex, precinct, email, phone_mobile, phone_home 
              FROM \`${table}\` WHERE 1=1`;
 
     const params = {};
@@ -2362,7 +2339,7 @@ export const searchVotersUniversal = onCall(
 
     sql += ` ORDER BY 
         REGEXP_REPLACE(address, r'^[0-9]+\\s+', '') ASC,
-        address_num ASC,
+        house_int ASC,
         full_name ASC LIMIT 100`;
 
     try {

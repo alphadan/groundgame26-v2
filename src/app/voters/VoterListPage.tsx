@@ -108,7 +108,7 @@ export default function VoterListPage() {
     // Apply Suppression & Grouping Flags
     return result.map((voter, index, array): Voter => {
       const prev = index > 0 ? array[index - 1] : null;
-      const vId = String(voter.voter_id);
+      const vId = voter.voter_id ? String(voter.voter_id) : `temp-${index}`;
 
       const isDnc = dncMap.has(vId);
       const isRecentlyContacted = interactionMap.has(vId);
@@ -315,7 +315,7 @@ export default function VoterListPage() {
         },
       },
       {
-        field: "gender",
+        field: "sex",
         headerName: "Sex",
         width: 90,
         align: "center",
@@ -339,7 +339,7 @@ export default function VoterListPage() {
         ),
       },
       {
-        field: "party",
+        field: "political_party",
         headerName: "Party",
         width: 90,
         renderCell: ({ value }) => (
@@ -387,9 +387,7 @@ export default function VoterListPage() {
                   <IconButton
                     size="small"
                     color="success"
-                    onClick={() =>
-                      handleContactAction("phone", row)
-                    }
+                    onClick={() => handleContactAction("phone", row)}
                   >
                     <Phone fontSize="small" />
                   </IconButton>
@@ -400,9 +398,7 @@ export default function VoterListPage() {
                   <IconButton
                     size="small"
                     color="info"
-                    onClick={() =>
-                      handleContactAction("sms", row)
-                    }
+                    onClick={() => handleContactAction("sms", row)}
                   >
                     <Message fontSize="small" />
                   </IconButton>
@@ -413,9 +409,7 @@ export default function VoterListPage() {
                   <IconButton
                     size="small"
                     color="primary"
-                    onClick={() =>
-                      handleContactAction("email", row)
-                    }
+                    onClick={() => handleContactAction("email", row)}
                   >
                     <MailOutline fontSize="small" />
                   </IconButton>
@@ -755,7 +749,9 @@ export default function VoterListPage() {
             <Box sx={{ height: 800, width: "100%", mt: 2 }}>
               <DataGrid
                 rows={voters}
-                getRowId={(row) => row.voter_id}
+                getRowId={(row) =>
+                  row.voter_id || `${row.address}-${row.full_name}`
+                }
                 columns={columns}
                 rowHeight={70}
                 slots={{ toolbar: CustomToolbar }}
