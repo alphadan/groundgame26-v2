@@ -63,6 +63,11 @@ export default function VoterListPage() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [isRewardToast, setIsRewardToast] = useState(false);
 
+  const today = new Date();
+  const mm = String(today.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+  const dd = String(today.getDate()).padStart(2, "0");
+  const birthdayString = `${mm}-${dd}`;
+
   const PRESET_FILTERS = [
     {
       label: "High Primary Turnout",
@@ -77,6 +82,11 @@ export default function VoterListPage() {
       label: "GOP Women",
       icon: "👩",
       filters: { party: "R", gender: "F" },
+    },
+    {
+      label: "Happy Birthday",
+      icon: "🎂",
+      filters: { birthDay: birthdayString },
     },
     {
       label: "Has Mail-In Ballot",
@@ -315,6 +325,21 @@ export default function VoterListPage() {
         },
       },
       {
+        field: "age",
+        headerName: "Age",
+        width: 70,
+        align: "center",
+        headerAlign: "center",
+        renderCell: ({ value }) => (
+          <Chip
+            label={value || "?"}
+            size="small"
+            variant="outlined"
+            sx={{ fontWeight: "bold", borderColor: "grey.300" }}
+          />
+        ),
+      },
+      {
         field: "sex",
         headerName: "Sex",
         width: 90,
@@ -453,10 +478,10 @@ export default function VoterListPage() {
           borderLeft: `6px solid ${
             row.isLocked
               ? "grey"
-              : row.party === "R"
+              : row.political_party === "R"
                 ? "#B22234"
-                : row.party === "D"
-                  ? "#3C3B6E"
+                : row.political_party === "D"
+                  ? "#0288d1"
                   : "#ccc"
           }`,
         }}
@@ -485,13 +510,13 @@ export default function VoterListPage() {
             <Stack direction="row" spacing={0.5}>
               <Chip label={row.age || "?"} size="small" variant="outlined" />
               <Chip
-                label={row.party || "U"}
+                label={row.political_party || "U"}
                 size="small"
                 sx={{
                   bgcolor:
-                    row.party === "R"
+                    row.political_party === "R"
                       ? "error.main"
-                      : row.party === "D"
+                      : row.political_party === "D"
                         ? "info.main"
                         : "grey.400",
                   color: "white",

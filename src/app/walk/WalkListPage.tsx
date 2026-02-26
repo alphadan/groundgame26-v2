@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useDynamicVoters } from "../../hooks/useDynamicVoters";
 import { useInteractionMap } from "../../hooks/useInteractionMap";
@@ -23,7 +23,6 @@ import {
   Chip,
   Divider,
   useMediaQuery,
-  Tooltip,
 } from "@mui/material";
 import {
   Doorbell as DoorbellIcon,
@@ -31,6 +30,9 @@ import {
   Map as MapIcon,
   Sort as SortIcon,
 } from "@mui/icons-material";
+import BoltIcon from "@mui/icons-material/Bolt";
+import ApartmentIcon from "@mui/icons-material/Apartment";
+import HowToVoteIcon from "@mui/icons-material/HowToVote";
 import {
   DataGrid,
   GridColDef,
@@ -46,120 +48,108 @@ export default function WalkListPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { user, isLoaded: authLoaded } = useAuth();
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
+  // --- STATE ---
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [dbFilters, setDbFilters] = useState<any>(null);
+  const [activeSubFilter, setActiveSubFilter] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "" });
 
-  // Suppression Hooks
+  // --- DATA HOOKS ---
   const dncMap = useDncMap();
   const interactionMap = useInteractionMap(dbFilters?.precinct);
-
-  // Data Loading
   const {
     data: rawVoters = [],
     isLoading,
     error,
   } = useDynamicVoters(dbFilters);
 
-  // --- 1. DATA STABILIZATION, SORTING & SUPPRESSION LOGIC ---
+  // --- REFINEMENT & SORTING LOGIC ---
   const filteredVoters = useMemo(() => {
-    // 1. Create a shallow copy to avoid mutating the source data
     let result = [...rawVoters];
 
-    // 2. Primary Sort Logic (Street Name -> House Number)
+    // 1. Apply Sub-Filters (Refinements)
+    if (activeSubFilter === "communal") {
+      const addressCounts: Record<string, number> = {};
+      result.forEach((v) => {
+        const addr = v.address || "Unknown";
+        addressCounts[addr] = (addressCounts[addr] || 0) + 1;
+      });
+      result = result.filter((v) => addressCounts[v.address || ""] >= 8);
+    }
+
+    if (activeSubFilter === "high_primary") {
+      result = result.filter(
+        (v) =>
+          v.political_party === "R" &&
+          [3, 4].includes(Number(v.turnout_score_primary)),
+      );
+    }
+
+    // 2. Sort Logic (Street -> House Number)
     result.sort((a, b) => {
       const streetA = (a.address || "").replace(/^[0-9]+\s+/, "").toLowerCase();
       const streetB = (b.address || "").replace(/^[0-9]+\s+/, "").toLowerCase();
 
-      let comparison = 0;
+      let comparison =
+        streetA !== streetB
+          ? streetA.localeCompare(streetB)
+          : (Number(a.house_int) || 0) - (Number(b.house_int) || 0);
 
-      // Sort by Street Name first
-      if (streetA !== streetB) {
-        comparison = streetA.localeCompare(streetB);
-      } else {
-        // If streets are the same, sort by House Number (numeric)
-        comparison =
-          (Number(a.address_num) || 0) - (Number(b.address_num) || 0);
-      }
-
-      // Apply Mobile Sort Toggle (flips the result if 'desc')
       return sortOrder === "asc" ? comparison : -comparison;
     });
 
-    // 3. Map with Type-Safe Suppression Checks
-    // We do this inside the memo so the DataGrid doesn't re-calculate on every scroll frame
+    // 3. Map Suppression & Data Normalization
     return result.map((voter, index, array) => {
       const prev = index > 0 ? array[index - 1] : null;
-
-      // Ensure ID is a string for consistent .has() lookups
       const vId = voter.voter_id
         ? String(voter.voter_id)
         : `temp-${voter.address}-${index}`;
 
-      // Check both Suppression Maps
-      const isDnc = dncMap.has(vId);
-      const isRecentlyVisited = interactionMap.has(vId);
-      const isLocked = isDnc || isRecentlyVisited;
-
       return {
         ...voter,
         voter_id: vId,
-        gender: voter.sex,
-        party: voter.political_party,
-        // Household grouping logic:
-        // Only "true" if the address changed from the previous row
+        gender: voter.sex, // Mapping DB 'sex' to UI 'gender'
+        party: voter.political_party, // Mapping DB 'political_party' to UI 'party'
         isFirstInHouse: !prev || prev.address !== voter.address,
-        isDnc,
-        isRecentlyVisited,
-        isLocked,
+        isDnc: dncMap.has(vId),
+        isRecentlyVisited: interactionMap.has(vId),
+        isLocked: dncMap.has(vId) || interactionMap.has(vId),
       };
     });
+  }, [rawVoters, dncMap, interactionMap, sortOrder, activeSubFilter]);
 
-    // Dependencies: If any of these change, the list re-calculates
-  }, [rawVoters, dncMap, interactionMap, dbFilters?.precinct, sortOrder]);
+  // --- HANDLERS ---
+  const toggleSubFilter = (filter: string) => {
+    setActiveSubFilter((prev) => (prev === filter ? null : filter));
+  };
 
-  // --- 2. ACTION HANDLER ---
   const handleVisit = async (voter: Voter) => {
-    if (!user?.uid) {
-      console.error("No User UID found");
-      return;
-    }
-
+    if (!user?.uid) return;
     try {
-      console.log("Starting visit log for:", voter.voter_id);
       await awardPoints(user.uid, "walk", 1);
+      const now = Date.now();
+      const expiry = now + 30 * 24 * 60 * 60 * 1000;
 
-      // Perfect 30-day math: Use a constant to be 100% precise
-      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-      const now = Date.now(); // <--- Capture "now" once for consistency
-      const expiry = now + THIRTY_DAYS_MS;
+      await setDoc(
+        doc(collection(db, "voter_interactions"), `${voter.voter_id}_walk`),
+        {
+          voter_id: String(voter.voter_id),
+          volunteer_uid: user.uid,
+          interaction_type: "walk",
+          timestamp: now,
+          expires_at: expiry,
+          precinct: String(dbFilters?.precinct || "unknown"),
+        },
+      );
 
-      const interactionId = `${voter.voter_id}_walk`;
-      const docRef = doc(collection(db, "voter_interactions"), interactionId);
-
-      await setDoc(docRef, {
-        // We force everything to String to ensure the hook can find it
-        voter_id: String(voter.voter_id), // <--- CRITICAL FIX
-        volunteer_uid: user.uid,
-        interaction_type: "walk",
-        timestamp: now,
-        expires_at: expiry,
-        precinct: String(dbFilters?.precinct || "unknown"), // <--- CRITICAL FIX
-      });
-
-      console.log("Firestore document written successfully!");
       setSnackbar({
         open: true,
         message: `Visit logged for ${voter.full_name}`,
       });
       recordEvent("voter_visit_logged", { voter_id: voter.voter_id });
     } catch (e) {
-      console.error("CRITICAL ERROR in handleVisit:", e);
-      setSnackbar({
-        open: true,
-        message: "Error logging visit. Check console.",
-      });
+      setSnackbar({ open: true, message: "Error logging visit." });
     }
   };
 
@@ -168,156 +158,142 @@ export default function WalkListPage() {
     window.open(url, "_blank");
   };
 
-  // --- 3. DATAGRID COLUMNS (DESKTOP) ---
-  const columns: GridColDef[] = useMemo(
-    () => [
-      {
-        field: "address",
-        headerName: "Household",
-        flex: 1.5,
-        renderCell: ({ row }) => (
-          <Box sx={{ py: 1 }}>
-            {row.isFirstInHouse ? (
-              <Typography variant="body2" fontWeight="900" color="primary.main">
-                {row.address}
-              </Typography>
-            ) : (
-              <Typography
-                variant="caption"
-                color="text.disabled"
-                sx={{ pl: 2, fontStyle: "italic" }}
-              >
-                (Same Household)
-              </Typography>
-            )}
-          </Box>
-        ),
-      },
-      {
-        field: "full_name",
-        headerName: "Voter Name",
-        flex: 1.2,
-        renderCell: ({ row }) => (
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography
-              variant="body2"
-              sx={{ textDecoration: row.isLocked ? "line-through" : "none" }}
-            >
-              {row.full_name}
+  // --- COLUMNS (DESKTOP) ---
+  const columns: GridColDef[] = [
+    {
+      field: "address",
+      headerName: "Household",
+      flex: 1.5,
+      renderCell: ({ row }) => (
+        <Box sx={{ py: 1 }}>
+          {row.isFirstInHouse ? (
+            <Typography variant="body2" fontWeight="900" color="primary.main">
+              {row.address}
             </Typography>
-            {row.isDnc && (
-              <Chip
-                label="DNC"
-                size="small"
-                color="error"
-                variant="outlined"
-                sx={{ height: 20 }}
-              />
-            )}
-            {row.isRecentlyVisited && (
-              <Chip
-                label="Visited"
-                size="small"
-                color="success"
-                sx={{ height: 20 }}
-              />
-            )}
-          </Stack>
-        ),
-      },
-      {
-        field: "age",
-        headerName: "Age",
-        width: 70,
-        align: "center",
-        headerAlign: "center",
-        renderCell: ({ value }) => (
-          <Chip
-            label={value || "?"}
-            size="small"
-            variant="outlined"
-            sx={{ fontWeight: "bold", borderColor: "grey.300" }}
+          ) : (
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              sx={{ pl: 2, fontStyle: "italic" }}
+            >
+              (Same Household)
+            </Typography>
+          )}
+        </Box>
+      ),
+    },
+    {
+      field: "full_name",
+      headerName: "Voter Name",
+      flex: 1.2,
+      renderCell: ({ row }) => (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Typography
+            variant="body2"
+            sx={{ textDecoration: row.isLocked ? "line-through" : "none" }}
+          >
+            {row.full_name}
+          </Typography>
+          {row.isDnc && (
+            <Chip
+              label="DNC"
+              size="small"
+              color="error"
+              variant="outlined"
+              sx={{ height: 20 }}
+            />
+          )}
+          {row.isRecentlyVisited && (
+            <Chip
+              label="Visited"
+              size="small"
+              color="success"
+              sx={{ height: 20 }}
+            />
+          )}
+        </Stack>
+      ),
+    },
+    {
+      field: "age",
+      headerName: "Age",
+      width: 70,
+      renderCell: ({ value }) => (
+        <Chip
+          label={value || "?"}
+          size="small"
+          variant="outlined"
+          sx={{ fontWeight: "bold" }}
+        />
+      ),
+    },
+    {
+      field: "sex",
+      headerName: "Sex",
+      width: 60,
+      renderCell: ({ value }) => (
+        <Typography
+          variant="caption"
+          fontWeight="bold"
+          sx={{ color: value === "F" ? "primary.light" : "secondary.dark" }}
+        >
+          {value}
+        </Typography>
+      ),
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 150,
+      sortable: false,
+      renderCell: ({ row }) => (
+        <Stack direction="row" spacing={1}>
+          {!row.isLocked && (
+            <IconButton
+              size="small"
+              sx={{ color: PURPLE_MAIN }}
+              onClick={() => handleVisit(row)}
+            >
+              <DoorbellIcon fontSize="small" />
+            </IconButton>
+          )}
+          <VoterNotes
+            voterId={row.voter_id}
+            fullName={row.full_name}
+            address={row.address}
           />
-        ),
-      },
-      {
-        field: "political_party",
-        headerName: "Party",
-        width: 80,
-        renderCell: ({ value }) => (
-          <Chip
-            label={value || "U"}
-            size="small"
-            sx={{
-              bgcolor:
-                value === "R"
-                  ? "error.main"
-                  : value === "D"
-                    ? "info.main"
-                    : "grey.400",
-              color: "white",
-              fontWeight: "bold",
-            }}
-          />
-        ),
-      },
-      {
-        field: "actions",
-        headerName: "Actions",
-        width: 150,
-        renderCell: ({ row }) => {
-          if (row.isLocked)
-            return <BlockIcon color="error" sx={{ opacity: 0.5 }} />;
-          return (
-            <Stack direction="row" spacing={1}>
-              <IconButton
-                size="small"
-                sx={{ color: PURPLE_MAIN }}
-                onClick={() => handleVisit(row)}
-              >
-                <DoorbellIcon fontSize="small" />
-              </IconButton>
-              <VoterNotes
-                voterId={row.voter_id}
-                fullName={row.full_name}
-                address={row.address}
-              />
-            </Stack>
-          );
-        },
-      },
-    ],
-    [],
-  );
+        </Stack>
+      ),
+    },
+  ];
 
-  // --- 4. MOBILE CARD VIEW ---
+  // --- MOBILE VOTER CARD ---
   const VoterCard = ({ row }: { row: any }) => (
     <Paper
       elevation={2}
       sx={{
         p: 2,
         mb: 2,
+        mt: row.isFirstInHouse ? 4 : 0, // Visual gap between households
         borderRadius: 2,
         opacity: row.isLocked ? 0.6 : 1,
         bgcolor: row.isLocked ? "grey.50" : "background.paper",
         borderLeft: `6px solid ${
           row.isLocked
-            ? theme.palette.error.main
+            ? "#d32f2f"
             : row.party === "R"
-              ? theme.palette.error.main
+              ? "#B22234"
               : row.party === "D"
-                ? theme.palette.info.main
-                : "grey"
+                ? "#1976d2"
+                : "#9e9e9e"
         }`,
       }}
     >
       <Stack spacing={1.5}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="flex-start"
         >
           <Box>
             <Typography
@@ -328,7 +304,7 @@ export default function WalkListPage() {
               {row.full_name}
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              ID: {row.voter_id} • Precinct: {row.precinct || "N/A"}
+              ID: {row.voter_id} • {row.sex || "?"}
             </Typography>
           </Box>
           <Stack direction="row" spacing={0.5}>
@@ -344,10 +320,27 @@ export default function WalkListPage() {
                       ? "info.main"
                       : "grey.400",
                 color: "white",
+                fontWeight: "bold",
               }}
             />
           </Stack>
-        </Box>
+        </Stack>
+
+        {row.isFirstInHouse && (
+          <Button
+            size="small"
+            startIcon={<MapIcon />}
+            onClick={() => openInMaps(row.address)}
+            sx={{
+              justifyContent: "flex-start",
+              p: 0,
+              textTransform: "none",
+              fontWeight: 800,
+            }}
+          >
+            {row.address}
+          </Button>
+        )}
 
         {(row.isDnc || row.isRecentlyVisited) && (
           <Stack direction="row" spacing={1}>
@@ -369,20 +362,6 @@ export default function WalkListPage() {
             )}
           </Stack>
         )}
-
-        <Button
-          size="small"
-          startIcon={<MapIcon />}
-          onClick={() => openInMaps(row.address || "")}
-          sx={{
-            justifyContent: "flex-start",
-            p: 0,
-            textTransform: "none",
-            fontWeight: 800,
-          }}
-        >
-          {row.address}
-        </Button>
 
         <Divider />
 
@@ -436,119 +415,114 @@ export default function WalkListPage() {
         ]}
       />
 
-      {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          Error loading voter data.
-        </Alert>
-      )}
-
       {dbFilters && (
-        <Box sx={{ mt: 4 }}>
-          {isMobile ? (
-            <>
-              {/* NEW: Sort Toggle Row for Mobile */}
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                sx={{ mb: 2, px: 1 }}
-              >
+        <>
+          <Paper sx={{ mt: 2, p: 2, borderRadius: 3, bgcolor: "grey.50" }}>
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              flexWrap="wrap"
+              useFlexGap
+            >
+              <Stack direction="row" spacing={1} alignItems="center">
+                <BoltIcon color="primary" fontSize="small" />
                 <Typography
-                  variant="body2"
-                  color="text.secondary"
+                  variant="subtitle2"
                   fontWeight="bold"
+                  color="text.secondary"
                 >
-                  {filteredVoters.length} Households
+                  Refine View:
                 </Typography>
+              </Stack>
+              <Chip
+                label="Communal Hubs (8+)"
+                size="small"
+                icon={<ApartmentIcon sx={{ fontSize: "1rem !important" }} />}
+                onClick={() => toggleSubFilter("communal")}
+                color={activeSubFilter === "communal" ? "primary" : "default"}
+                variant={activeSubFilter === "communal" ? "filled" : "outlined"}
+              />
+              <Chip
+                label="High Primary GOP"
+                size="small"
+                icon={<HowToVoteIcon sx={{ fontSize: "1rem !important" }} />}
+                onClick={() => toggleSubFilter("high_primary")}
+                color={
+                  activeSubFilter === "high_primary" ? "primary" : "default"
+                }
+                variant={
+                  activeSubFilter === "high_primary" ? "filled" : "outlined"
+                }
+              />
+              {activeSubFilter && (
                 <Button
                   size="small"
-                  startIcon={
-                    <SortIcon
-                      sx={{
-                        transform:
-                          sortOrder === "desc" ? "rotate(180deg)" : "none",
-                      }}
-                    />
-                  }
-                  onClick={() =>
-                    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
-                  }
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: 700,
-                  }}
-                  variant="outlined"
-                  color="primary"
+                  onClick={() => setActiveSubFilter(null)}
+                  color="error"
+                  sx={{ ml: "auto" }}
                 >
-                  {sortOrder === "asc"
-                    ? "Sorting: Ascending"
-                    : "Sorting: Descending"}
+                  Reset Refinement
                 </Button>
-              </Stack>
+              )}
+            </Stack>
+          </Paper>
 
-              {filteredVoters.map((v) => (
-                <VoterCard
-                  key={v.voter_id}
-                  row={v}
-                  sx={{ mt: v.isFirstInHouse ? 4 : 1 }}
+          <Box sx={{ mt: 4 }}>
+            {isMobile ? (
+              <Box>
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  mb={2}
+                  px={1}
+                >
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    fontWeight="bold"
+                  >
+                    {filteredVoters.length} Results
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={
+                      <SortIcon
+                        sx={{
+                          transform:
+                            sortOrder === "desc" ? "rotate(180deg)" : "none",
+                        }}
+                      />
+                    }
+                    onClick={() =>
+                      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))
+                    }
+                  >
+                    {sortOrder === "asc" ? "Ascending" : "Descending"}
+                  </Button>
+                </Stack>
+                {filteredVoters.map((v) => (
+                  <VoterCard key={v.voter_id} row={v} />
+                ))}
+              </Box>
+            ) : (
+              <Paper
+                elevation={3}
+                sx={{ height: 800, borderRadius: 3, overflow: "hidden" }}
+              >
+                <DataGrid
+                  rows={filteredVoters}
+                  columns={columns}
+                  getRowId={(r) => r.voter_id}
+                  rowHeight={75}
+                  loading={isLoading}
+                  sx={{ border: "none" }}
                 />
-              ))}
-            </>
-          ) : (
-            <Paper
-              elevation={3}
-              sx={{ height: 800, borderRadius: 3, overflow: "hidden" }}
-            >
-              <DataGrid
-                rows={filteredVoters}
-                getRowId={(r) => r.voter_id}
-                columns={columns}
-                rowHeight={75}
-                loading={isLoading}
-                getRowClassName={(params) =>
-                  params.row.isLocked ? "muted-row" : ""
-                }
-                slots={{
-                  toolbar: () => (
-                    <GridToolbarContainer
-                      sx={{ p: 2, justifyContent: "space-between" }}
-                    >
-                      <Typography variant="body2">
-                        <strong>{filteredVoters.length}</strong> Results
-                      </Typography>
-                      <GridToolbarQuickFilter />
-                    </GridToolbarContainer>
-                  ),
-                }}
-                sx={{
-                  border: "none",
-                  "& .muted-row": {
-                    bgcolor: "grey.50",
-                    opacity: 0.6,
-                    pointerEvents: "none",
-                  },
-                }}
-              />
-            </Paper>
-          )}
-        </Box>
-      )}
-
-      {!dbFilters && (
-        <Paper
-          sx={{
-            mt: 4,
-            p: 10,
-            textAlign: "center",
-            border: "2px dashed #ccc",
-            bgcolor: "#fafafa",
-          }}
-        >
-          <Typography color="text.secondary">
-            Apply geographic filters to generate your walking list.
-          </Typography>
-        </Paper>
+              </Paper>
+            )}
+          </Box>
+        </>
       )}
 
       <Snackbar

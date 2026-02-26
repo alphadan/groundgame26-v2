@@ -197,7 +197,7 @@ export const getVotersByPrecinct = onCall(async (request) => {
 
 export const getDashboardStats = onCall(
   {
-    cors: [/localhost:\d+$/, /127\.0\.0\.1:\d+$/, "https://groundgame26.com"],
+    cors: true,
     region: "us-central1",
     timeoutSeconds: 60,
     memory: "256MiB",
@@ -209,7 +209,7 @@ export const getDashboardStats = onCall(
 
     const { areaCode, precinctCodes } = request.data || {};
 
-    // Validate inputs (optional but safe)
+    // Validate inputs
     if (areaCode && typeof areaCode !== "string") {
       throw new HttpsError("invalid-argument", "areaCode must be a string");
     }
@@ -226,6 +226,7 @@ export const getDashboardStats = onCall(
 
     const table = VOTER_TABLE;
 
+    // Comprehensive SQL to cover all Chart keys (Registration & Mail-In)
     let sql = `
       SELECT 
         COUNTIF(political_party = 'R') AS total_r,
@@ -242,24 +243,49 @@ export const getDashboardStats = onCall(
         COUNTIF(modeled_party = '4 - Weak Democrat') AS weak_d,
         COUNTIF(modeled_party = '5 - Hard Democrat') AS hard_d,
 
+        COUNTIF(age_group = '18-25' AND political_party = 'R') AS age_18_25_r,
+        COUNTIF(age_group = '18-25' AND political_party = 'D') AS age_18_25_d,
+        COUNTIF(age_group = '18-25' AND political_party NOT IN ('R','D')) AS age_18_25_i,
+
+        COUNTIF(age_group = '26-40' AND political_party = 'R') AS age_26_40_r,
+        COUNTIF(age_group = '26-40' AND political_party = 'D') AS age_26_40_d,
+        COUNTIF(age_group = '26-40' AND political_party NOT IN ('R','D')) AS age_26_40_i,
+
+        COUNTIF(age_group = '41-70' AND political_party = 'R') AS age_41_70_r,
+        COUNTIF(age_group = '41-70' AND political_party = 'D') AS age_41_70_d,
+        COUNTIF(age_group = '41-70' AND political_party NOT IN ('R','D')) AS age_41_70_i,
+
+        COUNTIF(age_group = '71+' AND political_party = 'R') AS age_71_plus_r,
+        COUNTIF(age_group = '71+' AND political_party = 'D') AS age_71_plus_d,
+        COUNTIF(age_group = '71+' AND political_party NOT IN ('R','D')) AS age_71_plus_i,
+
         COUNTIF(has_mail_ballot AND age_group = '18-25' AND political_party = 'R') AS mail_age_18_25_r,
+        COUNTIF(has_mail_ballot AND age_group = '18-25' AND political_party = 'D') AS mail_age_18_25_d,
+        COUNTIF(has_mail_ballot AND age_group = '18-25' AND political_party NOT IN ('R','D')) AS mail_age_18_25_i,
+
         COUNTIF(has_mail_ballot AND age_group = '26-40' AND political_party = 'R') AS mail_age_26_40_r,
+        COUNTIF(has_mail_ballot AND age_group = '26-40' AND political_party = 'D') AS mail_age_26_40_d,
+        COUNTIF(has_mail_ballot AND age_group = '26-40' AND political_party NOT IN ('R','D')) AS mail_age_26_40_i,
+
         COUNTIF(has_mail_ballot AND age_group = '41-70' AND political_party = 'R') AS mail_age_41_70_r,
-        COUNTIF(has_mail_ballot AND age_group = '70+' AND political_party = 'R') AS mail_age_71_plus_r
-        
+        COUNTIF(has_mail_ballot AND age_group = '41-70' AND political_party = 'D') AS mail_age_41_70_d,
+        COUNTIF(has_mail_ballot AND age_group = '41-70' AND political_party NOT IN ('R','D')) AS mail_age_41_70_i,
+
+        COUNTIF(has_mail_ballot AND age_group = '71+' AND political_party = 'R') AS mail_age_71_plus_r,
+        COUNTIF(has_mail_ballot AND age_group = '71+' AND political_party = 'D') AS mail_age_71_plus_d,
+        COUNTIF(has_mail_ballot AND age_group = '71+' AND political_party NOT IN ('R','D')) AS mail_age_71_plus_i
+
       FROM \`${table}\`
       WHERE 1=1
     `;
 
     const params = {};
 
-    // Use correct column name: area_district
     if (areaCode) {
-      sql += ` AND area = @areaCode`;
+      sql += ` AND area_district = @areaCode`;
       params.areaCode = areaCode;
     }
 
-    // Use correct column name: precinct
     if (precinctCodes?.length > 0) {
       sql += ` AND precinct IN UNNEST(@precinctCodes)`;
       params.precinctCodes = precinctCodes;
@@ -272,11 +298,13 @@ export const getDashboardStats = onCall(
         location: "US",
       });
 
-      console.log("Dashboard stats query successful:", rows[0]);
       return { stats: rows[0] || {} };
     } catch (error) {
-      console.error("BigQuery query failed:", error);
-      throw new HttpsError("internal", "Failed to load dashboard stats");
+      console.error("BigQuery dashboard query failed:", error.message);
+      throw new HttpsError(
+        "internal",
+        "Error calculating dashboard analytics.",
+      );
     }
   },
 );
@@ -361,7 +389,7 @@ export const queryVotersDynamic = onCall(
       SELECT 
         voter_id, full_name, sex, age, political_party, precinct, area_district,
         address, house_int, city, email, phone_mobile, phone_home, has_mail_ballot,
-        modeled_party, turnout_score_general, turnout_score_primary, date_registered, likely_moved, zip_code
+        modeled_party, turnout_score_general, turnout_score_primary, date_registered, likely_moved, zip_code, date_of_birth
       FROM \`${table}\`
       WHERE 1=1
     `;
@@ -435,6 +463,12 @@ export const queryVotersDynamic = onCall(
     if (filters.gender && filters.gender.trim() !== "") {
       sql += ` AND sex = @gender`;
       params.gender = filters.gender.trim();
+    }
+
+    // === Sex ===
+    if (filters.birthDay && filters.birthDay.trim() !== "") {
+      sql += ` AND date_of_birth LIKE @dobPattern`;
+      params.dobPattern = `%${filters.birthDay.trim()}%`;
     }
 
     // === Mail Ballot ===
@@ -2285,7 +2319,7 @@ export const searchVotersUniversal = onCall(
     const filters = request.data || {};
     const table = VOTER_TABLE;
 
-    let sql = `SELECT voter_id, full_name, address, political_party, sex, precinct, email, phone_mobile, phone_home 
+    let sql = `SELECT voter_id, full_name, address, political_party, sex, age, precinct, email, phone_mobile, phone_home 
              FROM \`${table}\` WHERE 1=1`;
 
     const params = {};

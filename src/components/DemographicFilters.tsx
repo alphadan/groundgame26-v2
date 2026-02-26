@@ -235,8 +235,8 @@ export const DemographicFilters: React.FC<DemographicFiltersProps> = ({
                     <MenuItem value="">
                       <em>All</em>
                     </MenuItem>
-                    <MenuItem value="true">Has Mail Ballot</MenuItem>
-                    <MenuItem value="false">Does Not Have Mail Ballot</MenuItem>
+                    <MenuItem value="true">Has Requested Mail Ballot</MenuItem>
+                    <MenuItem value="false">Has Not Requested Mail Ballot</MenuItem>
                   </Select>
                 </FormControl>
               )}

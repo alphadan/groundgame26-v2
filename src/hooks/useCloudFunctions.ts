@@ -44,7 +44,7 @@ export const useCloudFunctions = () => {
       }
 
       if (!user) {
-        throw new Error("User not authenticated – cannot call Cloud Function");
+        throw new Error("User not authenticated - cannot call Cloud Function");
       }
 
       // === 3. Setup callable with timeout ===
@@ -78,7 +78,7 @@ export const useCloudFunctions = () => {
         let userMessage = "Cloud Function call failed";
 
         if (err.name === "AbortError") {
-          userMessage = "Request timeout – please try again";
+          userMessage = "Request timeout - please try again";
         } else if (err.code === "permission-denied") {
           userMessage = "Permission denied";
         } else if (err.code === "unauthenticated") {

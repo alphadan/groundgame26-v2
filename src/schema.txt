@@ -54,3 +54,8 @@ SET has_mail_ballot = CASE
 END
 WHERE TRUE
 
+10. Delete Ghost Records
+
+DELETE FROM `groundgame26-v2.groundgame26_voters.20260225_chester_county`
+WHERE voter_id IS NULL;
+

@@ -78,7 +78,7 @@ export default function Dashboard() {
       </Box>
     );
   }
-
+  console.log("Current Turnout Stats:", turnoutStats);
   return (
     <Box
       sx={{
@@ -137,27 +137,27 @@ export default function Dashboard() {
               dataset={[
                 {
                   age: "18-25",
-                  R: turnoutStats.age_18_25_r,
-                  I: turnoutStats.age_18_25_i,
-                  D: turnoutStats.age_18_25_d,
+                  R: turnoutStats.age_18_25_r || 0,
+                  I: turnoutStats.age_18_25_i || 0,
+                  D: turnoutStats.age_18_25_d || 0,
                 },
                 {
                   age: "26-40",
-                  R: turnoutStats.age_26_40_r,
-                  I: turnoutStats.age_26_40_i,
-                  D: turnoutStats.age_26_40_d,
+                  R: turnoutStats.age_26_40_r || 0,
+                  I: turnoutStats.age_26_40_i || 0,
+                  D: turnoutStats.age_26_40_d || 0,
                 },
                 {
                   age: "41-70",
-                  R: turnoutStats.age_41_70_r,
-                  I: turnoutStats.age_41_70_i,
-                  D: turnoutStats.age_41_70_d,
+                  R: turnoutStats.age_41_70_r || 0,
+                  I: turnoutStats.age_41_70_i || 0,
+                  D: turnoutStats.age_41_70_d || 0,
                 },
                 {
                   age: "71+",
-                  R: turnoutStats.age_71_plus_r,
-                  I: turnoutStats.age_71_plus_i,
-                  D: turnoutStats.age_71_plus_d,
+                  R: turnoutStats.age_71_plus_r || 0,
+                  I: turnoutStats.age_71_plus_i || 0,
+                  D: turnoutStats.age_71_plus_d || 0,
                 },
               ]}
               xAxis={[{ scaleType: "band", dataKey: "age" }]}
@@ -181,28 +181,28 @@ export default function Dashboard() {
             <BarChart
               dataset={[
                 {
-                  age: "18–25",
-                  R: turnoutStats.mail_age_18_25_r,
-                  I: turnoutStats.mail_age_18_25_i,
-                  D: turnoutStats.mail_age_18_25_d,
+                  age: "18-25",
+                  R: turnoutStats.mail_age_18_25_r || 0,
+                  I: turnoutStats.mail_age_18_25_i || 0,
+                  D: turnoutStats.mail_age_18_25_d || 0,
                 },
                 {
-                  age: "26–40",
+                  age: "26-40",
                   R: turnoutStats.mail_age_26_40_r,
-                  I: turnoutStats.mail_age_26_40_i,
-                  D: turnoutStats.mail_age_26_40_d,
+                  I: turnoutStats.mail_age_26_40_i || 0,
+                  D: turnoutStats.mail_age_26_40_d || 0,
                 },
                 {
-                  age: "41–70",
-                  R: turnoutStats.mail_age_41_70_r,
-                  I: turnoutStats.mail_age_41_70_i,
-                  D: turnoutStats.mail_age_41_70_d,
+                  age: "41-70",
+                  R: turnoutStats.mail_age_41_70_r || 0,
+                  I: turnoutStats.mail_age_41_70_i || 0,
+                  D: turnoutStats.mail_age_41_70_d || 0,
                 },
                 {
                   age: "71+",
-                  R: turnoutStats.mail_age_71_plus_r,
-                  I: turnoutStats.mail_age_71_plus_i,
-                  D: turnoutStats.mail_age_71_plus_d,
+                  R: turnoutStats.mail_age_71_plus_r || 0,
+                  I: turnoutStats.mail_age_71_plus_i || 0,
+                  D: turnoutStats.mail_age_71_plus_d || 0,
                 },
               ]}
               xAxis={[{ scaleType: "band", dataKey: "age" }]}

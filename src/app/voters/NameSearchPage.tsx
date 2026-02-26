@@ -48,6 +48,7 @@ export default function NameSearchPage() {
           ...geoFilters,
         },
       );
+      console.log("🔍 Search Results Raw Data:", result.voters);
       return result.voters ?? [];
     },
     enabled: !!triggerSearch && triggerSearch.length >= 3,
@@ -78,11 +79,11 @@ export default function NameSearchPage() {
               </Typography>
             </Box>
             <Chip
-              label={row.party || "U"}
+              label={row.political_party || "U"}
               size="small"
               sx={{
                 bgcolor:
-                  row.party === "R"
+                  row.political_party === "R"
                     ? "error.main"
                     : row.party === "D"
                       ? "info.main"
@@ -98,7 +99,7 @@ export default function NameSearchPage() {
               variant="caption"
               sx={{ fontWeight: "bold", color: "text.secondary" }}
             >
-              Age: {row.age || "?"} • {row.gender || "Unknown"}
+              Age: {row.age || "?"} • {row.sex || "Unknown"}
             </Typography>
           </Stack>
 
@@ -163,9 +164,9 @@ export default function NameSearchPage() {
       width: 70,
       align: "center",
       headerAlign: "center",
-      renderCell: ({ value }) => (
+      renderCell: ({ row }) => (
         <Chip
-          label={value || "?"}
+          label={row.age || "?"}
           size="small"
           variant="outlined"
           sx={{ fontWeight: "bold" }}
@@ -173,7 +174,7 @@ export default function NameSearchPage() {
       ),
     },
     {
-      field: "gender",
+      field: "sex",
       headerName: "Sex",
       width: 70,
       align: "center",
@@ -196,7 +197,7 @@ export default function NameSearchPage() {
       ),
     },
     {
-      field: "party",
+      field: "political_party",
       headerName: "Party",
       width: 80,
       renderCell: ({ value }) => (
