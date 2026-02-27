@@ -33,6 +33,7 @@ import {
 import BoltIcon from "@mui/icons-material/Bolt";
 import ApartmentIcon from "@mui/icons-material/Apartment";
 import HowToVoteIcon from "@mui/icons-material/HowToVote";
+import OtherHousesIcon from "@mui/icons-material/OtherHouses";
 import {
   DataGrid,
   GridColDef,
@@ -76,6 +77,15 @@ export default function WalkListPage() {
         addressCounts[addr] = (addressCounts[addr] || 0) + 1;
       });
       result = result.filter((v) => addressCounts[v.address || ""] >= 8);
+    }
+
+    if (activeSubFilter === "largefamily") {
+      const addressCounts: Record<string, number> = {};
+      result.forEach((v) => {
+        const addr = v.address || "Unknown";
+        addressCounts[addr] = (addressCounts[addr] || 0) + 1;
+      });
+      result = result.filter((v) => addressCounts[v.address || ""] >= 4);
     }
 
     if (activeSubFilter === "high_primary") {
@@ -442,6 +452,18 @@ export default function WalkListPage() {
                 onClick={() => toggleSubFilter("communal")}
                 color={activeSubFilter === "communal" ? "primary" : "default"}
                 variant={activeSubFilter === "communal" ? "filled" : "outlined"}
+              />
+              <Chip
+                label="Large Families (4+)"
+                size="small"
+                icon={<OtherHousesIcon sx={{ fontSize: "1rem !important" }} />}
+                onClick={() => toggleSubFilter("largefamily")}
+                color={
+                  activeSubFilter === "largefamily" ? "primary" : "default"
+                }
+                variant={
+                  activeSubFilter === "largefamily" ? "filled" : "outlined"
+                }
               />
               <Chip
                 label="High Primary GOP"

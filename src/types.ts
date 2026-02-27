@@ -231,6 +231,7 @@ export interface Voter {
   full_name?: string;
   age?: number | string;
   party?: string;
+  political_party?: string;
   gender?: string;
   address?: string;
   address_num?: number; // Used for numeric sorting in WalkList
