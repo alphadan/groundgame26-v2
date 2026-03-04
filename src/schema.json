@@ -161,7 +161,7 @@
     "fields": []
   },
   {
-    "name": "pollingplacedescript",
+    "name": "pollingplacedescript", 
     "mode": "NULLABLE",
     "type": "STRING",
     "description": "",
@@ -259,7 +259,7 @@
     "fields": []
   },
   {
-    "name": "pollplacecsz",
+    "name": "pollplacecsz", 
     "mode": "NULLABLE",
     "type": "STRING",
     "description": "",
@@ -287,7 +287,7 @@
     "fields": []
   },
   {
-    "name": "GN_PR_11_04_25",
+    "name": "GN_PR_11_04_25", 
     "mode": "NULLABLE",
     "type": "STRING",
     "description": "",
@@ -337,6 +337,48 @@
   },
   {
     "name": "PR_04_23_24_VM",
+    "mode": "NULLABLE",
+    "type": "STRING",
+    "description": "",
+    "fields": []
+  },
+  {
+    "name": "GN_11_07_23",
+    "mode": "NULLABLE",
+    "type": "STRING",
+    "description": "",
+    "fields": []
+  },
+  {
+    "name": "GN_11_07_23_VM",
+    "mode": "NULLABLE",
+    "type": "STRING",
+    "description": "",
+    "fields": []
+  },
+  {
+    "name": "PR_05_16_23",
+    "mode": "NULLABLE",
+    "type": "STRING",
+    "description": "",
+    "fields": []
+  },
+  {
+    "name": "PR_05_16_23_VM",
+    "mode": "NULLABLE",
+    "type": "STRING",
+    "description": "",
+    "fields": []
+  },
+  {
+    "name": "GN_11_08_22",
+    "mode": "NULLABLE",
+    "type": "STRING",
+    "description": "",
+    "fields": []
+  },
+  {
+    "name": "GN_11_08_22_VM",
     "mode": "NULLABLE",
     "type": "STRING",
     "description": "",
@@ -520,7 +562,7 @@
   {
     "name": "federal_voter",
     "mode": "NULLABLE",
-    "type": "STRING",
+    "type": "STRING", 
     "description": "",
     "fields": []
   },

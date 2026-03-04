@@ -34,6 +34,7 @@ import BoltIcon from "@mui/icons-material/Bolt";
 import ApartmentIcon from "@mui/icons-material/Apartment";
 import HowToVoteIcon from "@mui/icons-material/HowToVote";
 import OtherHousesIcon from "@mui/icons-material/OtherHouses";
+import MailIcon from "@mui/icons-material/Mail";
 import {
   DataGrid,
   GridColDef,
@@ -177,9 +178,15 @@ export default function WalkListPage() {
       renderCell: ({ row }) => (
         <Box sx={{ py: 1 }}>
           {row.isFirstInHouse ? (
-            <Typography variant="body2" fontWeight="900" color="primary.main">
-              {row.address}
-            </Typography>
+            <Stack direction="column" spacing={1} alignItems="left">
+              <Typography variant="body2" fontWeight="900" color="primary.main">
+                {row.address}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {row.city || "No city on file"}, {row.state || "PA"}{" "}
+                {row.zip_code || "No ZIP"}
+              </Typography>
+            </Stack>
           ) : (
             <Typography
               variant="caption"
@@ -225,6 +232,24 @@ export default function WalkListPage() {
       ),
     },
     {
+      field: "has_mail_ballot",
+      headerName: "MIB",
+      width: 80,
+      headerAlign: "center",
+      align: "center",
+      renderCell: ({ value }) => (
+        <Stack
+          direction="row"
+          spacing={0.5}
+          alignItems="center"
+          justifyContent="center"
+          sx={{ color: value ? "success.main" : "warning.main" }}
+        >
+          <MailIcon sx={{ fontSize: 18 }} />
+        </Stack>
+      ),
+    },
+    {
       field: "age",
       headerName: "Age",
       width: 70,
@@ -249,6 +274,27 @@ export default function WalkListPage() {
         >
           {value}
         </Typography>
+      ),
+    },
+    {
+      field: "political_party",
+      headerName: "Party",
+      width: 90,
+      renderCell: ({ value }) => (
+        <Chip
+          label={value || "?"}
+          size="small"
+          sx={{
+            fontWeight: "bold",
+            bgcolor:
+              value === "R"
+                ? theme.palette.error.main
+                : value === "D"
+                  ? theme.palette.info.main
+                  : "grey.400",
+            color: "white",
+          }}
+        />
       ),
     },
     {
@@ -284,7 +330,7 @@ export default function WalkListPage() {
       sx={{
         p: 2,
         mb: 2,
-        mt: row.isFirstInHouse ? 4 : 0, // Visual gap between households
+        mt: row.isFirstInHouse ? 4 : 0,
         borderRadius: 2,
         opacity: row.isLocked ? 0.6 : 1,
         bgcolor: row.isLocked ? "grey.50" : "background.paper",
@@ -305,6 +351,7 @@ export default function WalkListPage() {
           justifyContent="space-between"
           alignItems="flex-start"
         >
+          {/* Left Side: Name and Sub-details */}
           <Box>
             <Typography
               variant="subtitle1"
@@ -313,11 +360,39 @@ export default function WalkListPage() {
             >
               {row.full_name}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              ID: {row.voter_id} • {row.sex || "?"}
-            </Typography>
+
+            {/* MIB and SEX Row underneath name */}
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{ mt: 0.5 }}
+            >
+              <Stack
+                direction="row"
+                spacing={0.5}
+                alignItems="center"
+                sx={{
+                  color: row.has_mail_ballot ? "success.main" : "warning.main",
+                }}
+              >
+                <MailIcon sx={{ fontSize: 18 }} />
+                <Typography variant="caption" fontWeight="900">
+                  {row.has_mail_ballot ? "YES" : "NO"}
+                </Typography>
+              </Stack>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontWeight: "bold" }}
+              >
+                SEX: {row.sex || "?"}
+              </Typography>
+            </Stack>
           </Box>
-          <Stack direction="row" spacing={0.5}>
+
+          {/* Right Side: Age and Party Chips */}
+          <Stack direction="row" spacing={0.5} alignItems="center">
             <Chip label={row.age || "?"} size="small" variant="outlined" />
             <Chip
               label={row.party || "U"}

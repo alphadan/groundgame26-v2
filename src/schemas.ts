@@ -33,7 +33,7 @@ export const COUNTY_SCHEMAS: Record<string, CountySchema> = {
 export const getCountySchema = (countyId: string): CountySchema => {
   return (
     COUNTY_SCHEMAS[countyId] || {
-      tableName: "groundgame26_voters.chester_county", // Hard fallback to Chester
+      tableName: "groundgame26_voters.20260225_chester_county", // Hard fallback to Chester
       columns: {
         areaDistrict: "area_district",
         precinctCode: "precinct_key",

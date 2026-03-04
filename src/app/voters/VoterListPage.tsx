@@ -39,6 +39,7 @@ import {
   Sort as SortIcon,
 } from "@mui/icons-material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import MailIcon from "@mui/icons-material/Mail";
 import { Voter, FilterValues } from "../../types";
 import {
   DataGrid,
@@ -325,6 +326,24 @@ export default function VoterListPage() {
         },
       },
       {
+        field: "has_mail_ballot",
+        headerName: "MIB",
+        width: 80,
+        headerAlign: "center",
+        align: "center",
+        renderCell: ({ value }) => (
+          <Stack
+            direction="row"
+            spacing={0.5}
+            alignItems="center"
+            justifyContent="center"
+            sx={{ color: value ? "success.main" : "warning.main" }}
+          >
+            <MailIcon sx={{ fontSize: 18 }} />
+          </Stack>
+        ),
+      },
+      {
         field: "age",
         headerName: "Age",
         width: 70,
@@ -503,9 +522,36 @@ export default function VoterListPage() {
               >
                 {row.full_name}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
-                ID: {row.voter_id} • Precinct: {row.precinct}
-              </Typography>
+              {/* MIB and SEX Row underneath name */}
+              <Stack
+                direction="row"
+                spacing={1.5}
+                alignItems="center"
+                sx={{ mt: 0.5 }}
+              >
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  alignItems="center"
+                  sx={{
+                    color: row.has_mail_ballot
+                      ? "success.main"
+                      : "warning.main",
+                  }}
+                >
+                  <MailIcon sx={{ fontSize: 18 }} />
+                  <Typography variant="caption" fontWeight="900">
+                    {row.has_mail_ballot ? "YES" : "NO"}
+                  </Typography>
+                </Stack>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: "bold" }}
+                >
+                  SEX: {row.sex || "?"}
+                </Typography>
+              </Stack>
             </Box>
             <Stack direction="row" spacing={0.5}>
               <Chip label={row.age || "?"} size="small" variant="outlined" />

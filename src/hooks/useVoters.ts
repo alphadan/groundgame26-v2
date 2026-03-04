@@ -9,18 +9,23 @@ import { useAuth } from "../context/AuthContext";
  */
 
 const ALLOWED_SQL_PATTERNS = [
-  // Absentee stats placeholder
-  /SELECT\s+COUNTIF\([^)]+\)\s+AS\s+\w+[\s,\w()=']+FROM\s+`groundgame26_voters\.chester_county`/i,
-  // Add more safe patterns as needed
-] as const;
+  // 1. Absentee / Turnout Stats Pattern
+  // Matches: SELECT COUNTIF(...) AS ... FROM `dataset.YYYYMMDD_chester_county`
+  /SELECT\s+COUNTIF\([^)]+\)\s+AS\s+\w+[\s,\w()=']+FROM\s+`[\w-]+\.[\w-]+\.\d{8}_chester_county`/i,
 
+  // 2. Communal Hub / Group By Address Pattern
+  // Matches the query: SELECT voter_name, party, status, address, voter_count FROM (SELECT ... COUNT(*) OVER(PARTITION BY address) ...)
+  /SELECT[\s\w,]+FROM\s*\(\s*SELECT[\s\w,]+COUNT\(\*\)\s+OVER\s*\(\s*PARTITION\s+BY\s+address\s*\)[\s\w,]+FROM\s+`[\w-]+\.[\w-]+\.\d{8}_chester_county`\s*\)\s+WHERE\s+voter_count\s*>\s*\d+/i,
+
+  // 3. Generic Select with dynamic date
+  /SELECT\s+[\w\s,*()]+\s+FROM\s+`[\w-]+\.[\w-]+\.\d{8}_chester_county`(\s+WHERE\s+.+)?(\s+LIMIT\s+\d+)?/i,
+] as const;
 
 const isSafeSql = (sql: string): boolean => {
   if (typeof sql !== "string") return false;
   const trimmed = sql.trim();
   return ALLOWED_SQL_PATTERNS.some((pattern) => pattern.test(trimmed));
 };
-
 
 export const useVoters = (sql: string) => {
   // Access the verified user and loading state from our Gatekeeper context
@@ -39,12 +44,11 @@ export const useVoters = (sql: string) => {
       const trimmedSql = sql.trim();
 
       // === 2. Security: Enforce allowlist ===
-      
+
       if (!isSafeSql(trimmedSql)) {
         console.error("Blocked unsafe SQL query:", trimmedSql);
         throw new Error("Invalid query type");
       }
-      
 
       // === 3. Auth validation ===
       if (!user) {
@@ -76,7 +80,7 @@ export const useVoters = (sql: string) => {
             },
             body: JSON.stringify({ sql: trimmedSql }),
             signal: controller.signal,
-          }
+          },
         );
       } catch (fetchErr: any) {
         if (fetchErr.name === "AbortError") {
@@ -117,14 +121,13 @@ export const useVoters = (sql: string) => {
     },
 
     // === 7. Safe enabling logic ===
-    
+
     enabled:
       isLoaded &&
       !!user &&
       !!sql &&
       typeof sql === "string" &&
       isSafeSql(sql.trim()),
-      
 
     // Caching logic for professional scalability
     staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes

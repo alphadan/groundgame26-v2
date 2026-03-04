@@ -25,6 +25,7 @@ import {
   Home as HomeIcon,
   Person as PersonIcon,
 } from "@mui/icons-material";
+import MailIcon from "@mui/icons-material/Mail";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 
 export default function NameSearchPage() {
@@ -95,6 +96,19 @@ export default function NameSearchPage() {
           </Stack>
 
           <Stack direction="row" spacing={1} alignItems="center">
+            <Stack
+              direction="row"
+              spacing={0.5}
+              alignItems="center"
+              sx={{
+                color: row.has_mail_ballot ? "success.main" : "warning.main",
+              }}
+            >
+              <MailIcon sx={{ fontSize: 18 }} />
+              <Typography variant="caption" fontWeight="900">
+                {row.has_mail_ballot ? "YES" : "NO"}
+              </Typography>
+            </Stack>
             <Typography
               variant="caption"
               sx={{ fontWeight: "bold", color: "text.secondary" }}
@@ -155,6 +169,28 @@ export default function NameSearchPage() {
           <Typography variant="caption" color="text.secondary">
             {row.address}
           </Typography>
+        </Stack>
+      ),
+    },
+    {
+      field: "has_mail_ballot",
+      headerName: "MIB",
+      width: 80,
+      headerAlign: "center",
+      align: "center",
+      renderCell: ({ value }) => (
+        <Stack
+          direction="row"
+          spacing={0.5}
+          alignItems="center"
+          justifyContent="center"
+          sx={{ color: value ? "success.main" : "warning.main" }}
+        >
+          <MailIcon
+            sx={{
+              fontSize: 18,
+            }}
+          />
         </Stack>
       ),
     },

@@ -1,4 +1,5 @@
-1. Remove Columns: 
+FROM WITHIN GOOGLE SHEETS:
+1. Remove Columns: Mailing Address V-Z, PR_05_17_22 BG-DT, vbm_precinctsplit, vbm_partydescription, RNC.names, RNCfiles.ObservedParty
 2. Add Columns: full_name, address, has_mail_ballot, age_group, email
 3. Rename Table & Sheet
 5. Format Numbers (Dates) Custom String
@@ -6,12 +7,12 @@
    - Advance Settings skip 1 row as header
 5. Insert tables (append)
 
-INSERT INTO `groundgame26-v2.groundgame26_voters.20250225_chester_county`
-SELECT * FROM `groundgame26-v2.groundgame26_voters.penn_450_20250225`;
+INSERT INTO `groundgame26-v2.groundgame26_voters.20250226_chester_county`
+SELECT * FROM `groundgame26-v2.groundgame26_voters.penn_450`;
 
 6. Conconcatate full_name
 
-UPDATE `groundgame26-v2.groundgame26_voters.20260225_chester_county`
+UPDATE `groundgame26-v2.groundgame26_voters.20260226_chester_county`
 SET full_name = ARRAY_TO_STRING(
   [TRIM(first_name), TRIM(middle_name), TRIM(last_name), TRIM(suffix)], 
   ' '
@@ -20,7 +21,7 @@ WHERE TRUE
 
 7. Conconcatate address
 
-UPDATE `groundgame26-v2.groundgame26_voters.20260225_chester_county`
+UPDATE `groundgame26-v2.groundgame26_voters.20260226_chester_county`
 SET address = ARRAY_TO_STRING(
   [
     CAST(house_int AS STRING),
