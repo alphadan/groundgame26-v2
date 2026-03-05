@@ -107,7 +107,59 @@ SELECT
   STRUCT(doors_needed, sms_needed, total_volunteers_quota) AS targets
 FROM `groundgame26-v2.groundgame26_voters.volunteer_quotas_feb2026`;
 
-5. Copy to Firebase colletion with gcloud 
+5. Gemini
+
+// Step 1
+
+CREATE OR REPLACE MODEL `groundgame26-v2.groundgame26_voters.gemini_flash_model`
+REMOTE WITH CONNECTION `projects/groundgame26-v2/locations/us/connections/bq-to-vertex`
+OPTIONS (ENDPOINT = 'gemini-2.0-flash-lite-001');
+
+// Step 2
+
+CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.precinct_field_plan_2026` AS
+WITH AI_Capture AS (
+  SELECT *
+  FROM ML.GENERATE_TEXT(
+    MODEL `groundgame26-v2.groundgame26_voters.gemini_flash_model`,
+    (
+      SELECT 
+        precinct,
+        area_district,
+        CONCAT(
+          "ACT AS A GOP STRATEGIST. Analyze Precinct ", precinct, ". ",
+          "STRICT JSON ONLY. NO MARKDOWN. ",
+          "Format: {'summary': '...', 'positive': '...', 'immediate': '...', 'actionable': '...'}"
+        ) AS prompt
+      FROM `groundgame26-v2.groundgame26_voters.gold_standard_feb2026`
+    ),
+    STRUCT(0.1 AS temperature, 1000 AS max_output_tokens, TRUE AS flatten_json_output)
+  )
+),
+Sanitized AS (
+  SELECT
+    precinct,
+    area_district,
+    -- We use the name the error message explicitly demanded:
+    REGEXP_REPLACE(ml_generate_text_llm_result, r'^```json|```$', '') as json_blob
+  FROM AI_Capture
+)
+SELECT
+  precinct,
+  area_district,
+  JSON_VALUE(SAFE.PARSE_JSON(json_blob), '$.summary') as verbose_strategic_summary,
+  JSON_VALUE(SAFE.PARSE_JSON(json_blob), '$.positive') as verbose_strategic_positive,
+  JSON_VALUE(SAFE.PARSE_JSON(json_blob), '$.immediate') as verbose_strategic_immediate,
+  JSON_VALUE(SAFE.PARSE_JSON(json_blob), '$.actionable') as verbose_strategic_actionable
+FROM Sanitized;
+
+// Step 3
+
+
+
+
+
+6. Copy to Firebase colletion with gcloud 
 
 from google.cloud import bigquery
 from google.cloud import firestore
@@ -152,7 +204,7 @@ def deploy_narratives():
 if __name__ == "__main__":
     deploy_narratives()
 
-6. Prepare the Data for ML
+7. Prepare the Data for ML
 
 CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.firebase_flattened_precincts` AS
 SELECT
@@ -169,7 +221,7 @@ FROM
   `your-project.analytics_12345.events_*`
 GROUP BY 1;
 
-7. Create Your ML Model in BigQuery
+8. Create Your ML Model in BigQuery
 
 CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.precinct_productivity_features` AS
 SELECT
@@ -192,11 +244,11 @@ FROM
   `your-project.analytics_12345.events_*`
 GROUP BY 1, 2;
 
-8. Import Survey Results via the Google Cloud Console
+9. Import Survey Results via the Google Cloud Console
 
 // 
 
-9. Prepare Survey Results for ML
+10. Prepare Survey Results for ML
 
 CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.enriched_strategy_feb2026` AS
 SELECT
@@ -219,7 +271,7 @@ ON m.age_group = s.age_cohort
 AND m.political_party = s.political_party 
 AND m.sex = s.sex;
 
-10. The "Executive Summary" Logic Table
+11. The "Executive Summary" Logic Table
 
 CREATE OR REPLACE VIEW `groundgame26-v2.groundgame26_voters.executive_dashboard_view` AS
 WITH Metrics AS (
@@ -237,7 +289,7 @@ SELECT
   '2.1%' as reg_growth_rate -- This would be a calculation vs. previous month
 FROM Metrics;
 
-11. Updated Table of Strategic Narratives
+12. Updated Table of Strategic Narratives
 
 CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.strategic_narratives_feb2026` AS
 SELECT

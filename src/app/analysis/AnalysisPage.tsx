@@ -125,15 +125,17 @@ export default function AnalysisPage() {
   // --- 4. CALCULATIONS ---
 
   const dynamicKPIs = useMemo(() => {
+    // 1. Fallback to zeros if data hasn't loaded yet
     const s = stats || {
       gop_registrations: 0,
-      dem_registrations: 0,
       gop_has_mail_ballots: 0,
-      dem_has_mail_ballots: 0,
       doors_knocked: 0,
       texts_sent: 0,
       volunteers_active_count: 0,
+      dem_registrations: 0,
+      dem_has_mail_ballots: 0,
     };
+
     const g = goal || {
       targets: {
         registrations: 0,
@@ -148,12 +150,20 @@ export default function AnalysisPage() {
       target: number,
       opposition: number = 0,
     ) => {
+      // If target is 0, progress is 0 to avoid Division by Zero
       const progress = target > 0 ? (actual / target) * 100 : 0;
+
+      // Status Logic
       const isTrailing = opposition > actual;
       let color: "error" | "warning" | "success" | "primary" = "error";
+
       if (target === 0) color = "primary";
-      else if (progress >= 80 && !isTrailing) color = "success";
-      else if (progress >= 50) color = "warning";
+      else if (progress >= 100)
+        color = "success"; // Goal Hit
+      else if (progress >= 70)
+        color = "success"; // On Track
+      else if (progress >= 40) color = "warning"; // At Risk
+
       return {
         percentage: Math.min(progress, 100),
         color,

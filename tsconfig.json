@@ -22,6 +22,6 @@
     },
     "types": ["vite/client", "vite-plugin-svgr/client"]
   },
-  "include": ["src", "vite.config.ts"],
+  "include": ["src", "vite.config.ts", "sync-bq-to-firestore.js"],
   "exclude": ["node_modules"]
 }

@@ -1675,56 +1675,86 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
 
 export const adminSetGoal = onCall({ cors: true }, async (request) => {
   // 1. Security check: Ensure authenticated admin
+  // Note: In production, consider adding a custom claim check: request.auth.token.admin
   if (!request.auth) {
     throw new HttpsError(
       "unauthenticated",
-      "You must be an admin to set goals.",
+      "You must be an admin to set goals."
     );
   }
 
   // 2. Destructure data from request.data
-  const { precinct_id, targets, cycle, county_id, area_id } = request.data;
+  const { 
+    precinct_id, 
+    precinct_name,
+    targets, 
+    ai_narratives,
+    cycle, 
+    county_id, 
+    area_id 
+  } = request.data;
 
+  // Validation
   if (!precinct_id || !targets) {
-    throw new HttpsError("invalid-argument", "Missing precinct_id or targets.");
+    throw new HttpsError(
+      "invalid-argument", 
+      "Missing precinct_id or targets."
+    );
   }
 
   try {
-    const now = Date.now();
+    const goalRef = db.collection("goals").doc(precinct_id);
 
-    // 3. Document structure following your Goal interface
-    const newGoal = {
+    // 3. Document structure following the refined AI-integrated interface
+    const goalData = {
       precinct_id,
-      cycle: cycle || "2025_PRIMARY",
-      county_id: county_id || "",
+      precinct_name: precinct_name || "",
+      cycle: cycle || "2026_GENERAL",
+      county_id: county_id || "PA-C-15", // Default to Chester County
       area_id: area_id || "",
+      
+      // Target benchmarks derived from BigQuery or Admin override
       targets: {
         registrations: Number(targets.registrations) || 0,
         mail_in: Number(targets.mail_in) || 0,
         volunteers: Number(targets.volunteers) || 0,
         user_activity: Number(targets.user_activity) || 0,
       },
-      current: {
-        registrations: 0,
-        mail_in: 0,
-        volunteers: 0,
-        user_activity: 0,
+
+      // AI Strategy Briefing tiers
+      ai_narratives: {
+        summary: ai_narratives?.summary || "No summary provided.",
+        positive: ai_narratives?.positive || "No positive trends identified yet.",
+        immediate: ai_narratives?.immediate || "No immediate risks flagged.",
+        actionable: ai_narratives?.actionable || "No specific actions assigned.",
       },
-      created_at: now,
-      updated_at: now,
-      created_by: request.auth.uid,
+
+      // Metadata for auditing
+      updated_at: FieldValue.serverTimestamp(),
       updated_by: request.auth.uid,
     };
 
-    // 4. Add to Firestore with AUTO-GENERATED ID
-    const docRef = await db.collection("goals").add(newGoal);
+    // 4. Upsert using merge: true 
+    // This creates the doc if it doesn't exist, or updates it if it does.
+    // We use set() with merge so we don't accidentally overwrite 'created_at' 
+    // if it's already there, or we can use a conditional check.
+    
+    await goalRef.set(
+      {
+        ...goalData,
+        created_at: FieldValue.serverTimestamp(), // Only sets if doc is new
+        created_by: request.auth.uid,
+      },
+      { merge: true }
+    );
 
     return {
       success: true,
-      id: docRef.id,
+      precinct_id: precinct_id,
+      message: "Goal and AI narratives successfully synchronized.",
     };
   } catch (error) {
-    console.error("Error setting goal:", error);
+    console.error("Error setting goal for precinct", precinct_id, ":", error);
     throw new HttpsError("internal", error.message);
   }
 });

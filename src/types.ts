@@ -302,6 +302,12 @@ export interface GoalTargets {
   user_activity: number;
   [key: string]: number;
 }
+export interface AINarratives {
+  summary: string;
+  positive: string;
+  immediate: string;
+  actionable: string;
+}
 
 export interface Goal extends BaseMetadata {
   precinct_id: string; // Maps to PA15-P-XXX
@@ -310,7 +316,8 @@ export interface Goal extends BaseMetadata {
   county_id: string; // For scoped filtering
   area_id: string; // For scoped filtering
   targets: GoalTargets; // The target numbers
-  current?: Partial<GoalTargets>; // To track actual progress
+  current?: Partial<GoalTargets>;
+  ai_narratives: AINarratives;
 }
 
 export interface DncRecord extends BaseMetadata {

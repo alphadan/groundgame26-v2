@@ -24,6 +24,10 @@ firebase.json
 # Certs
 localhost.crt
 localhost.key
+service-account.json
+
+#App scripts
+sync-bq-to-firestore.js
 
 
 # Logs

@@ -5,6 +5,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@google-cloud/bigquery": "^8.1.1",
     "@hookform/resolvers": "^5.2.2",
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
@@ -31,7 +32,7 @@
     "dexie-react-hooks": "^4.2.0",
     "file-saver": "^2.0.5",
     "firebase": "^11.0.1",
-    "firebase-admin": "^13.6.0",
+    "firebase-admin": "^13.7.0",
     "jwt-decode": "^4.0.0",
     "leaflet": "^1.9.4",
     "react": "^19.2.3",
