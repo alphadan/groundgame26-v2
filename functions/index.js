@@ -460,12 +460,12 @@ export const queryVotersDynamic = onCall(
     }
 
     // === Sex ===
-    if (filters.gender && filters.gender.trim() !== "") {
-      sql += ` AND sex = @gender`;
-      params.gender = filters.gender.trim();
+    if (filters.sex && filters.sex.trim() !== "") {
+      sql += ` AND sex = @sex`;
+      params.sex = filters.sex.trim();
     }
 
-    // === Sex ===
+    // === Birth Day ===
     if (filters.birthDay && filters.birthDay.trim() !== "") {
       sql += ` AND date_of_birth LIKE @dobPattern`;
       params.dobPattern = `%${filters.birthDay.trim()}%`;
@@ -496,7 +496,7 @@ export const queryVotersDynamic = onCall(
       }
     }
 
-    sql += ` ORDER BY 
+    sql += ` AND voter_status = 'A' ORDER BY 
         REGEXP_REPLACE(address, r'^[0-9]+\\s+', '') ASC,
         house_int ASC,
         full_name ASC `;
@@ -1679,27 +1679,24 @@ export const adminSetGoal = onCall({ cors: true }, async (request) => {
   if (!request.auth) {
     throw new HttpsError(
       "unauthenticated",
-      "You must be an admin to set goals."
+      "You must be an admin to set goals.",
     );
   }
 
   // 2. Destructure data from request.data
-  const { 
-    precinct_id, 
+  const {
+    precinct_id,
     precinct_name,
-    targets, 
+    targets,
     ai_narratives,
-    cycle, 
-    county_id, 
-    area_id 
+    cycle,
+    county_id,
+    area_id,
   } = request.data;
 
   // Validation
   if (!precinct_id || !targets) {
-    throw new HttpsError(
-      "invalid-argument", 
-      "Missing precinct_id or targets."
-    );
+    throw new HttpsError("invalid-argument", "Missing precinct_id or targets.");
   }
 
   try {
@@ -1712,7 +1709,7 @@ export const adminSetGoal = onCall({ cors: true }, async (request) => {
       cycle: cycle || "2026_GENERAL",
       county_id: county_id || "PA-C-15", // Default to Chester County
       area_id: area_id || "",
-      
+
       // Target benchmarks derived from BigQuery or Admin override
       targets: {
         registrations: Number(targets.registrations) || 0,
@@ -1724,9 +1721,11 @@ export const adminSetGoal = onCall({ cors: true }, async (request) => {
       // AI Strategy Briefing tiers
       ai_narratives: {
         summary: ai_narratives?.summary || "No summary provided.",
-        positive: ai_narratives?.positive || "No positive trends identified yet.",
+        positive:
+          ai_narratives?.positive || "No positive trends identified yet.",
         immediate: ai_narratives?.immediate || "No immediate risks flagged.",
-        actionable: ai_narratives?.actionable || "No specific actions assigned.",
+        actionable:
+          ai_narratives?.actionable || "No specific actions assigned.",
       },
 
       // Metadata for auditing
@@ -1734,18 +1733,18 @@ export const adminSetGoal = onCall({ cors: true }, async (request) => {
       updated_by: request.auth.uid,
     };
 
-    // 4. Upsert using merge: true 
+    // 4. Upsert using merge: true
     // This creates the doc if it doesn't exist, or updates it if it does.
-    // We use set() with merge so we don't accidentally overwrite 'created_at' 
+    // We use set() with merge so we don't accidentally overwrite 'created_at'
     // if it's already there, or we can use a conditional check.
-    
+
     await goalRef.set(
       {
         ...goalData,
         created_at: FieldValue.serverTimestamp(), // Only sets if doc is new
         created_by: request.auth.uid,
       },
-      { merge: true }
+      { merge: true },
     );
 
     return {
@@ -2401,7 +2400,7 @@ export const searchVotersUniversal = onCall(
       }
     }
 
-    sql += ` ORDER BY 
+    sql += ` AND voter_status = 'A' ORDER BY 
         REGEXP_REPLACE(address, r'^[0-9]+\\s+', '') ASC,
         house_int ASC,
         full_name ASC LIMIT 100`;

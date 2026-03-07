@@ -135,7 +135,7 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
                 : submittedFilters.party || "all",
           turnout: submittedFilters.turnout || "all",
           mailBallot: submittedFilters.mailBallot || "all",
-          gender: submittedFilters.gender || "all",
+          sex: submittedFilters.sex || "all",
         });
 
         const templates = result.data?.templates || [];
@@ -184,7 +184,7 @@ export const MessagesManager: React.FC<MessagesManagerProps> = ({
           "ageGroup",
           "mailBallot",
           "turnout",
-          "gender",
+          "sex",
         ]}
         showLocationFilters={false}
       />

@@ -6,7 +6,8 @@ import { UserProfile } from "../../types";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../lib/firebase";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useVoterStats, type VoterStats } from "../../hooks/useVoterStats";
+import { useVoterStats } from "../../hooks/useVoterStats";
+import { VoterStats, VoterStatsParams } from "../../types";
 import { usePrecinctAnalysis } from "../../hooks/usePrecinctAnalysis";
 import ManageTeamPage from "../precincts/ManageTeamPage";
 import { PrecinctFilterBar } from "../../components/navigation/PrecinctFilterBar";
@@ -140,9 +141,9 @@ export default function Dashboard() {
       <Stack
         direction={{ xs: "column", md: "row" }}
         justifyContent="space-between"
-        alignItems="flex-end"
+        alignItems={{ xs: "stretch", md: "flex-end" }}
         spacing={2}
-        sx={{ mb: 4 }}
+        sx={{ mb: 4, width: "100%" }}
       >
         <Box>
           <Typography variant="h4" fontWeight="bold" color="primary">
@@ -151,12 +152,17 @@ export default function Dashboard() {
           <Typography
             variant="body1"
             color="text.secondary"
-            sx={{ mt: 0.5, mb: 3 }}
+            sx={{ mt: 0.5, mb: { xs: 1, md: 3 } }}
           >
             Welcome, {preferredName}
           </Typography>
         </Box>
-        <Box sx={{ minWidth: 300 }}>
+        <Box
+          sx={{
+            minWidth: { xs: "100%", md: 300 },
+            width: { xs: "100%", md: "auto" },
+          }}
+        >
           <PrecinctFilterBar onPrecinctSelect={setAnalysisPrecinct} />
         </Box>
       </Stack>

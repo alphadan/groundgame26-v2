@@ -174,7 +174,7 @@ export default function NameSearchPage() {
     },
     {
       field: "has_mail_ballot",
-      headerName: "MIB",
+      headerName: "VBM",
       width: 80,
       headerAlign: "center",
       align: "center",

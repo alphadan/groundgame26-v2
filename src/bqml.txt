@@ -1,121 +1,99 @@
-1. Update the Meta Table
+////////////////////////////////////////////////////////////////////////////////////
+//
+// New Workflow
+//
+/////////////////////////////////////////////////////////////////////////////////////
+
+1. Create Meta Table Snapshot meta_20260225_chester_county
 
 CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.meta_20260225_chester_county` AS
 SELECT 
   precinct,
   area_district,
-  -- Turnout & Recovery
+  
+  -- Original Turnout Logic
   COUNTIF(political_party = 'R' AND GN_11_05_24 = 'R') AS gop_ballots_24,
   COUNTIF(political_party = 'R' AND GN_PR_11_04_25 = 'R') AS gop_ballots_25_primary,
   (COUNTIF(political_party = 'R' AND GN_11_05_24 = 'R') - COUNTIF(political_party = 'R' AND GN_PR_11_04_25 = 'R')) AS gop_falloff_count,
   
-  -- The Score (Ensure this name matches exactly)
+  -- Original Scores & Flags
   AVG(turnout_score_general) AS avg_rep_gen_score,
-
-  -- VBM & Demographics
   COUNTIF(vbm_ballotsent IS NOT NULL) AS vbm_sent_count,
   COUNTIF(vbm_ballotreturned IS NOT NULL) AS vbm_returned_count,
   ROUND(AVG(IF(age > 65, 1, 0)) * 100, 1) AS pct_seniors,
-  IF(precinct IN ('425'), 1, 0) AS is_known_college_precinct
+  IF(precinct IN ('425'), 1, 0) AS is_known_college_precinct,
+
+  -- NEW: Demographic Pivots for AI Narratives
+  COUNTIF(age BETWEEN 18 AND 24) AS age_18_24,
+  COUNTIF(age BETWEEN 25 AND 40) AS age_25_40,
+  COUNTIF(age BETWEEN 41 AND 70) AS age_41_70,
+  COUNTIF(age >= 71) AS age_71_plus,
+  COUNTIF(sex = 'M') AS male_count,
+  COUNTIF(sex = 'F') AS female_count
 
 FROM `groundgame26-v2.groundgame26_voters.20260225_chester_county`
 GROUP BY 1, 2;
 
-2. Create Gold Stadard Table
+2. The "Gold Standard" Table (Momentum Logic)
 
-CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.gold_standard_feb2026` AS
+CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.gold_standard_poc` AS
 SELECT 
-  m.*, -- This ensures avg_rep_gen_score is passed through
+  m.*,
+  -- 2024 Baseline Stats
   v24.rep_candidate_total AS rep_24,
-  v24.dem_candidate_total AS dem_24,
-  COALESCE(SAFE_CAST(intel.ai_adjustment_flag AS INT64), 0) AS human_intel_flag
+  v24.ballots_cast AS total_24,
+  -- 2022 Baseline Stats
+  v22.rep_candidate_total AS rep_22,
+  v22.ballots_cast AS total_22,
+  -- MOMENTUM: (GOP 2024 Share) - (GOP 2022 Share)
+  (SAFE_DIVIDE(v24.rep_candidate_total, v24.ballots_cast) - 
+   SAFE_DIVIDE(v22.rep_candidate_total, v22.ballots_cast)) AS gop_momentum
 FROM `groundgame26-v2.groundgame26_voters.meta_20260225_chester_county` m
-JOIN `groundgame26-v2.groundgame26_voters.baseline_2024_general` v24 ON m.precinct = v24.precinct_code
-JOIN `groundgame26-v2.groundgame26_voters.baseline_2022_general` v22 ON m.precinct = v22.precinct_code
-LEFT JOIN `groundgame26-v2.groundgame26_voters.human_intel_context` intel ON m.precinct = intel.precinct_code;
+LEFT JOIN `groundgame26-v2.groundgame26_voters.baseline_2024_general` v24 ON m.precinct = v24.precinct_code
+LEFT JOIN `groundgame26-v2.groundgame26_voters.baseline_2022_general` v22 ON m.precinct = v22.precinct_code;
 
-3. Update the Volunteer Quotas Table
+3. Weighted Quota Engine for precinct_quotas_2026
 
-CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.precinct_field_plan_2026` AS
+CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.precinct_quotas_2026` AS
 WITH Benchmarks AS (
   SELECT MAX(avg_rep_gen_score) as top_gen_score
-  FROM `groundgame26-v2.groundgame26_voters.gold_standard_feb2026`
-),
--- Step 1: Calculate all raw numbers first
-CalculatedMetrics AS (
-  SELECT 
-    m.*,
-    CAST(CEIL(m.gop_falloff_count * 0.10) AS INT64) AS goal_new_regs,
-    CAST(CEIL(m.rep_24 * 0.20) AS INT64) AS goal_vbm_signups,
-    CAST(CEIL((b.top_gen_score - m.avg_rep_gen_score) * 10 + (m.gop_falloff_count * 0.5)) AS INT64) AS goal_total_knocks,
-    CAST(CEIL(((b.top_gen_score - m.avg_rep_gen_score) * 10 + (m.gop_falloff_count * 0.5)) / 40) AS INT64) AS volunteers_needed_quota
-  FROM `groundgame26-v2.groundgame26_voters.gold_standard_feb2026` m, Benchmarks b
+  FROM `groundgame26-v2.groundgame26_voters.gold_standard_poc`
 )
--- Step 2: Generate the 4-tier Verbose Narratives using the calculated metrics
 SELECT 
-  precinct,
-  area_district,
-  goal_new_regs,
-  goal_vbm_signups,
-  goal_total_knocks,
-  volunteers_needed_quota,
-  0 AS actual_knocks_to_date,
+  m.precinct,
+  m.area_district,
+  
+  -- 1. WEIGHTED REGISTRATION GOALS
+  -- We increase the % goal if GOP Momentum is positive (striking while the iron is hot)
+  CAST(CEIL(m.gop_falloff_count * (0.10 + IF(m.gop_momentum > 0, 0.05, 0))) AS INT64) AS goal_new_regs,
+  
+  -- 2. TARGETED VBM GOALS
+  -- If Seniors > 40%, we push for 30% conversion. Otherwise, stick to 15%.
+  CAST(CEIL(m.gop_ballots_24 * IF(m.pct_seniors > 40, 0.30, 0.15)) AS INT64) AS goal_vbm_signups,
+  
+  -- 3. INTERACTION QUOTAS (Knocks & SMS)
+  -- Focused on the 'Efficiency Gap' from the top performing precinct
+  CAST(CEIL((b.top_gen_score - m.avg_rep_gen_score) * 10 + (m.gop_falloff_count * 0.4)) AS INT64) AS goal_total_knocks,
+  CAST(CEIL((b.top_gen_score - m.avg_rep_gen_score) * 25 + (m.gop_falloff_count * 0.8)) AS INT64) AS goal_total_sms,
+
+  -- 4. INITIAL ACTUALS (Reset for PoC)
   0 AS actual_regs_to_date,
+  0 AS actual_knocks_to_date,
+  0 AS actual_sms_to_date,
+  0 AS actual_vbm_to_date,
 
-  -- 1. EXECUTIVE SUMMARY
+  -- 5. REFINED STRATEGIC PRIORITY
+  -- Using your new demographic pivots for better classification
   CASE 
-    WHEN is_known_college_precinct = 1 THEN 'High-transience campus environment (425) requiring a focus on registration and leadership recruitment.'
-    WHEN gop_falloff_count > 150 THEN 'Critical recovery zone. High-density of 2024 voters who sat out the 2025 primary.'
-    ELSE 'Stable residential sector. Strategy shifts toward VBM conversion and surplus volunteer harvesting.'
-  END AS verbose_strategic_narrative,
+    WHEN m.is_known_college_precinct = 1 THEN 'YOUTH_REG_FOCUS'
+    WHEN m.pct_seniors > 40 AND m.female_count > m.male_count THEN 'SENIOR_VBM_CHASE'
+    WHEN m.avg_rep_gen_score > 2.5 THEN 'BASE_MAXIMIZATION'
+    ELSE 'SWING_PERSUASION'
+  END AS strategic_priority
 
-  -- 2. POSITIVE TRENDS
-  CASE 
-    WHEN avg_rep_gen_score > 8.0 THEN 'Top-tier reliability. This precinct serves as a performance benchmark for the district.'
-    WHEN (vbm_sent_count - vbm_returned_count) < 10 THEN 'High VBM efficiency. Ballot return rates are currently outpacing the county average.'
-    ELSE 'Solid foundation. Historical data shows a resilient Republican floor.'
-  END AS verbose_strategic_positive,
+FROM `groundgame26-v2.groundgame26_voters.gold_standard_poc` m, Benchmarks b;
 
-  -- 3. IMMEDIATE ATTENTION
-  CASE 
-    WHEN (vbm_sent_count - vbm_returned_count) > 50 THEN 'IMMEDIATE: VBM Leakage. Over 50 ballots remain unreturned, representing a significant risk.'
-    WHEN is_known_college_precinct = 1 THEN 'IMMEDIATE: Roll Cleanliness. Address verification required for 18-24 demographic.'
-    ELSE 'IMMEDIATE: Monitor registration pace to ensure 10% monthly growth.'
-  END AS verbose_strategic_immediate,
-
-  -- 4. ACTIONABLE STEPS
-  CASE 
-    WHEN is_known_college_precinct = 1 THEN 'Action: Deploy 5 volunteers to high-traffic student zones for registration drives.'
-    WHEN gop_falloff_count > 100 THEN 'Action: Execute "Recovery Script" at doors. Focus on the ' || CAST(gop_falloff_count AS STRING) || ' missing 2025 voters.'
-    ELSE 'Action: Pivot ' || CAST(volunteers_needed_quota AS STRING) || ' volunteers to support nearest high-falloff zone.'
-  END AS verbose_strategic_actionable
-
-FROM CalculatedMetrics;
-
-4. Run the Final Narrative Query
-
-CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.strategic_narratives_feb2026` AS
-SELECT
-  area_district,
-  precinct,
-  -- Area Chair Narrative
-  CONCAT('Area ', area_district, ' Strategy: For Precinct ', precinct, 
-         ', deploy ', total_volunteers_quota, ' volunteers to close the performance gap.') AS area_chair_narrative,
-  -- Precinct Narrative
-  CONCAT('Precinct ', precinct, ' Goal: Knock ', doors_needed, ' doors and send ', sms_needed, ' texts.') AS precinct_narrative,
-  -- Metrics for App/JSON
-  STRUCT(doors_needed, sms_needed, total_volunteers_quota) AS targets
-FROM `groundgame26-v2.groundgame26_voters.volunteer_quotas_feb2026`;
-
-5. Gemini
-
-// Step 1
-
-CREATE OR REPLACE MODEL `groundgame26-v2.groundgame26_voters.gemini_flash_model`
-REMOTE WITH CONNECTION `projects/groundgame26-v2/locations/us/connections/bq-to-vertex`
-OPTIONS (ENDPOINT = 'gemini-2.0-flash-lite-001');
-
-// Step 2
+4. The AI Narrative Strategic Query precinct_field_plan_2026
 
 CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.precinct_field_plan_2026` AS
 WITH AI_Capture AS (
@@ -126,12 +104,18 @@ WITH AI_Capture AS (
       SELECT 
         precinct,
         area_district,
+        gop_falloff_count,
+        pct_seniors,
+        is_known_college_precinct,
+        -- Injecting the deep context we built
         CONCAT(
-          "ACT AS A GOP STRATEGIST. Analyze Precinct ", precinct, ". ",
+          "ACT AS A GOP FIELD DIRECTOR. Objective: 15k voter recovery. ",
+          "Analyze Precinct ", precinct, ". Falloff: ", gop_falloff_count, ". ",
+          "Seniors: ", pct_seniors, "%. College: ", IF(is_known_college_precinct=1, 'Yes', 'No'), ". ",
           "STRICT JSON ONLY. NO MARKDOWN. ",
           "Format: {'summary': '...', 'positive': '...', 'immediate': '...', 'actionable': '...'}"
         ) AS prompt
-      FROM `groundgame26-v2.groundgame26_voters.gold_standard_feb2026`
+      FROM `groundgame26-v2.groundgame26_voters.gold_standard_poc`
     ),
     STRUCT(0.1 AS temperature, 1000 AS max_output_tokens, TRUE AS flatten_json_output)
   )
@@ -140,168 +124,41 @@ Sanitized AS (
   SELECT
     precinct,
     area_district,
-    -- We use the name the error message explicitly demanded:
+    gop_falloff_count,
+    pct_seniors,
+    is_known_college_precinct,
+    -- Your Regex Cleanup logic
     REGEXP_REPLACE(ml_generate_text_llm_result, r'^```json|```$', '') as json_blob
   FROM AI_Capture
+),
+Parsed AS (
+  SELECT
+    *,
+    SAFE.PARSE_JSON(json_blob) as json_obj
+  FROM Sanitized
 )
 SELECT
   precinct,
   area_district,
-  JSON_VALUE(SAFE.PARSE_JSON(json_blob), '$.summary') as verbose_strategic_summary,
-  JSON_VALUE(SAFE.PARSE_JSON(json_blob), '$.positive') as verbose_strategic_positive,
-  JSON_VALUE(SAFE.PARSE_JSON(json_blob), '$.immediate') as verbose_strategic_immediate,
-  JSON_VALUE(SAFE.PARSE_JSON(json_blob), '$.actionable') as verbose_strategic_actionable
-FROM Sanitized;
+  -- AI with Human Fallback
+  COALESCE(JSON_VALUE(json_obj, '$.summary'), 'Focusing on recovery of ' || gop_falloff_count || ' falloff voters.') as verbose_strategic_summary,
+  COALESCE(JSON_VALUE(json_obj, '$.positive'), 'Strong GOP historical floor identified.') as verbose_strategic_positive,
+  COALESCE(JSON_VALUE(json_obj, '$.immediate'), 
+    IF(pct_seniors > 40, 'IMMEDIATE: High senior density - VBM chase required.', 'IMMEDIATE: Door-to-door verification.')
+  ) as verbose_strategic_immediate,
+  COALESCE(JSON_VALUE(json_obj, '$.actionable'), 
+    IF(is_known_college_precinct = 1, 'Action: Student registration drive.', 'Action: SMS/Phone outreach to ' || gop_falloff_count || ' voters.')
+  ) as verbose_strategic_actionable,
+  UNIX_SECONDS(CURRENT_TIMESTAMP()) as updated_at
+FROM Parsed;
 
-// Step 3
+4. Copy AI to firestore goals
+
+node sync-bq-to-firestore.js
+
+5. Copy precinct_quotas_2026 to firestore goals
+
+node sync-bq-quotas-to-firestore.js
 
 
 
-
-
-6. Copy to Firebase colletion with gcloud 
-
-from google.cloud import bigquery
-from google.cloud import firestore
-
-def deploy_narratives():
-    # Initialize clients
-    bq_client = bigquery.Client()
-    db = firestore.Client()
-
-    # Define the source table
-    table_id = "groundgame26-v2.groundgame26_voters.strategic_narratives_feb2026"
-    
-    # Query the table
-    query = f"SELECT * FROM `{table_id}`"
-    results = bq_client.query(query).result()
-
-    print(f"Starting deployment to Firestore...")
-
-    # Write each precinct to Firestore
-    for row in results:
-        doc_id = f"precinct_{row.precinct}"
-        doc_ref = db.collection("strategic_narrative").document(doc_id)
-        
-        # Prepare the data object
-        data = {
-            "area_district": row.area_district,
-            "precinct": row.precinct,
-            "area_chair_narrative": row.area_chair_narrative,
-            "precinct_narrative": row.precinct_narrative,
-            "total_volunteers_quota": row.total_volunteers_quota,
-            "targets": {
-                "doors": row.targets['doors_needed'],
-                "sms": row.targets['sms_needed']
-            }
-        }
-        
-        doc_ref.set(data)
-        print(f"Deployed narrative for {doc_id}")
-
-    print("Deployment complete.")
-
-if __name__ == "__main__":
-    deploy_narratives()
-
-7. Prepare the Data for ML
-
-CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.firebase_flattened_precincts` AS
-SELECT
-  -- Extract Precinct ID from event parameters
-  (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'precinct_id') AS precinct,
-  -- Aggregate interactions
-  COUNTIF(event_name = 'door_knock') AS total_doors,
-  COUNTIF(event_name = 'send_email') AS total_emails,
-  COUNTIF(event_name = 'phone_call') AS total_calls,
-  COUNTIF(event_name = 'sms_text') AS total_sms,
-  -- Measure engagement
-  AVG( (SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'engagement_time_msec') / 1000 ) AS avg_session_seconds
-FROM
-  `your-project.analytics_12345.events_*`
-GROUP BY 1;
-
-8. Create Your ML Model in BigQuery
-
-CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.precinct_productivity_features` AS
-SELECT
-  -- 1. Extract Precinct and Role from event parameters
-  (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'precinct_id') AS precinct,
-  (SELECT value.string_value FROM UNNEST(event_params) WHERE key = 'user_role') AS user_role,
-  
-  -- 2. Aggregate Interaction Metrics
-  COUNTIF(event_name = 'door_knock') AS total_doors,
-  COUNTIF(event_name = 'sms_text') AS total_sms,
-  COUNTIF(event_name = 'phone_call') AS total_calls,
-  COUNTIF(event_name = 'send_email') AS total_emails,
-  
-  -- 3. Calculate Engagement Metrics
-  SUM((SELECT value.int_value FROM UNNEST(event_params) WHERE key = 'engagement_time_msec')) / 60000 AS total_minutes_on_app,
-  
-  -- 4. Timestamp for Trend Analysis
-  MAX(timestamp_micros(event_timestamp)) AS last_activity
-FROM
-  `your-project.analytics_12345.events_*`
-GROUP BY 1, 2;
-
-9. Import Survey Results via the Google Cloud Console
-
-// 
-
-10. Prepare Survey Results for ML
-
-CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.enriched_strategy_feb2026` AS
-SELECT
-  m.*,
-  s.avg_issue_score,
-  s.top_concern
-FROM `groundgame26-v2.groundgame26_voters.meta_20260225_chester_county` m
-LEFT JOIN (
-  -- Aggregate survey results by cohort to match the Meta Table
-  SELECT 
-    age_cohort, 
-    political_party, 
-    sex, 
-    AVG(issue_score) as avg_issue_score,
-    APPROX_TOP_SUM(concern, 1, 1)[OFFSET(0)].value as top_concern
-  FROM `groundgame26-v2.groundgame26_voters.survey_results_feb2026`
-  GROUP BY 1, 2, 3
-) s 
-ON m.age_group = s.age_cohort 
-AND m.political_party = s.political_party 
-AND m.sex = s.sex;
-
-11. The "Executive Summary" Logic Table
-
-CREATE OR REPLACE VIEW `groundgame26-v2.groundgame26_voters.executive_dashboard_view` AS
-WITH Metrics AS (
-  SELECT
-    SUM(current_rep_count) as total_reps,
-    SUM(total_volunteers_quota) as quota_volunteers,
-    -- Join with Firebase to see actuals
-    (SELECT COUNT(DISTINCT user_id) FROM `groundgame26-v2.groundgame26_voters.firebase_flattened_precincts`) as actual_volunteers,
-    (SELECT SUM(total_doors) FROM `groundgame26-v2.groundgame26_voters.firebase_flattened_precincts`) as actual_doors
-  FROM `groundgame26-v2.groundgame26_voters.volunteer_quotas_feb2026`
-)
-SELECT
-  SAFE_DIVIDE(actual_volunteers, quota_volunteers) as pct_vol_goal,
-  SAFE_DIVIDE(actual_doors, (quota_volunteers * 50)) as pct_contact_goal,
-  '2.1%' as reg_growth_rate -- This would be a calculation vs. previous month
-FROM Metrics;
-
-12. Updated Table of Strategic Narratives
-
-CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.strategic_narratives_feb2026` AS
-SELECT
-  v.area_district,
-  v.precinct,
-  v.precinct_narrative,
-  -- Adding the Survey Context
-  CONCAT(
-    v.precinct_narrative, 
-    ' SURVEY ALERT: Voters in your age cohorts are most concerned about ', 
-    s.top_concern, '. Use this as your primary door-opening topic.'
-  ) AS enhanced_precinct_narrative
-FROM `groundgame26-v2.groundgame26_voters.volunteer_quotas_feb2026` v
-LEFT JOIN `groundgame26-v2.groundgame26_voters.enriched_strategy_feb2026` s
-ON v.precinct = s.precinct;

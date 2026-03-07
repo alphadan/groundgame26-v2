@@ -35,7 +35,7 @@ export default function AnalysisPage() {
     {
       label: "Female Republicans",
       icon: "👩",
-      filters: { party: "R", gender: "F" },
+      filters: { party: "R", sex: "F" },
     },
     {
       label: "Young GOP (18-24)",
@@ -79,7 +79,7 @@ export default function AnalysisPage() {
       parts.push(
         filters.modeledParty === "R" ? "Republicans" : filters.modeledParty,
       );
-    if (filters.gender) parts.push(filters.gender === "F" ? "Female" : "Male");
+    if (filters.sex) parts.push(filters.sex === "F" ? "Female" : "Male");
     if (filters.ageGroup) parts.push(`Age ${filters.ageGroup}`);
     if (filters.turnout) parts.push(`${filters.turnout} Turnout`);
 
@@ -455,7 +455,7 @@ export default function AnalysisPage() {
           "turnout",
           "ageGroup",
           "mailBallot",
-          "gender",
+          "sex",
         ]}
       />
 

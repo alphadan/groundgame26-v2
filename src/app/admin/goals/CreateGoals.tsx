@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useCloudFunctions } from "../../../hooks/useCloudFunctions";
-import { Goal, GoalTargets } from "../../../types";
+import { Goal, GoalTargets, AINarratives } from "../../../types";
 import {
   Box,
   TextField,
@@ -43,7 +43,7 @@ export default function CreateGoals({
       positive: "",
       immediate: "",
       actionable: "",
-    },
+    } as AINarratives,
   });
 
   useEffect(() => {
@@ -62,26 +62,28 @@ export default function CreateGoals({
     }
   }, [initialData]);
 
-  // PHASE 2 FEATURE: Pull from the BigQuery Bridge
   const handleFetchAIRecommendation = async () => {
     if (!form.precinct_id) return setError("Enter a Precinct ID first.");
     setIsFetchingAI(true);
+    setError(null);
+
     try {
-      // This calls a separate function that reads your BigQuery 'precinct_field_plan_2026'
-      const response = await callFunction("getAIRecommendation", {
+      // FIX: Cast the response to the Goal type to solve TS18046 'unknown' error
+      const response = (await callFunction("getAIRecommendation", {
         precinct_id: form.precinct_id,
-      });
+      })) as { data: Goal };
 
       if (response.data) {
         setForm((prev) => ({
           ...prev,
-          targets: response.data.targets,
-          ai_narratives: response.data.ai_narratives,
+          // Safely map the returned BQ data into the form state
+          targets: response.data.targets || prev.targets,
+          ai_narratives: response.data.ai_narratives || prev.ai_narratives,
         }));
       }
     } catch (err: any) {
       setError(
-        "Could not find AI data for this precinct. You may need to run the BigQuery Sync.",
+        "Could not find AI data for this precinct. Ensure the BigQuery Sync has run.",
       );
     } finally {
       setIsFetchingAI(false);
@@ -148,11 +150,13 @@ export default function CreateGoals({
       <Typography variant="subtitle2" color="primary" fontWeight="bold">
         Numerical Targets
       </Typography>
+
+      {/* FIX: Use MUI v6 size prop system to solve TS2769 Grid errors */}
       <Grid container spacing={2}>
         {(
           ["registrations", "mail_in", "volunteers", "user_activity"] as const
         ).map((key) => (
-          <Grid item xs={6} key={key}>
+          <Grid size={{ xs: 6 }} key={key}>
             <TextField
               label={key.replace("_", " ").toUpperCase()}
               type="number"
@@ -179,70 +183,27 @@ export default function CreateGoals({
       </Typography>
       <Paper variant="outlined" sx={{ p: 2, bgcolor: "#fcfcfc" }}>
         <Stack spacing={2}>
-          <TextField
-            label="Strategic Summary"
-            multiline
-            rows={2}
-            fullWidth
-            value={form.ai_narratives.summary}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                ai_narratives: {
-                  ...form.ai_narratives,
-                  summary: e.target.value,
-                },
-              })
-            }
-          />
-          <TextField
-            label="Positive Trends"
-            multiline
-            rows={2}
-            fullWidth
-            value={form.ai_narratives.positive}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                ai_narratives: {
-                  ...form.ai_narratives,
-                  positive: e.target.value,
-                },
-              })
-            }
-          />
-          <TextField
-            label="Immediate Attention"
-            multiline
-            rows={2}
-            fullWidth
-            value={form.ai_narratives.immediate}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                ai_narratives: {
-                  ...form.ai_narratives,
-                  immediate: e.target.value,
-                },
-              })
-            }
-          />
-          <TextField
-            label="Actionable Steps"
-            multiline
-            rows={2}
-            fullWidth
-            value={form.ai_narratives.actionable}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                ai_narratives: {
-                  ...form.ai_narratives,
-                  actionable: e.target.value,
-                },
-              })
-            }
-          />
+          {(["summary", "positive", "immediate", "actionable"] as const).map(
+            (field) => (
+              <TextField
+                key={field}
+                label={field.charAt(0).toUpperCase() + field.slice(1)}
+                multiline
+                rows={2}
+                fullWidth
+                value={form.ai_narratives[field]}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    ai_narratives: {
+                      ...form.ai_narratives,
+                      [field]: e.target.value,
+                    },
+                  })
+                }
+              />
+            ),
+          )}
         </Stack>
       </Paper>
 

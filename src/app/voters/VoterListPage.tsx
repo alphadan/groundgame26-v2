@@ -37,6 +37,8 @@ import {
   Block,
   Download as DownloadIcon,
   Sort as SortIcon,
+  SearchOff as SearchOffIcon,
+  OtherHouses as OtherHousesIcon,
 } from "@mui/icons-material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import MailIcon from "@mui/icons-material/Mail";
@@ -74,7 +76,7 @@ export default function VoterListPage() {
       label: "High Primary Turnout",
       icon: "🗳️",
       filters: {
-        party: "R",
+        political_party: "R",
         turnout_score_primary: 4,
         turnout_score_general: undefined,
       },
@@ -82,7 +84,7 @@ export default function VoterListPage() {
     {
       label: "GOP Women",
       icon: "👩",
-      filters: { party: "R", gender: "F" },
+      filters: { political_party: "R", sex: "F" },
     },
     {
       label: "Happy Birthday",
@@ -92,13 +94,13 @@ export default function VoterListPage() {
     {
       label: "Has Mail-In Ballot",
       icon: "📩",
-      filters: { party: "R", has_mail_ballot: true },
+      filters: { political_party: "R", has_mail_ballot: true },
       disabled: true,
     },
     {
       label: "Not Voted Mail-In Ballot",
       icon: "📩",
-      filters: { party: "R", has_mail_ballot: false },
+      filters: { political_party: "R", has_mail_ballot: false },
       disabled: true,
     },
   ];
@@ -152,7 +154,7 @@ export default function VoterListPage() {
     const headers = [
       "Full Name",
       "Age",
-      "Gender",
+      "Sex",
       "Party",
       "Address",
       "City",
@@ -169,7 +171,7 @@ export default function VoterListPage() {
     const rows = voters.map((voter: any) => [
       voter.full_name || "",
       voter.age || "",
-      voter.gender || "",
+      voter.sex || "",
       voter.party || "",
       voter.address || "",
       voter.city || "",
@@ -327,7 +329,7 @@ export default function VoterListPage() {
       },
       {
         field: "has_mail_ballot",
-        headerName: "MIB",
+        headerName: "VBM",
         width: 80,
         headerAlign: "center",
         align: "center",
@@ -665,7 +667,7 @@ export default function VoterListPage() {
           "turnout",
           "ageGroup",
           "mailBallot",
-          "gender",
+          "sex",
         ]}
       />
 
@@ -736,7 +738,20 @@ export default function VoterListPage() {
 
       <Divider sx={{ my: 3 }} />
 
-      {voters.length > 0 && (
+      {/* New Message Display */}
+      {!isLoading && filters && voters.length === 0 ? (
+        <Box sx={{ py: 10, textAlign: "center" }}>
+          <OtherHousesIcon
+            sx={{ fontSize: 60, color: "text.disabled", mb: 2 }}
+          />
+          <Typography variant="h6" color="text.secondary">
+            No voters found in this precinct matching your selection.
+          </Typography>
+          <Button variant="text" onClick={() => setFilters(null)}>
+            Clear Filters
+          </Button>
+        </Box>
+      ) : (
         <>
           <Alert
             severity="error"

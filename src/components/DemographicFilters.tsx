@@ -21,7 +21,7 @@ type FilterKey =
   | "ageGroup"
   | "mailBallot"
   | "zipCode"
-  | "gender";
+  | "sex";
 
 interface DemographicFiltersProps {
   control: Control<any>;
@@ -236,25 +236,27 @@ export const DemographicFilters: React.FC<DemographicFiltersProps> = ({
                       <em>All</em>
                     </MenuItem>
                     <MenuItem value="true">Has Requested Mail Ballot</MenuItem>
-                    <MenuItem value="false">Has Not Requested Mail Ballot</MenuItem>
+                    <MenuItem value="false">
+                      Has Not Requested Mail Ballot
+                    </MenuItem>
                   </Select>
                 </FormControl>
               )}
             />
           </Grid>
         )}
-        {/* Gender Filter */}
-        {shouldShow("gender") && (
+        {/* Sex Filter */}
+        {shouldShow("sex") && (
           <Grid size={{ xs: 12, md: 6, lg: 4 }}>
             <Controller
-              name="gender"
+              name="sex"
               control={control}
               render={({ field }) => (
                 <FormControl fullWidth>
-                  <InputLabel>Gender</InputLabel>
-                  <Select {...field} value={field.value || ""} label="Gender">
+                  <InputLabel>Sex</InputLabel>
+                  <Select {...field} value={field.value || ""} label="Sex">
                     <MenuItem value="">
-                      <em>All Genders</em>
+                      <em>Both Sexes</em>
                     </MenuItem>
                     <MenuItem value="M">Male</MenuItem>
                     <MenuItem value="F">Female</MenuItem>

@@ -168,7 +168,7 @@ export interface FilterValues {
   turnout_score_primary?: number;
   ageGroup?: string;
   mailBallot?: string;
-  gender?: string;
+  sex?: string;
 }
 
 /**
@@ -198,7 +198,6 @@ export interface MessageTemplate {
   party: string | null; // Changed from modeled_party
   turnout_score_general: string | null;
   has_mail_ballot: string | null;
-  gender: Gender | null;
 
   tags: string[]; // Saved as array of strings
   active: boolean;
@@ -232,7 +231,7 @@ export interface Voter {
   age?: number | string;
   party?: string;
   political_party?: string;
-  gender?: string;
+  sex?: string;
   address?: string;
   address_num?: number; // Used for numeric sorting in WalkList
   city?: string;
@@ -250,6 +249,57 @@ export interface Voter {
   isRecentlyVisited?: boolean; // From useInteractionMap (Walk-specific)
   isLocked?: boolean; // Combined suppression flag
 }
+
+export type VoterStatsParams = {
+  areaCode?: string;
+  precinctCodes?: string[];
+  precinct_id?: string;
+};
+
+export type VoterStats = {
+  total_r: number;
+  total_d: number;
+  total_nf: number;
+  mail_r: number;
+  mail_d: number;
+  mail_nf: number;
+  returned_r: number;
+  returned_d: number;
+  returned_nf: number;
+  hard_r: number;
+  weak_r: number;
+  swing: number;
+  weak_d: number;
+  hard_d: number;
+
+  // === Age Group Breakdowns ===
+  age_18_25_r: number;
+  age_18_25_i: number;
+  age_18_25_d: number;
+  age_26_40_r: number;
+  age_26_40_i: number;
+  age_26_40_d: number;
+  age_41_70_r: number;
+  age_41_70_i: number;
+  age_41_70_d: number;
+  age_71_plus_r: number;
+  age_71_plus_i: number;
+  age_71_plus_d: number;
+
+  // === Mail Ballots by Age ===
+  mail_age_18_25_r: number;
+  mail_age_18_25_i: number;
+  mail_age_18_25_d: number;
+  mail_age_26_40_r: number;
+  mail_age_26_40_i: number;
+  mail_age_26_40_d: number;
+  mail_age_41_70_r: number;
+  mail_age_41_70_i: number;
+  mail_age_41_70_d: number;
+  mail_age_71_plus_r: number;
+  mail_age_71_plus_i: number;
+  mail_age_71_plus_d: number;
+};
 
 export interface VoterNotesProps {
   voterId: string | null;

@@ -87,8 +87,9 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
       spacing={2}
       alignItems={{ xs: "stretch", md: "center" }}
       sx={{
-        minWidth: { md: 160 },
-        width: { xs: "100%", md: "auto" },
+        width: "100%",
+        px: { xs: 0, md: 0 },
+        maxWidth: "100%",
       }}
     >
       <Typography variant="subtitle2" fontWeight="bold">
@@ -96,7 +97,14 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
       </Typography>
 
       {/* County Dropdown */}
-      <FormControl size="small" sx={{ minWidth: 160 }}>
+      <FormControl
+        size="small"
+        fullWidth
+        sx={{
+          minWidth: { md: 160 },
+          width: { xs: "100%", md: "auto" },
+        }}
+      >
         <InputLabel>County</InputLabel>
         <Select
           label="County"
@@ -120,6 +128,7 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
       {/* Area Dropdown */}
       <FormControl
         size="small"
+        fullWidth
         sx={{
           minWidth: { md: 140 },
           width: { xs: "100%", md: "auto" },
@@ -149,7 +158,15 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
       </FormControl>
 
       {/* Precinct Dropdown */}
-      <FormControl size="small" sx={{ minWidth: 200 }} disabled={!selectedArea}>
+      <FormControl
+        size="small"
+        fullWidth
+        sx={{
+          minWidth: { md: 200 },
+          width: { xs: "100%", md: "auto" },
+        }}
+        disabled={!selectedArea}
+      >
         <InputLabel>Precinct</InputLabel>
         <Select
           label="Precinct"

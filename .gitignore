@@ -28,6 +28,7 @@ service-account.json
 
 #App scripts
 sync-bq-to-firestore.js
+sync-bq-quotas-to-firestore.js
 
 
 # Logs
