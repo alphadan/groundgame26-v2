@@ -49,11 +49,35 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
   const precincts =
     useLiveQuery(async () => {
       if (!selectedArea) return [];
-      return await indexedDb.precincts
+
+      // LOG 1: Check what we are searching for
+      console.log(
+        "DEBUG: Querying Precincts where area_id ===",
+        `"${selectedArea}"`,
+      );
+
+      const results = await indexedDb.precincts
         .where("area_id")
         .equals(selectedArea)
-        .filter((p) => p.active === true)
         .toArray();
+
+      // LOG 2: Check raw results before the 'active' filter
+      console.log(
+        `DEBUG: Found ${results.length} TOTAL precincts for area ${selectedArea}`,
+      );
+
+      const activeResults = results.filter((p) => p.active === true);
+
+      // LOG 3: Check after 'active' filter
+      console.log(`DEBUG: Found ${activeResults.length} ACTIVE precincts`);
+
+      if (results.length > 0 && activeResults.length === 0) {
+        console.warn(
+          "DEBUG WARNING: All precincts in this area are marked active: false",
+        );
+      }
+
+      return activeResults;
     }, [selectedArea]) ?? [];
 
   // 2. Auto-selection logic

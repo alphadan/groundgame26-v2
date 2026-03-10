@@ -223,7 +223,7 @@ export default function BadgeCatalogGrid() {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2, mt: 2 }}>
         <Typography variant="h6">Definitions</Typography>
         <Button
           variant="contained"
@@ -265,7 +265,7 @@ export default function BadgeCatalogGrid() {
         <DialogContent
           sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}
         >
-          <Box sx={{ display: "flex", gap: 2 }}>
+          <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
             <TextField
               label="Icon"
               placeholder="🎯"

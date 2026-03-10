@@ -34,8 +34,9 @@ export const ImportAreasForm: React.FC = () => {
       const parsed = JSON.parse(value);
       if (Array.isArray(parsed)) {
         // Basic client-side validation
-        const validated = parsed.filter(item => 
-          item.id?.trim() && item.name?.trim() && item.area_district?.trim()
+        const validated = parsed.filter(
+          (item) =>
+            item.id?.trim() && item.name?.trim() && item.area_district?.trim(),
         );
         setPreview(validated);
       } else {
@@ -60,30 +61,24 @@ export const ImportAreasForm: React.FC = () => {
 
   const handleImport = useCallback(async () => {
     if (preview.length === 0) return;
-
     setIsImporting(true);
-    setResultMessage(null);
-    setIsError(false);
 
     try {
-      const result = await callFunction<{ success: number; total: number; errors?: string[] }>(
-        "adminImportAreas",
-        { data: preview }
-      );
+      // Force sanitization before sending to Cloud Function
+      const sanitizedData = preview
+        .map((a: any) => ({
+          ...a,
+          id: String(a.id || "").trim(),
+          county_id: a.county_id || "PA-C-15", // Ensure standardized county key
+        }))
+        .filter((a) => a.id !== "");
 
-      if (result.errors?.length) {
-        setIsError(true);
-        setResultMessage(
-          `Imported ${result.success}/${result.total} areas. Errors: ${result.errors.join('; ')}`
-        );
-      } else {
-        setResultMessage(`Successfully imported ${result.success} areas.`);
-        setJsonInput("");
-        setPreview([]);
-      }
+      await callFunction("adminImportAreas", { data: sanitizedData });
+      setResultMessage(`Imported ${sanitizedData.length} areas.`);
+      setPreview([]);
+      setJsonInput("");
     } catch (err: any) {
-      setIsError(true);
-      setResultMessage(`Import failed: ${err.message || "Unknown error"}`);
+      setResultMessage(`Error: ${err.message}`);
     } finally {
       setIsImporting(false);
     }
@@ -95,7 +90,10 @@ export const ImportAreasForm: React.FC = () => {
         Bulk Import Areas
       </Typography>
       <Typography variant="body2" color="text.secondary" mb={3}>
-        Upload a JSON file or paste an array of area objects. Enclose in array [ ].<br />Required fields:
+        Upload a JSON file or paste an array of area objects. Enclose in array [
+        ].
+        <br />
+        Required fields:
         <br />• <code>id</code> (unique, e.g. PA15-A-14)
         <br />• <code>name</code> (e.g. "Area 14")
         <br />• <code>area_district</code> (e.g. "14")
@@ -112,7 +110,12 @@ export const ImportAreasForm: React.FC = () => {
           sx={{ alignSelf: "flex-start" }}
         >
           Upload Areas JSON
-          <input type="file" hidden accept=".json" onChange={handleFileUpload} />
+          <input
+            type="file"
+            hidden
+            accept=".json"
+            onChange={handleFileUpload}
+          />
         </Button>
 
         <TextField
@@ -136,7 +139,10 @@ export const ImportAreasForm: React.FC = () => {
             </Box>
 
             {/* Preview Table – Very helpful for bulk */}
-            <TableContainer component={Paper} sx={{ maxHeight: 300, overflow: 'auto' }}>
+            <TableContainer
+              component={Paper}
+              sx={{ maxHeight: 300, overflow: "auto" }}
+            >
               <Table size="small">
                 <TableHead>
                   <TableRow>
@@ -150,17 +156,17 @@ export const ImportAreasForm: React.FC = () => {
                 <TableBody>
                   {preview.slice(0, 10).map((item, i) => (
                     <TableRow key={i}>
-                      <TableCell>{item.id || '—'}</TableCell>
-                      <TableCell>{item.name || '—'}</TableCell>
-                      <TableCell>{item.area_district || '—'}</TableCell>
-                      <TableCell>{item.county_id || '—'}</TableCell>
-                      <TableCell>{item.active ?? 'true'}</TableCell>
+                      <TableCell>{item.id || "—"}</TableCell>
+                      <TableCell>{item.name || "—"}</TableCell>
+                      <TableCell>{item.area_district || "—"}</TableCell>
+                      <TableCell>{item.county_id || "—"}</TableCell>
+                      <TableCell>{item.active ?? "true"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
               {preview.length > 10 && (
-                <Typography variant="caption" sx={{ p: 2, display: 'block' }}>
+                <Typography variant="caption" sx={{ p: 2, display: "block" }}>
                   Showing first 10 of {preview.length}...
                 </Typography>
               )}

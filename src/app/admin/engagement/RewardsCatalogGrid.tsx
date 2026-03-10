@@ -147,7 +147,7 @@ export default function RewardsCatalogGrid() {
       >
         <DialogTitle>{editMode ? "Edit Reward" : "New Reward"}</DialogTitle>
         <DialogContent
-          sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}
+          sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}
         >
           <TextField
             label="Title"
@@ -156,6 +156,7 @@ export default function RewardsCatalogGrid() {
             onChange={(e) =>
               setFormData({ ...formData, title: e.target.value })
             }
+            sx={{ mt: 1 }}
           />
           <TextField
             label="Description"

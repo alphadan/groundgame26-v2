@@ -4,6 +4,7 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import {
   onDocumentWritten,
   onDocumentUpdated,
+  onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions/v2";
 import { BigQuery } from "@google-cloud/bigquery";
@@ -97,6 +98,146 @@ const getPermissionsForRole = (role) => {
       return base;
   }
 };
+
+// ================================================================
+// 1. SYNC COLLECTIONS FOR USER dEXIE DB
+// ================================================================
+
+// functions/src/index.ts
+export const getSyncCollections = onCall(async (request) => {
+  // 1. Auth Guard
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in.");
+  }
+
+  const uid = request.auth.uid;
+
+  try {
+    // 2. Fetch User Profile AND Org Roles simultaneously
+    const [userDoc, rolesSnap] = await Promise.all([
+      db.collection("users").doc(uid).get(),
+      db
+        .collection("org_roles")
+        .where("uid", "==", uid)
+        .where("is_vacant", "==", false)
+        .where("active", "==", true)
+        .get(),
+    ]);
+
+    if (!userDoc.exists) {
+      return { success: false, reason: "no_profile" };
+    }
+
+    const userData = userDoc.data();
+
+    // 3. Dynamic Access and Role Calculation (Mirror logic from getUserProfile)
+    const countiesSet = new Set();
+    const areasSet = new Set();
+    const precinctsSet = new Set();
+    const rolesSet = new Set();
+    const groupIdsSet = new Set();
+
+    rolesSnap.forEach((doc) => {
+      const d = doc.data();
+      if (d.role) rolesSet.add(d.role);
+      if (d.group_id) groupIdsSet.add(d.group_id);
+      if (d.county_id) countiesSet.add(d.county_id);
+      if (d.area_id) areasSet.add(d.area_id);
+      if (d.precinct_id) precinctsSet.add(d.precinct_id);
+    });
+
+    // Determine Primary Role using your priority list
+    const primaryRole = ROLE_PRIORITY.find((r) => rolesSet.has(r)) || "base";
+
+    // Get the robust permissions set using your helper function
+    const computedPermissions = getPermissionsForRole(primaryRole);
+
+    // WILDCARD EXPANSION (Ensure data visibility matches permissions)
+    if (primaryRole === "developer" || primaryRole === "state_admin") {
+      countiesSet.add("ALL");
+      areasSet.add("ALL");
+      precinctsSet.add("ALL");
+    } else if (primaryRole === "county_chair") {
+      areasSet.add("ALL");
+      precinctsSet.add("ALL");
+    } else if (
+      ["area_chair", "candidate", "state_rep_district"].includes(primaryRole)
+    ) {
+      precinctsSet.add("ALL");
+    }
+
+    const finalAccess = {
+      counties: Array.from(countiesSet).filter(Boolean),
+      areas: Array.from(areasSet).filter(Boolean),
+      precincts: Array.from(precinctsSet).filter(Boolean),
+    };
+
+    // 4. Parallel Fetch of Global Collections
+    const [pSnap, aSnap, cSnap, gSnap] = await Promise.all([
+      db.collection("precincts").get(),
+      db.collection("areas").get(),
+      db.collection("counties").get(),
+      db.collection("groups").get(),
+    ]);
+
+    const hasAll = (arr) => Array.isArray(arr) && arr.includes("ALL");
+
+    // 5. Server-Side Filtering based on dynamic finalAccess
+    const filteredAreas = aSnap.docs
+      .map((d) => ({ ...d.data(), id: d.id }))
+      .filter(
+        (a) =>
+          primaryRole === "developer" ||
+          hasAll(finalAccess.areas) ||
+          finalAccess.areas.includes(a.id),
+      );
+
+    const allowedAreaIds = new Set(filteredAreas.map((a) => a.id));
+    const filteredPrecincts = pSnap.docs
+      .map((d) => ({ ...d.data(), id: d.id }))
+      .filter(
+        (p) =>
+          primaryRole === "developer" ||
+          hasAll(finalAccess.precincts) ||
+          allowedAreaIds.has(p.area_id) ||
+          finalAccess.precincts.includes(p.id),
+      );
+
+    const filteredCounties = cSnap.docs
+      .map((d) => ({ ...d.data(), id: d.id }))
+      .filter(
+        (c) =>
+          primaryRole === "developer" ||
+          hasAll(finalAccess.counties) ||
+          finalAccess.counties.includes(c.id),
+      );
+
+    // 6. Assemble the production profile for the frontend
+    const profile = {
+      uid,
+      display_name: userData.display_name || null,
+      email: userData.email || null,
+      role: primaryRole,
+      permissions: computedPermissions, // This restores your "Add" buttons
+      access: finalAccess,
+      group_id: Array.from(groupIdsSet)[0] || null,
+      last_synced: Date.now(),
+    };
+
+    return {
+      success: true,
+      profile,
+      precincts: filteredPrecincts,
+      areas: filteredAreas,
+      counties: filteredCounties,
+      groups: gSnap.docs.map((d) => ({ ...d.data(), id: d.id })),
+      serverTime: Date.now(),
+    };
+  } catch (error) {
+    logger.error("Sync failed for UID: " + uid, error);
+    throw new HttpsError("internal", error.message);
+  }
+});
 
 // ================================================================
 // 1. BIGQUERY PROXY (Gen 2)
@@ -965,9 +1106,10 @@ export const adminCreateArea = onCall(async (request) => {
   }
 
   const data = request.data;
+  const cleanId = (data.id || "").trim();
 
   // 2. Basic input validation
-  if (!data.id || !data.name || !data.area_district) {
+  if (!cleanId || !data.name || !data.area_district) {
     throw new HttpsError(
       "invalid-argument",
       "Missing required fields: id, name, or area_district.",
@@ -981,17 +1123,18 @@ export const adminCreateArea = onCall(async (request) => {
 
     await db
       .collection("areas")
-      .doc(data.id)
-      .set({
-        id: data.id.trim(),
-        name: data.name.trim(),
-        area_district: data.area_district.trim(),
-        county_id: data.county_id || null, // ← keep if still needed
-        active: data.active ?? true, // Default to true
-        created_at: Date.now(),
-        updated_at: Date.now(),
-        // No chair fields anymore
-      });
+      .doc(cleanId)
+      .set(
+        {
+          ...data,
+          id: cleanId,
+          uid: cleanId, // Maintain consistency: doc.id = id = uid
+          active: data.active ?? true,
+          created_at: data.created_at || Date.now(),
+          updated_at: Date.now(),
+        },
+        { merge: true },
+      );
 
     logger.info(`Area created: ${data.id} by ${request.auth.uid}`);
 
@@ -999,6 +1142,61 @@ export const adminCreateArea = onCall(async (request) => {
   } catch (error) {
     logger.error("adminCreateArea failed:", error);
     throw new HttpsError("internal", error.message || "Failed to create area.");
+  }
+});
+
+// ================================================================
+// IMPORT BULK Areas
+// ================================================================
+
+export const adminImportAreas = onCall(async (request) => {
+  // 1. Authentication check
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "You must be logged in.");
+  }
+
+  const areas = request.data.data;
+
+  // 2. Validate input
+  if (!Array.isArray(areas) || areas.length === 0) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Expected a non-empty array of areas.",
+    );
+  }
+
+  const batch = db.batch();
+  let successCount = 0;
+  const errors = [];
+
+  for (const area of areas) {
+    const cleanId = String(area.id || area.area_id || "").trim();
+    if (!cleanId || !area.name) continue;
+
+    const docRef = db.collection("areas").doc(cleanId);
+
+    batch.set(
+      docRef,
+      {
+        ...area,
+        id: cleanId,
+        uid: cleanId,
+        active: area.active !== undefined ? !!area.active : true,
+        created_at: area.created_at || Date.now(),
+        updated_at: Date.now(),
+      },
+      { merge: true },
+    );
+
+    successCount++;
+    if (successCount >= 499) break;
+  }
+
+  try {
+    await batch.commit();
+    return { success: successCount, total: areas.length };
+  } catch (error) {
+    throw new HttpsError("internal", "Batch write failed");
   }
 });
 
@@ -1014,28 +1212,29 @@ export const adminCreatePrecinct = onCall(async (request) => {
 
   const data = request.data;
 
+  const docId = (data.id || "").trim();
+
+  if (!docId) {
+    throw new HttpsError("invalid-argument", "Precinct ID is required.");
+  }
+
   try {
     // 2. Correct way to get user info in 2nd Gen
     const authUser = await getAuth().getUser(request.auth.uid);
 
     await db
       .collection("precincts")
-      .doc(data.id)
-      .set({
-        id: data.id || null,
-        county_code: data.county_code || null,
-        precinct_code: data.precinct_code || "Unknown",
-        name: data.name || "Unknown",
-        area_district: data.area_district || null,
-        congressional_district: data.congressional_district || null,
-        senate_district: data.senate_district || "Unknown",
-        house_district: data.house_district || null,
-        county_district: data.county_district || null,
-        party_rep_district: data.party_rep_district || null,
-        active: true,
-        created_at: Date.now(),
-        last_updated: Date.now(),
-      });
+      .doc(docId)
+      .set(
+        {
+          ...data,
+          id: docId || null,
+          active: data.active ?? true,
+          created_at: Date.now(),
+          last_updated: Date.now(),
+        },
+        { merge: true },
+      );
 
     return { success: true };
   } catch (error) {
@@ -1068,34 +1267,18 @@ export const adminImportPrecincts = onCall(async (request) => {
   let successCount = 0;
 
   for (const precinct of precincts) {
-    const {
-      id,
-      name,
-      precinct_code,
-      area_district,
-      county_code,
-      congressional_district,
-      senate_district,
-      house_district,
-      county_district,
-      party_rep_district,
-      active = true,
-    } = precinct;
+    // Sanitize ID
+    const rawId = precinct.id || precinct.precinct_id;
+    const cleanId = (String(rawId) || "").trim();
 
-    const docRef = db.collection("precincts").doc(id);
+    if (!cleanId) continue;
+
+    const docRef = db.collection("precincts").doc(cleanId);
 
     batch.set(docRef, {
-      id,
-      name,
-      precinct_code,
-      area_district,
-      county_code,
-      congressional_district,
-      senate_district,
-      house_district,
-      county_district,
-      party_rep_district,
-      active,
+      ...precinct,
+      id: cleanId,
+      active: precinct.active ?? true,
       created_at: Date.now(),
       last_updated: Date.now(),
     });
@@ -1109,86 +1292,6 @@ export const adminImportPrecincts = onCall(async (request) => {
   } catch (error) {
     logger.error("Batch import failed:", error);
     throw new HttpsError("internal", "Batch write failed");
-  }
-});
-
-// ================================================================
-// IMPORT BULK Areas
-// ================================================================
-
-export const adminImportAreas = onCall(async (request) => {
-  // 1. Authentication check
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "You must be logged in.");
-  }
-
-  const areas = request.data.data;
-
-  // 2. Validate input
-  if (!Array.isArray(areas) || areas.length === 0) {
-    throw new HttpsError(
-      "invalid-argument",
-      "Expected a non-empty array of areas.",
-    );
-  }
-
-  const batch = db.batch();
-  let successCount = 0;
-  const errors = [];
-
-  for (const area of areas) {
-    const { id, name, area_district, active = true, county_id } = area;
-
-    // Required fields validation
-    if (!id || !name || !area_district) {
-      errors.push(
-        `Area missing required fields (id, name, area_district): ${JSON.stringify(
-          area,
-        )}`,
-      );
-      continue;
-    }
-
-    const docRef = db.collection("areas").doc(id.trim());
-
-    batch.set(docRef, {
-      id: id.trim(),
-      name: name.trim(),
-      area_district: area_district.trim(),
-      county_id: county_id || null,
-      active: !!active, // Force boolean
-      created_at: Date.now(),
-      updated_at: Date.now(),
-    });
-
-    successCount++;
-  }
-
-  try {
-    if (successCount > 0) {
-      await batch.commit();
-    }
-
-    const message =
-      errors.length > 0
-        ? `Imported ${successCount}/${
-            areas.length
-          } areas. Errors: ${errors.join("; ")}`
-        : `Successfully imported ${successCount} areas.`;
-
-    logger.info(message);
-
-    return {
-      success: successCount,
-      total: areas.length,
-      errors: errors.length > 0 ? errors : null,
-    };
-  } catch (error) {
-    logger.error("adminImportAreas batch failed:", error);
-    throw new HttpsError(
-      "internal",
-      "Batch import failed: " + (error.message || "Unknown error"),
-    );
   }
 });
 
@@ -1238,6 +1341,11 @@ export const adminCreateMessageTemplate = onCall(async (request) => {
     // Server-side Word Count
     const wordCount = body ? body.split(/\s+/).length : 0;
 
+    const existingDoc = await db
+      .collection("message_templates")
+      .doc(data.id)
+      .get();
+
     const templateData = {
       id: data.id,
       subject_line: data.subject_line.trim(),
@@ -1256,10 +1364,14 @@ export const adminCreateMessageTemplate = onCall(async (request) => {
       tags: tagsArray,
       active: data.active ?? true,
       word_count: wordCount,
-      favorite_count: 0,
-      copy_count: 0,
+      favorite_count: existingDoc.exists
+        ? existingDoc.data().favorite_count || 0
+        : 0,
+      copy_count: existingDoc.exists ? existingDoc.data().copy_count || 0 : 0,
+      created_at: existingDoc.exists
+        ? existingDoc.data().created_at
+        : Date.now(),
       created_by_uid: request.auth.uid,
-      created_at: Date.now(),
       last_updated: Date.now(),
     };
 
@@ -1359,29 +1471,74 @@ export const adminGenerateResourceUploadUrl = onCall(
 );
 
 // ================================================================
-//  SET DOWNLOADABLE TEMPLATES COLLECTION
+//  SET RESOURCES DOWNLOADABLE TEMPLATES COLLECTION
 // ================================================================
 
 export const onResourceUploaded = onObjectFinalized(async (event) => {
   const metadata = event.data.metadata;
+  // Guard: Only process files in the resources folder
   if (!event.data.name.startsWith("resources/")) return;
 
   const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${
     event.data.bucket
   }/o/${encodeURIComponent(event.data.name)}?alt=media`;
 
-  await db.collection("campaign_resources").add({
-    title: metadata.title,
-    category: metadata.category,
-    scope: metadata.scope,
-    county_code: metadata["county-code"],
-    area_code: metadata["area-code"],
-    precinct_code: metadata["precinct-code"],
-    url: downloadUrl,
-    verified_by_role: "area_chair", // Logic to determine role can go here
-    created_at: Date.now(),
-  });
+  try {
+    await db.collection("campaign_resources").add({
+      title: metadata.title || "Untitled Resource",
+      category: metadata.category || "General",
+      scope: metadata.scope || "county",
+      county_code: metadata["county-code"] || null,
+      area_code: metadata["area-code"] || null,
+      precinct_code: metadata["precinct-code"] || null,
+      url: downloadUrl,
+      // CRITICAL: This is the 'link' used by onResourceDeleted to find the file
+      storagePath: event.data.name,
+      created_at: Date.now(),
+    });
+    logger.info(`Resource indexed: ${metadata.title}`);
+  } catch (error) {
+    logger.error("Error indexing uploaded resource:", error);
+  }
 });
+
+// ================================================================
+//  DELETES RESOURCES TEMPLATES BUCKET FILES WHEN DOCUMENTS ARE DELETED
+// ================================================================
+
+export const onResourceDeleted = onDocumentDeleted(
+  "campaign_resources/{docId}",
+  async (event) => {
+    const deletedData = event.data.data();
+
+    // We need this field to know what to delete in Storage
+    const filePath = deletedData.storagePath;
+
+    if (!filePath) {
+      logger.warn(
+        `No storagePath found for document ${event.params.docId}. Storage cleanup skipped.`,
+      );
+      return;
+    }
+
+    try {
+      const file = bucket.file(filePath);
+
+      // Check if it exists before trying to delete to avoid 404 errors in logs
+      const [exists] = await file.exists();
+
+      if (exists) {
+        await file.delete();
+        logger.info(`Successfully deleted orphaned file: ${filePath}`);
+      } else {
+        logger.info(`File ${filePath} was already removed or does not exist.`);
+      }
+    } catch (error) {
+      logger.error("Error during storage cleanup on document deletion:", error);
+      // We don't throw here to avoid infinite retry loops for a missing file
+    }
+  },
+);
 
 // ================================================================
 //  GET DOWNLOADABLE TEMPLATES

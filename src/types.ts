@@ -14,19 +14,24 @@ export interface BaseMetadata {
 // --- Domain Models ---
 
 export interface Group extends Omit<BaseMetadata, "id"> {
-  id: string;
-  code: string;
-  name: string;
-  short_name: string;
-  county_id: string;
-  category?: string;
-  hq_phone?: string | null;
-  website?: string | null;
+  id: string; // doc.id (e.g., "PA15-G-05")
+  uid: string; // Must match id
+  name: string; // Long name
+  short_name?: string; // Abbreviated name
+  code: string; // Internal slug (e.g., "ccfrw")
+  county_id: string; // Relational key (e.g., "PA-C-15")
+
+  // Contact Info
+  website?: string;
+  hq_phone?: string;
+  social_facebook?: string;
+  social_x?: string;
+  social_instagram?: string;
+
   active: boolean;
-  // Add these back if they exist in your constants but aren't in the type
-  social_facebook?: string | null;
-  social_x?: string | null;
-  social_instagram?: string | null;
+  created_at: number;
+  updated_at: number;
+  created_by?: string;
 }
 
 export interface County extends Omit<BaseMetadata, "id"> {
@@ -38,26 +43,36 @@ export interface County extends Omit<BaseMetadata, "id"> {
 
 export interface Area extends Omit<BaseMetadata, "id"> {
   id: string;
+  uid: string;
+  name: string;
+  area_district: string;
   county_id: string;
   county_code?: string;
-  area_district: string;
-  name: string;
-  // Fallback for old data during transition
   active: boolean;
   created_at: number;
   updated_at: number;
 }
 
 export interface Precinct extends Omit<BaseMetadata, "id"> {
-  id: string; // e.g., "PA15-P-005"
-  county_id: string; // Linked to County.id
-  area_id: string; // Linked to Area.id
-  precinct_code: string;
-  precinct_id?: string;
-  name: string;
+  id: string; // doc.id (e.g., "PA15-P-005")
+  uid: string; // Must match id (e.g., "PA15-P-005")
+  name: string; // e.g., "Atglen"
+  precinct_code: string; // e.g., "005"
+  county_id: string; // Relational key to County (e.g., "PA-C-15")
+  county_code?: string; // Official state number (e.g., "15")
+  area_id: string; // Relational key to Area (e.g., "PA15-A-12")
+  area_district?: string; // District number (e.g., "12")
+
+  // Legislative Districts
   house_district?: string;
   senate_district?: string;
   congressional_district?: string;
+  county_district?: string; // Added to match your form
+  party_rep_district?: string;
+
+  active: boolean;
+  created_at: number;
+  updated_at: number;
 }
 
 // --- UserRole ---

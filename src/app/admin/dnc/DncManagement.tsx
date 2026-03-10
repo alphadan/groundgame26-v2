@@ -168,21 +168,40 @@ export default function DncManagement() {
         <Typography variant="h6" gutterBottom>
           Find Voter Phone Number to Block
         </Typography>
-        <Stack direction="row" spacing={2}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+          alignItems={{ xs: "stretch", sm: "flex-start" }}
+        >
           <TextField
             label="Search Phone"
             fullWidth
             size="small"
             value={searchPhone}
             onChange={(e) => setSearchPhone(e.target.value)}
+            placeholder="10 digit phone number"
+            // Added type="tel" for better mobile keyboard support
+            inputProps={{ type: "tel", maxLength: 10 }}
           />
           <Button
             variant="contained"
+            size="medium"
             startIcon={
-              isSearching ? <CircularProgress size={20} /> : <SearchIcon />
+              isSearching ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                <SearchIcon />
+              )
             }
             onClick={handleVoterSearch}
             disabled={isSearching || searchPhone.length < 10}
+            sx={{
+              // Force text to stay on one line on desktop
+              whiteSpace: "nowrap",
+              // Ensure button has enough width to accommodate text on desktop
+              minWidth: { sm: "140px" },
+              height: "40px", // Matches default MUI small/medium TextField height
+            }}
           >
             Find Voter
           </Button>

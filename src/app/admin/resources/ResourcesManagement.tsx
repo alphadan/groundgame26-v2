@@ -52,7 +52,7 @@ export default function ResourcesManagement() {
   }, []);
 
   // Loading state
-  if (!authLoaded) {
+  if (!authLoaded || localUser === undefined) {
     return (
       <Box
         sx={{
@@ -68,7 +68,7 @@ export default function ResourcesManagement() {
   }
 
   // Access denied
-  if (authLoaded && !hasAccess) {
+  if (!hasAccess) {
     return (
       <Box p={6} textAlign="center">
         <Alert severity="error" variant="filled">

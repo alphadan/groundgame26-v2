@@ -28,12 +28,13 @@ export const CreatePrecinctForm: React.FC<PrecinctFormProps> = ({
     id: "",
     name: "",
     precinct_code: "",
+    area_id: "",
     area_district: "",
     county_code: "",
+    county_id: "",
     congressional_district: "",
     senate_district: "",
     house_district: "",
-    county_district: "",
     party_rep_district: "",
     active: true,
   });
@@ -54,11 +55,12 @@ export const CreatePrecinctForm: React.FC<PrecinctFormProps> = ({
         name: "",
         precinct_code: "",
         area_district: "",
+        area_id: "",
         county_code: "",
+        county_id: "",
         congressional_district: "",
         senate_district: "",
         house_district: "",
-        county_district: "",
         party_rep_district: "",
         active: true,
       });
@@ -68,7 +70,8 @@ export const CreatePrecinctForm: React.FC<PrecinctFormProps> = ({
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!form.id || !form.name || !form.precinct_code) {
+      const cleanId = form.id.trim();
+      if (!cleanId || !form.name || !form.precinct_code) {
         setResult({
           success: false,
           message: "ID, Name, and Precinct Code are required",
@@ -83,7 +86,7 @@ export const CreatePrecinctForm: React.FC<PrecinctFormProps> = ({
         // In your backend, adminCreatePrecinct uses .set(), acting as an upsert (Edit/Create)
         await callFunction("adminCreatePrecinct", {
           ...form,
-          id: form.id.trim(),
+          id: cleanId,
         });
 
         setResult({
@@ -105,7 +108,7 @@ export const CreatePrecinctForm: React.FC<PrecinctFormProps> = ({
         setIsSubmitting(false);
       }
     },
-    [form, callFunction, initialData, onSuccess]
+    [form, callFunction, initialData, onSuccess],
   );
 
   return (
@@ -164,6 +167,18 @@ export const CreatePrecinctForm: React.FC<PrecinctFormProps> = ({
         </Grid>
         <Grid size={{ xs: 6, md: 4 }}>
           <TextField
+            label="Area Id"
+            fullWidth
+            value={form.area_id}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, area_id: e.target.value }))
+            }
+            disabled={isSubmitting}
+            helperText="e.g. PA15-A-005"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, md: 4 }}>
+          <TextField
             label="County Code"
             fullWidth
             value={form.county_code}
@@ -172,6 +187,18 @@ export const CreatePrecinctForm: React.FC<PrecinctFormProps> = ({
             }
             disabled={isSubmitting}
             helperText="Use two digit number e.g. 15"
+          />
+        </Grid>
+        <Grid size={{ xs: 6, md: 4 }}>
+          <TextField
+            label="County Id"
+            fullWidth
+            value={form.county_id}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, county_id: e.target.value }))
+            }
+            disabled={isSubmitting}
+            helperText="e.g. PA15-C-15"
           />
         </Grid>
 
@@ -216,13 +243,13 @@ export const CreatePrecinctForm: React.FC<PrecinctFormProps> = ({
         </Grid>
         <Grid size={{ xs: 6, md: 4 }}>
           <TextField
-            label="County"
+            label="State Party Rep District"
             fullWidth
-            value={form.county_district}
+            value={form.party_rep_district}
             onChange={(e) =>
-              setForm((p) => ({ ...p, county_district: e.target.value }))
+              setForm((p) => ({ ...p, party_rep_district: e.target.value }))
             }
-            helperText="Use official state number e.g. 15"
+            helperText="e.g. PA-SRD-district_2"
           />
         </Grid>
 

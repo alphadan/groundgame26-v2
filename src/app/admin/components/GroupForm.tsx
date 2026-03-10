@@ -24,16 +24,16 @@ export const GroupForm: React.FC<GroupFormProps> = ({
   onSuccess,
 }) => {
   const { create, update, loading, error } = useAdminCRUD<Group>({
-    collectionName: "groups", // Ensure this matches your Firebase collection name exactly
+    collectionName: "groups",
   });
 
   const [formData, setFormData] = useState<Partial<Group>>({
     id: "",
+    uid: "",
     code: "",
     name: "",
     short_name: "",
-    county_id: "15",
-    category: "",
+    county_id: "PA-C-15",
     hq_phone: "",
     website: "",
     active: true,
@@ -50,15 +50,25 @@ export const GroupForm: React.FC<GroupFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanId = (formData.id || "").trim();
+    const cleanCode = (formData.code || "").trim().toLowerCase();
+
+    const finalData = {
+      ...formData,
+      id: cleanId,
+      uid: cleanId,
+      code: cleanCode,
+    };
+
     try {
       if (initialData?.id) {
-        await update(initialData.id, formData);
+        await update(initialData.id, finalData);
       } else {
-        await create(formData as Group);
+        await create(finalData as Group);
       }
       if (onSuccess) onSuccess();
     } catch (err) {
-      console.error("Group save failed:", err);
+      console.error("Group Save Failed:", err);
     }
   };
 
@@ -79,18 +89,17 @@ export const GroupForm: React.FC<GroupFormProps> = ({
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
-            label="Document ID (Unique)"
+            label="Group ID (e.g. PA15-G-05)"
             fullWidth
             required
             disabled={!!initialData}
             value={formData.id}
             onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-            placeholder="e.g. GOP_PA_15"
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
-            label="Internal Code"
+            label="Internal Code (e.g. gop)"
             fullWidth
             required
             value={formData.code}
@@ -100,7 +109,7 @@ export const GroupForm: React.FC<GroupFormProps> = ({
         </Grid>
         <Grid size={{ xs: 12, md: 8 }}>
           <TextField
-            label="Full Organization Name"
+            label="Full Group Name"
             fullWidth
             required
             value={formData.name}
@@ -230,8 +239,8 @@ export const GroupForm: React.FC<GroupFormProps> = ({
             {loading
               ? "Processing..."
               : initialData
-              ? "Update Organization"
-              : "Create Organization"}
+                ? "Update Organization"
+                : "Create Organization"}
           </Button>
         </Grid>
       </Grid>

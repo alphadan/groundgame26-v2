@@ -12,6 +12,7 @@ import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
 
 interface Area {
   id: string;
+  uid: string;
   name: string;
   area_district: string;
   county_id: string;
@@ -33,9 +34,10 @@ export const AreaForm: React.FC<AreaFormProps> = ({
 
   const [formData, setFormData] = useState<Partial<Area>>({
     id: "",
+    uid: "",
     name: "",
     area_district: "",
-    county_id: "15", // Default for Chester County
+    county_id: "PA-C-15", // Default for Chester County
     active: true,
   });
 
@@ -46,9 +48,10 @@ export const AreaForm: React.FC<AreaFormProps> = ({
     } else {
       setFormData({
         id: "",
+        uid: "",
         name: "",
         area_district: "",
-        county_id: "15",
+        county_id: "PA-C-15",
         active: true,
       });
     }
@@ -56,16 +59,21 @@ export const AreaForm: React.FC<AreaFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanId = (formData.id || "").trim();
+
+    const finalData = {
+      ...formData,
+      id: cleanId,
+      uid: cleanId,
+      area_district: String(formData.area_district || "").padStart(2, "0"),
+    };
+
     try {
       if (initialData?.id) {
-        // Mode: EDIT
-        await update(initialData.id, formData);
+        await update(initialData.id, finalData);
       } else {
-        // Mode: CREATE
-        // Note: we pass id inside the object because Areas often use custom IDs (like 'AREA-01')
-        await create(formData as Area);
+        await create(finalData as Area);
       }
-
       if (onSuccess) onSuccess();
     } catch (err) {
       console.error("Submission failed:", err);
@@ -82,13 +90,13 @@ export const AreaForm: React.FC<AreaFormProps> = ({
 
       <Stack spacing={3}>
         <TextField
-          label="Area ID (unique)"
+          label="Area ID (e.g. PA15-A-01)"
           fullWidth
           required
-          disabled={!!initialData} // IDs are usually immutable once created
+          disabled={!!initialData}
           value={formData.id}
           onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-          placeholder="e.g. area_1"
+          helperText="e.g. PA15-A-01"
         />
 
         <TextField
@@ -101,14 +109,23 @@ export const AreaForm: React.FC<AreaFormProps> = ({
         />
 
         <TextField
-          label="Area District"
+          label="Area District Code"
           fullWidth
           required
           value={formData.area_district}
           onChange={(e) =>
             setFormData({ ...formData, area_district: e.target.value })
           }
-          placeholder="e.g. District 5"
+          placeholder="e.g. 05"
+          helperText="Two-digit district code"
+        />
+
+        <TextField
+          label="County ID"
+          fullWidth
+          value={formData.county_id}
+          disabled
+          variant="filled"
         />
 
         <FormControlLabel

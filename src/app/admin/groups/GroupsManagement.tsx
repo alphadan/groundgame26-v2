@@ -265,6 +265,7 @@ export default function GroupsManagement() {
           rows={groups}
           columns={columns}
           loading={loading}
+          getRowId={(row) => (row.id || "").trim()}
           getRowHeight={() => "auto"}
           getEstimatedRowHeight={() => 100}
           paginationModel={paginationModel}

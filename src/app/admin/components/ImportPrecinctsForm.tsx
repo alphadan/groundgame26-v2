@@ -20,14 +20,29 @@ export const ImportPrecinctsForm: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
 
   const handleProcessJson = (value: string) => {
     setJsonInput(value);
-    try {
-      const parsed = JSON.parse(value);
-      setPreview(Array.isArray(parsed) ? parsed : []);
-    } catch {
+    setParseError(null); // Clear previous errors
+
+    if (!value.trim()) {
       setPreview([]);
+      return;
+    }
+
+    try {
+      // 1. Standard JSON Parse
+      const parsed = JSON.parse(value);
+      setPreview(Array.isArray(parsed) ? parsed : [parsed]);
+    } catch (e: any) {
+      // 2. Fallback: Check if it's an object but just missing quotes
+      // This helps catch the specific issue in your example
+      setPreview([]);
+      setParseError(
+        'Invalid JSON format. Ensure keys are in double quotes: "id": "value"',
+      );
+      console.error("JSON Parse Error:", e.message);
     }
   };
 
@@ -51,19 +66,36 @@ export const ImportPrecinctsForm: React.FC = () => {
     setIsError(false);
 
     try {
+      // 1. SANITIZE PREVIEW DATA: Force IDs to string and trim them
+      const sanitizedData = preview
+        .map((p: any) => ({
+          ...p,
+          // Ensure ID is a trimmed string to fix the " PA15..." issue
+          id: String(p.id || p.precinct_id || "").trim(),
+          // Ensure precinct_code is a string
+          precinct_code: String(p.precinct_code || ""),
+          active: p.active !== undefined ? p.active : true,
+        }))
+        .filter((p) => p.id !== ""); // Remove invalid entries
+
+      if (sanitizedData.length === 0) {
+        throw new Error("No valid Precinct IDs found in JSON.");
+      }
+
+      // 2. CALL FUNCTION
       const result = await callFunction<{ success: number; total: number }>(
         "adminImportPrecincts",
-        { data: preview }
+        { data: sanitizedData }, // Passing the sanitized array
       );
 
       setResultMessage(
-        `Successfully imported ${result.success}/${result.total} precincts.`
+        `Success! Imported ${result.success}/${result.total} precincts.`,
       );
       setJsonInput("");
       setPreview([]);
     } catch (err: any) {
       setIsError(true);
-      setResultMessage(`Import failed: ${err.message || "Unknown error"}`);
+      setResultMessage(`Import failed: ${err.message}`);
     } finally {
       setIsImporting(false);
     }
@@ -79,11 +111,11 @@ export const ImportPrecinctsForm: React.FC = () => {
         array [ ].
         <br />
         Required fields:
+        <br />• <code>id</code> (string, e.g. "PA15-P-005")
         <br />• <code>area_district</code> (string, e.g. "18")
         <br />• <code>area_id</code> (string, e.g. "PA15-A-18")
         <br />• <code>congressional_district</code> (string, e.g. "6")
         <br />• <code>county_code</code> (string, e.g. "15")
-        <br />• <code>county_district</code> (string, e.g. "15")
         <br />• <code>county_id</code> (string, e.g. "PA-C-15")
         <br />• <code>house_district</code> (string, e.g. "13")
         <br />• <code>name</code> (string, e.g. "West Grove 2")
@@ -113,6 +145,8 @@ export const ImportPrecinctsForm: React.FC = () => {
         <TextField
           multiline
           rows={10}
+          error={!!parseError}
+          helperText={parseError}
           fullWidth
           label="Paste Precincts JSON"
           variant="outlined"

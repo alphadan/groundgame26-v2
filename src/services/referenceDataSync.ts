@@ -1,21 +1,22 @@
 import { db, ensureDBInitialized, updateAppControlAfterSync } from "../lib/db";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import {
-  counties as allCounties,
-  areas as allAreas,
-  precincts as allPrecincts,
-  groups as allGroups,
+  counties as localCounties,
+  areas as localAreas,
+  precincts as localPrecincts,
+  groups as localGroups,
 } from "../constants/referenceData";
-import { UserProfile, Precinct } from "../types";
+import { UserProfile, Precinct, Area, Group, County } from "../types";
 
 /**
- * Production Sync Strategy:
- * 1. Wildcard Handling: Supports "ALL" string in access arrays for Developers/Admins.
- * 2. ID Consistency: Matches composite string IDs (e.g., PA15-A-28).
- * 3. Atomic Dexie Transactions: Ensures IndexedDB is never in a partial state.
+ * Production Sync Strategy (Cloud-First):
+ * 1. Fetch unified payload (Profile + Permissions + Filtered Collections).
+ * 2. Sanitize all IDs (trim and mirror ID to UID).
+ * 3. Atomic Dexie Transaction (Prevents partial data states).
+ * 4. Offline Fallback: Uses local referenceData if network is unreachable.
  */
 export async function syncReferenceData(currentUid: string): Promise<void> {
-  console.log("🟢 [Sync] Entering syncReferenceData for UID:", currentUid);
+  console.log("🟢 [Sync] Initializing for UID:", currentUid);
 
   if (!currentUid?.trim()) {
     console.error("🔴 [Sync] Aborting: No valid UID provided");
@@ -23,92 +24,114 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
   }
 
   try {
-    // 1. Initialize local database
+    // 1. Prepare Local Environment
     await ensureDBInitialized();
     await db.app_control.update("app_control", { sync_status: "syncing" });
 
-    // 2. Fetch User Profile via v2 Cloud Function
     const functions = getFunctions(undefined, "us-central1");
-    const fetchProfile = httpsCallable(functions, "getUserProfile");
+    const fetchSyncData = httpsCallable(functions, "getSyncCollections");
 
-    const result = await fetchProfile();
-    const profileData = (result.data as any)?.profile as UserProfile;
+    // Initialize temporary sources with local constants (the fallback)
+    let sourcePrecincts: any[] = localPrecincts;
+    let sourceAreas: any[] = localAreas;
+    let sourceCounties: any[] = localCounties;
+    let sourceGroups: any[] = localGroups;
+    let profileData: UserProfile | null = null;
+    let isCloudSource = false;
 
-    if (!profileData) {
-      throw new Error("Server returned no profile data for this user.");
-    }
+    try {
+      // 2. ATTEMPT CLOUD FETCH
+      console.log("📡 [Sync] Calling getSyncCollections...");
+      const result = await fetchSyncData();
+      const data = result.data as any;
 
-    const { role: userRole, access } = profileData;
-    console.log("🟢 [Sync] Profile received. Primary Role:", userRole);
-
-    // --- HELPER: Wildcard Check ---
-    const hasAll = (arr: string[] | undefined) => arr?.includes("ALL") || false;
-
-    // 3. Filter Counties
-    console.log("🛠️ [Sync Debug] Starting Filter Phase");
-    console.log(
-      "🛠️ [Sync Debug] Full Access Object:",
-      JSON.stringify(access, null, 2),
-    );
-
-    const hasAllCounties = hasAll(access.counties);
-    const hasAllAreas = hasAll(access.areas);
-
-    // COUNTY LOGGING
-    const filteredCounties = allCounties.filter(
-      (c) => hasAllCounties || access.counties.includes(c.id),
-    );
-    console.log(
-      `🛠️ [Sync Debug] Counties: Found ${allCounties.length} in refData, Matched ${filteredCounties.length} via access.`,
-    );
-
-    // 4. Filter Areas
-
-    console.log("DEBUG: access.areas is:", access.areas);
-    console.log("DEBUG: hasAll(access.areas) is:", hasAll(access.areas));
-
-    // AREA LOGGING
-    const filteredAreas = allAreas.filter((a) => {
-      const isMatch = hasAllAreas || access.areas.includes(a.id);
-      // Optional: log why a specific area failed if you expected it to pass
-      if (a.id === "PA15-A-28" && !isMatch) {
+      if (data.success) {
+        sourcePrecincts = data.precincts;
+        sourceAreas = data.areas;
+        sourceCounties = data.counties;
+        sourceGroups = data.groups;
+        profileData = data.profile; // Contains cloud-calculated permissions
+        isCloudSource = true;
+        console.log("✅ [Sync] Live data and permissions retrieved.");
+      } else if (data.reason === "no_profile") {
         console.warn(
-          "⚠️ [Sync Debug] Area PA15-A-28 exists in refData but access.areas does not include it and hasAll is false.",
+          "⚠️ [Sync] User has no database profile. Syncing base data only.",
         );
       }
-      return isMatch;
-    });
-    console.log(
-      `🛠️ [Sync Debug] Areas: Found ${allAreas.length} in refData, Matched ${filteredAreas.length} via access.`,
-    );
-
-    console.log(`DEBUG: Filtered Areas Count: ${filteredAreas.length}`);
-
-    // 5. Strategic Precinct Filtering
-    // PRECINCT LOGGING
-    let filteredPrecincts: Precinct[] = [];
-    if (userRole === "developer") {
-      console.log(
-        "🛠️ [Sync Debug] User is Developer: Bypassing Precinct filters.",
-      );
-      filteredPrecincts = allPrecincts;
-    } else {
-      filteredPrecincts = allPrecincts.filter(
-        (p) => hasAllAreas || access.areas.includes(p.area_id),
+    } catch (cloudErr) {
+      console.warn(
+        "⚠️ [Sync] Network/Cloud error. Reverting to Offline Fallback.",
+        cloudErr,
       );
     }
 
-    console.log(
-      `📊 [Sync] Results: ${filteredCounties.length} counties, ${filteredAreas.length} areas, ${filteredPrecincts.length} precincts matched.`,
-    );
+    // 3. RESOLVE PROFILE (Required for filtering fallback data)
+    if (!profileData) {
+      // Pull last known profile (with permissions) from IndexedDB
+      profileData = (await db.users.get(currentUid)) as UserProfile;
 
-    // 6. Atomic Write to IndexedDB (Dexie Transaction)
-    // We wrap everything in a transaction so if one write fails, none are committed.
+      if (!profileData) {
+        throw new Error(
+          "Critical Sync Failure: No local or cloud profile available.",
+        );
+      }
+      console.log("💾 [Sync] Using cached profile for fallback filtering.");
+    }
+
+    // 4. APPLY FALLBACK FILTERS (Only if Cloud failed)
+    let finalCounties: County[];
+    let finalAreas: Area[];
+    let finalPrecincts: Precinct[];
+
+    if (isCloudSource) {
+      // Cloud has already filtered these for us!
+      finalCounties = sourceCounties;
+      finalAreas = sourceAreas;
+      finalPrecincts = sourcePrecincts;
+    } else {
+      console.log(
+        "🛠️ [Sync] Applying security filters to local fallback data...",
+      );
+      const { role: userRole, access } = profileData;
+      const hasAll = (arr: string[] | undefined) =>
+        arr?.includes("ALL") || false;
+
+      const hasAllCounties = hasAll(access.counties);
+      const hasAllAreas = hasAll(access.areas);
+
+      finalCounties = sourceCounties.filter(
+        (c) => hasAllCounties || access.counties?.includes(c.id),
+      );
+      finalAreas = sourceAreas.filter(
+        (a) => hasAllAreas || access.areas?.includes(a.id),
+      );
+
+      if (userRole === "developer") {
+        finalPrecincts = sourcePrecincts;
+      } else {
+        const allowedAreaIds = new Set(finalAreas.map((a) => a.id));
+        finalPrecincts = sourcePrecincts.filter(
+          (p) => hasAllAreas || allowedAreaIds.has(p.area_id),
+        );
+      }
+    }
+
+    // 5. SANITIZATION HELPER
+    const sanitize = (items: any[]) =>
+      items.map((item) => ({
+        ...item,
+        id: String(item.id).trim(),
+        uid: String(item.id).trim(), // doc.id = id = uid
+        active: item.active ?? true,
+        last_updated: item.last_updated || Date.now(),
+      }));
+
+    // 6. ATOMIC WRITE TO INDEXEDDB
     await db.transaction(
       "rw",
       [db.counties, db.areas, db.precincts, db.groups, db.users],
       async () => {
-        // Clear old data for a clean state
+        // Clear all relevant tables for a clean sync state
         await Promise.all([
           db.counties.clear(),
           db.areas.clear(),
@@ -117,32 +140,30 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
           db.users.clear(),
         ]);
 
-        // Bulk put filtered data if available
-        if (filteredCounties.length > 0)
-          await db.counties.bulkPut(filteredCounties);
-        if (filteredAreas.length > 0) await db.areas.bulkPut(filteredAreas);
-        if (filteredPrecincts.length > 0)
-          await db.precincts.bulkPut(filteredPrecincts);
+        if (finalCounties.length > 0)
+          await db.counties.bulkPut(sanitize(finalCounties));
+        if (finalAreas.length > 0) await db.areas.bulkPut(sanitize(finalAreas));
+        if (finalPrecincts.length > 0)
+          await db.precincts.bulkPut(sanitize(finalPrecincts));
+        if (sourceGroups.length > 0)
+          await db.groups.bulkPut(sanitize(sourceGroups));
 
-        // Groups/Teams are typically global within a campaign
-        if (allGroups.length > 0) await db.groups.bulkPut(allGroups);
-
-        // Store the full profile for offline permission checks and UI display
-        await db.users.put(profileData);
+        // Save the full profile (including those crucial .permissions)
+        await db.users.put(profileData!);
       },
     );
 
-    // 7. Finalize sync metadata
+    // 7. Success Finalization
     await updateAppControlAfterSync();
-    console.log("✅ [Sync] Successfully populated IndexedDB.");
+    console.log(
+      "🏁 [Sync] Success. Permissions and reference data are now in-sync.",
+    );
   } catch (err: any) {
-    console.error("❌ [Sync] Fatal error during sync:", err.message);
-
+    console.error("🔴 [Sync] Fatal Error:", err.message);
     await db.app_control.update("app_control", {
       sync_status: "error",
       last_sync_attempt: Date.now(),
     });
-
     throw err;
   }
 }

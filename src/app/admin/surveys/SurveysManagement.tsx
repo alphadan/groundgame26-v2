@@ -171,7 +171,7 @@ export default function SurveysManagement() {
     },
   ];
 
-  if (!authLoaded) {
+  if (localUser === undefined || !authLoaded) {
     return (
       <Box
         sx={{

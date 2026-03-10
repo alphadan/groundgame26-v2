@@ -1,333 +1,215 @@
-// src/app/admin/components/CampaignResourcesManager.tsx
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useCloudFunctions } from "../../../hooks/useCloudFunctions";
-import { db as firestore } from "../../../lib/firebase";
+import React, { useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db as indexedDb } from "../../../lib/db";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
 import { CampaignResource } from "../../../types";
 import {
   Box,
-  Button,
-  TextField,
   Typography,
   Paper,
-  Alert,
-  CircularProgress,
-  Grid,
   Stack,
+  TextField,
+  MenuItem,
+  Button,
+  LinearProgress,
+  Alert,
   Divider,
   IconButton,
-  LinearProgress,
+  Tooltip,
   Dialog,
   DialogTitle,
-  DialogActions,
   DialogContent,
-  MenuItem,
-  Tooltip,
-  Chip,
+  DialogActions,
+  DialogContentText,
 } from "@mui/material";
-import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
-import {
-  CloudUpload as UploadIcon,
-  Delete as DeleteIcon,
-  OpenInNew as OpenIcon,
-  Search as SearchIcon,
-  CheckCircle as CheckCircleIcon,
-  Info as InfoIcon,
-} from "@mui/icons-material";
-import confetti from "canvas-confetti";
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  deleteDoc,
-  doc,
-  addDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import { getPrecinctsByArea } from "../../../lib/db";
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import DeleteIcon from "@mui/icons-material/Delete";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 
 export const CampaignResourcesManager: React.FC = () => {
-  const { callFunction } = useCloudFunctions();
+  const functions = getFunctions();
+  const adminGenerateResourceUploadUrl = httpsCallable(
+    functions,
+    "adminGenerateResourceUploadUrl",
+  );
 
-  // --- State ---
-  const [resources, setResources] = useState<CampaignResource[]>([]);
-  const [searchText, setSearchText] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [resourceToDelete, setResourceToDelete] = useState<string | null>(null);
-  const [availablePrecincts, setAvailablePrecincts] = useState<any[]>([]);
-
-  const [newResource, setNewResource] = useState({
-    title: "",
-    description: "",
-    category: "Brochures" as CampaignResource["category"],
-    scope: "area" as "county" | "area" | "precinct",
-    geoId: "",
-    file: null as File | null,
+  const {
+    data: existingResources,
+    loading: gridLoading,
+    remove,
+    fetchAll,
+  } = useAdminCRUD<CampaignResource>({
+    collectionName: "campaign_resources",
+    defaultOrderBy: "created_at",
+    orderDirection: "desc",
   });
 
-  // Length trackers
-  const titleLength = newResource.title.length;
-  const descriptionLength = newResource.description.length;
+  // --- 1. Form State ---
+  const [title, setTitle] = useState("");
+  const [category, setCategory] = useState("Brochures");
+  const [scope, setScope] = useState("county");
+  const [selectedCounty, setSelectedCounty] = useState("PA-C-15");
+  const [selectedArea, setSelectedArea] = useState("");
+  const [selectedPrecinct, setSelectedPrecinct] = useState("");
+  const [file, setFile] = useState<File | null>(null);
 
-  // --- Load Data ---
-  const loadResources = useCallback(async () => {
-    setLoading(true);
-    try {
-      const snapshot = await getDocs(
-        query(
-          collection(firestore, "campaign_resources"),
-          orderBy("created_at", "desc"),
-        ),
-      );
-      setResources(
-        snapshot.docs.map(
-          (d) => ({ id: d.id, ...d.data() }) as CampaignResource,
-        ),
-      );
-    } catch (err) {
-      console.error("Load failed:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // --- 2. UI State ---
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [status, setStatus] = useState<{
+    type: "success" | "error";
+    msg: string;
+  } | null>(null);
 
-  useEffect(() => {
-    loadResources();
-    getPrecinctsByArea("PA15-A-15").then(setAvailablePrecincts);
-  }, [loadResources]);
+  // --- 3. Delete Confirmation State ---
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // --- Filter Logic for Scope ---
-  const scopeOptions = useMemo(() => {
-    if (newResource.category === "Ballots") return ["precinct"];
-    if (["Brochures", "Graphics"].includes(newResource.category))
-      return ["area", "county"];
-    return ["county"];
-  }, [newResource.category]);
+  // --- 4. Reference Data (Dexie) ---
+  const counties = useLiveQuery(() => indexedDb.counties.toArray()) ?? [];
+  const areas =
+    useLiveQuery(async () => {
+      if (!selectedCounty) return [];
+      return await indexedDb.areas
+        .where("county_id")
+        .equals(selectedCounty)
+        .toArray();
+    }, [selectedCounty]) ?? [];
+  const precincts =
+    useLiveQuery(async () => {
+      if (!selectedArea) return [];
+      return await indexedDb.precincts
+        .where("area_id")
+        .equals(selectedArea)
+        .toArray();
+    }, [selectedArea]) ?? [];
 
-  useEffect(() => {
-    if (!scopeOptions.includes(newResource.scope)) {
-      setNewResource((prev) => ({ ...prev, scope: scopeOptions[0] as any }));
-    }
-  }, [scopeOptions, newResource.scope]);
-
-  // --- Search Filtering ---
-  const filteredResources = useMemo(() => {
-    return resources.filter(
-      (r) =>
-        r.title.toLowerCase().includes(searchText.toLowerCase()) ||
-        (r.description || "").toLowerCase().includes(searchText.toLowerCase()),
-    );
-  }, [resources, searchText]);
-
-  // --- Handlers ---
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 15 * 1024 * 1024) {
-      setError("File size exceeds 15MB.");
-      return;
-    }
-    if (file.type !== "application/pdf") {
-      setError("Only PDFs are accepted.");
-      return;
-    }
-    setError(null);
-    setNewResource((prev) => ({ ...prev, file }));
-  };
-
+  // --- 5. Handlers ---
   const handleUpload = async () => {
-    if (!newResource.file || !newResource.title.trim()) return;
-
-    // Extra validation for limits
-    if (newResource.title.length > 60) {
-      setError("Title cannot exceed 60 characters.");
-      return;
-    }
-    if (newResource.description.length > 120) {
-      setError("Description cannot exceed 120 characters.");
-      return;
-    }
-
+    if (!file || !title) return;
     setIsUploading(true);
+    setStatus(null);
     try {
-      const { uploadUrl } = await callFunction<{ uploadUrl: string }>(
-        "adminGenerateResourceUploadUrl",
-        {
-          category: newResource.category,
-          fileName: newResource.file.name,
-        },
-      );
-
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", uploadUrl);
-        xhr.setRequestHeader("Content-Type", "application/pdf");
-
-        xhr.onload = () => {
-          if (xhr.status === 200 || xhr.status === 201) resolve(true);
-          else reject(new Error(xhr.responseText));
-        };
-        xhr.onerror = () => reject(new Error("Network Error"));
-        xhr.send(newResource.file);
+      const result = await adminGenerateResourceUploadUrl({
+        title,
+        category,
+        fileName: file.name,
+        scope,
+        county_code: selectedCounty,
+        area_code: selectedArea,
+        precinct_code: selectedPrecinct,
       });
 
-      const downloadUrl = uploadUrl.split("?")[0] + "?alt=media";
-
-      await addDoc(collection(firestore, "campaign_resources"), {
-        title: newResource.title.trim(),
-        description: newResource.description.trim(),
-        category: newResource.category,
-        scope: newResource.scope,
-        county_code: newResource.scope === "county" ? "15" : "",
-        area_code: newResource.scope === "area" ? "15" : "",
-        precinct_code:
-          newResource.scope === "precinct"
-            ? newResource.geoId.split("-").pop()
-            : "",
-        url: downloadUrl,
-        created_at: Date.now(),
+      const { uploadUrl } = result.data as any;
+      await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": "application/pdf" },
       });
 
-      confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-      loadResources();
-      setNewResource({
-        title: "",
-        description: "",
-        category: "Brochures",
-        scope: "area",
-        geoId: "",
-        file: null,
-      });
+      setStatus({ type: "success", msg: "Upload complete! Updating list..." });
+      setTitle("");
+      setFile(null);
+      setTimeout(fetchAll, 2500);
     } catch (err: any) {
-      console.error("Upload Error:", err);
-      setError("Upload failed. Please check console for details.");
+      setStatus({ type: "error", msg: "Upload failed." });
     } finally {
       setIsUploading(false);
     }
   };
 
-  const confirmDelete = async () => {
-    if (!resourceToDelete) return;
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    setIsDeleting(true);
     try {
-      await deleteDoc(doc(firestore, "campaign_resources", resourceToDelete));
-      setResources((prev) => prev.filter((r) => r.id !== resourceToDelete));
+      await remove(deleteId);
+      await fetchAll();
+      setDeleteId(null);
     } catch (err) {
-      console.error(err);
+      console.error("Delete failed", err);
     } finally {
-      setDeleteConfirmOpen(false);
-      setResourceToDelete(null);
+      setIsDeleting(false);
     }
   };
 
-  // --- DataGrid Columns (unchanged) ---
+  // --- 6. DataGrid Columns ---
   const columns: GridColDef[] = [
-    { field: "title", headerName: "Title", flex: 1, minWidth: 200 },
+    { field: "title", headerName: "Title", flex: 1 },
     { field: "category", headerName: "Category", width: 120 },
+    { field: "scope", headerName: "Scope", width: 100 },
     {
-      field: "description",
-      headerName: "Description",
-      flex: 1.5,
-      renderCell: (params: GridRenderCellParams) => (
-        <Stack
-          direction="row"
-          alignItems="center"
-          spacing={1}
-          sx={{ height: "100%" }}
-        >
-          <Typography variant="body2" noWrap>
-            {params.value || "—"}
+      field: "location",
+      headerName: "Assigned To",
+      width: 180,
+      renderCell: (params) => {
+        const val =
+          params.row.precinct_code ||
+          params.row.area_code ||
+          params.row.county_code;
+        return (
+          <Typography variant="caption" sx={{ fontWeight: 500 }}>
+            {val || "Global"}
           </Typography>
-          {params.value && (
-            <Tooltip title={params.value} arrow>
-              <InfoIcon
-                fontSize="small"
-                color="disabled"
-                sx={{ cursor: "help" }}
-              />
-            </Tooltip>
-          )}
-        </Stack>
-      ),
-    },
-    {
-      field: "scope",
-      headerName: "Scope",
-      width: 110,
-      renderCell: (params) => (
-        <Chip
-          label={params.value}
-          size="small"
-          variant="outlined"
-          sx={{ textTransform: "capitalize" }}
-        />
-      ),
+        );
+      },
     },
     {
       field: "actions",
       headerName: "Actions",
-      width: 110,
+      width: 120,
       sortable: false,
       renderCell: (params) => (
         <Stack direction="row" spacing={1}>
-          <IconButton
-            size="small"
-            onClick={() => window.open(params.row.url, "_blank")}
-            color="primary"
-          >
-            <OpenIcon fontSize="small" />
-          </IconButton>
-          <IconButton
-            size="small"
-            onClick={() => {
-              setResourceToDelete(params.row.id as string);
-              setDeleteConfirmOpen(true);
-            }}
-            color="error"
-          >
-            <DeleteIcon fontSize="small" />
-          </IconButton>
+          <Tooltip title="View File">
+            <IconButton
+              size="small"
+              onClick={() => window.open(params.row.url, "_blank")}
+            >
+              <OpenInNewIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Remove Resource">
+            {/* Trigger modal instead of direct delete */}
+            <IconButton
+              size="small"
+              color="error"
+              onClick={() => setDeleteId(params.row.id)}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Stack>
       ),
     },
   ];
 
   return (
-    <Stack spacing={4} sx={{ mt: 4 }}>
-      {/* PAPER 1: UPLOAD FORM */}
-      <Paper elevation={2} sx={{ p: { xs: 2, md: 4 }, borderRadius: 3 }}>
-        <Typography variant="h5" fontWeight="bold" gutterBottom color="primary">
-          Campaign Resource Manager
+    <Stack spacing={4}>
+      {/* UPLOAD FORM SECTION */}
+      <Paper sx={{ p: 3, border: "1px solid #eee", borderRadius: 3 }}>
+        <Typography variant="h6" gutterBottom fontWeight="bold">
+          Upload Resource
         </Typography>
-        <Typography variant="body2" color="text.secondary" mb={4}>
-          Upload and assign localized campaign materials across the
-          organization.
-        </Typography>
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-
-        <Grid container spacing={3}>
-          <Grid size={{ xs: 12, md: 4 }}>
+        <Stack spacing={2}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField
+              label="Title"
+              fullWidth
+              size="small"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
             <TextField
               select
               label="Category"
-              fullWidth
-              value={newResource.category}
-              onChange={(e) =>
-                setNewResource((p) => ({
-                  ...p,
-                  category: e.target.value as any,
-                }))
-              }
+              size="small"
+              sx={{ minWidth: 150 }}
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
             >
-              {["Brochures", "Ballots", "Forms", "Graphics", "Scripts"].map(
+              {["Brochures", "Ballots", "Graphics", "Forms", "Scripts"].map(
                 (c) => (
                   <MenuItem key={c} value={c}>
                     {c}
@@ -335,242 +217,162 @@ export const CampaignResourcesManager: React.FC = () => {
                 ),
               )}
             </TextField>
-          </Grid>
-          <Grid size={{ xs: 12, md: 4 }}>
+          </Stack>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
               select
-              label="Assignment Scope"
+              label="Scope"
+              size="small"
               fullWidth
-              value={newResource.scope}
-              onChange={(e) =>
-                setNewResource((p) => ({ ...p, scope: e.target.value as any }))
-              }
+              value={scope}
+              onChange={(e) => {
+                setScope(e.target.value);
+                setSelectedArea("");
+                setSelectedPrecinct("");
+              }}
             >
-              {scopeOptions.map((s) => (
-                <MenuItem
-                  key={s}
-                  value={s}
-                  sx={{ textTransform: "capitalize" }}
-                >
-                  {s}
+              <MenuItem value="county">County</MenuItem>
+              <MenuItem value="area">Area</MenuItem>
+              <MenuItem value="precinct">Precinct</MenuItem>
+            </TextField>
+            <TextField
+              select
+              label="County"
+              size="small"
+              fullWidth
+              value={selectedCounty}
+              onChange={(e) => setSelectedCounty(e.target.value)}
+            >
+              {counties.map((c) => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}
                 </MenuItem>
               ))}
             </TextField>
-          </Grid>
-          {newResource.scope === "precinct" && (
-            <Grid size={{ xs: 12, md: 4 }}>
-              <TextField
-                select
-                label="Assign to Precinct"
-                fullWidth
-                value={newResource.geoId}
-                onChange={(e) =>
-                  setNewResource((p) => ({ ...p, geoId: e.target.value }))
-                }
-              >
-                {availablePrecincts.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>
-                    {p.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
+          </Stack>
+
+          {scope !== "county" && (
+            <TextField
+              select
+              label="Area"
+              size="small"
+              fullWidth
+              value={selectedArea}
+              onChange={(e) => setSelectedArea(e.target.value)}
+            >
+              {areas.map((a) => (
+                <MenuItem key={a.id} value={a.id}>
+                  {a.name}
+                </MenuItem>
+              ))}
+            </TextField>
           )}
 
-          {/* Title with 60 char limit + counter */}
-          <Grid size={{ xs: 12, md: 6 }}>
+          {scope === "precinct" && (
             <TextField
-              label="Title"
+              select
+              label="Precinct"
+              size="small"
               fullWidth
-              value={newResource.title}
-              onChange={(e) =>
-                setNewResource((p) => ({
-                  ...p,
-                  title: e.target.value.slice(0, 60),
-                }))
-              }
-              inputProps={{ maxLength: 60 }}
-              error={titleLength > 50}
-              color={
-                titleLength > 40 && titleLength <= 50
-                  ? "warning"
-                  : titleLength > 50
-                    ? "error"
-                    : "primary"
-              }
-              helperText={
-                <Box component="span">
-                  {titleLength}/60 characters
-                  {titleLength > 40 && titleLength <= 50 && (
-                    <Box component="span" sx={{ color: "warning.main", ml: 1 }}>
-                      ⚠️ May truncate on mobile
-                    </Box>
-                  )}
-                  {titleLength > 50 && (
-                    <Box component="span" sx={{ color: "error.main", ml: 1 }}>
-                      Too long!
-                    </Box>
-                  )}
-                </Box>
-              }
+              value={selectedPrecinct}
+              onChange={(e) => setSelectedPrecinct(e.target.value)}
+            >
+              {precincts.map((p) => (
+                <MenuItem key={p.id} value={p.id}>
+                  {p.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+
+          <Button
+            variant="outlined"
+            component="label"
+            startIcon={<CloudUploadIcon />}
+            fullWidth
+          >
+            {file ? file.name : "Select PDF"}
+            <input
+              type="file"
+              hidden
+              accept="application/pdf"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
-          </Grid>
+          </Button>
 
-          {/* Description with 120 char limit + counter */}
-          <Grid size={{ xs: 12, md: 6 }}>
-            <TextField
-              label="Description"
-              fullWidth
-              multiline
-              rows={3}
-              value={newResource.description}
-              onChange={(e) =>
-                setNewResource((p) => ({
-                  ...p,
-                  description: e.target.value.slice(0, 120),
-                }))
-              }
-              inputProps={{ maxLength: 120 }}
-              error={descriptionLength > 100}
-              helperText={
-                <Box component="span">
-                  {descriptionLength}/120 characters
-                  {descriptionLength > 80 && descriptionLength <= 100 && (
-                    <Box component="span" sx={{ color: "warning.main", ml: 1 }}>
-                      Consider shortening
-                    </Box>
-                  )}
-                  {descriptionLength > 100 && (
-                    <Box component="span" sx={{ color: "error.main", ml: 1 }}>
-                      Too long!
-                    </Box>
-                  )}
-                </Box>
-              }
-            />
-          </Grid>
+          {isUploading && <LinearProgress />}
+          {status && <Alert severity={status.type}>{status.msg}</Alert>}
 
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Button
-              variant="outlined"
-              component="label"
-              fullWidth
-              startIcon={
-                newResource.file ? (
-                  <CheckCircleIcon color="success" />
-                ) : (
-                  <UploadIcon />
-                )
-              }
-              sx={{ height: 56, borderStyle: "dashed" }}
-            >
-              {newResource.file ? newResource.file.name : "Select PDF Document"}
-              <input
-                type="file"
-                hidden
-                accept=".pdf"
-                onChange={handleFileSelect}
-              />
-            </Button>
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={handleUpload}
-              disabled={
-                isUploading || !newResource.file || !newResource.title.trim()
-              }
-              sx={{ height: 56, fontWeight: "bold" }}
-            >
-              {isUploading
-                ? `Uploading ${uploadProgress}%`
-                : "Publish to Library"}
-            </Button>
-          </Grid>
-        </Grid>
-
-        {isUploading && (
-          <Box sx={{ mt: 2 }}>
-            <LinearProgress variant="determinate" value={uploadProgress} />
-            <Typography
-              variant="caption"
-              sx={{ mt: 1, display: "block", textAlign: "center" }}
-            >
-              Uploading to Secure Storage... {uploadProgress}%
-            </Typography>
-          </Box>
-        )}
-      </Paper>
-
-      {/* PAPER 2: LIVE LIBRARY */}
-      <Paper elevation={2} sx={{ p: { xs: 2, md: 4 }, borderRadius: 3 }}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          justifyContent="space-between"
-          alignItems="center"
-          spacing={2}
-          mb={3}
-        >
-          <Box>
-            <Typography variant="h6" fontWeight="bold">
-              Live Resource Library
-            </Typography>
-          </Box>
-          <TextField
-            size="small"
-            placeholder="Search resources..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <SearchIcon
-                  fontSize="small"
-                  sx={{ mr: 1, color: "text.secondary" }}
-                />
-              ),
-            }}
-            sx={{ width: { xs: "100%", sm: 300 } }}
-          />
+          <Button
+            variant="contained"
+            onClick={handleUpload}
+            disabled={isUploading || !file || !title}
+          >
+            Publish Resource
+          </Button>
         </Stack>
-
-        <Box sx={{ height: 600, width: "100%" }}>
-          <DataGrid
-            rows={filteredResources}
-            columns={columns}
-            loading={loading}
-            initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-            pageSizeOptions={[10, 25, 50]}
-            disableRowSelectionOnClick
-            sx={{
-              "& .font-weight-bold": { fontWeight: "bold" },
-              border: "none",
-            }}
-          />
-        </Box>
-
-        <Dialog
-          open={deleteConfirmOpen}
-          onClose={() => setDeleteConfirmOpen(false)}
-        >
-          <DialogTitle sx={{ fontWeight: "bold" }}>
-            Delete Resource?
-          </DialogTitle>
-          <DialogContent>
-            <Typography variant="body2">
-              This will permanently remove this asset from the volunteer
-              Download Center. The file will be unlinked from the system
-              immediately.
-            </Typography>
-          </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setDeleteConfirmOpen(false)}>Cancel</Button>
-            <Button onClick={confirmDelete} color="error" variant="contained">
-              Confirm Delete
-            </Button>
-          </DialogActions>
-        </Dialog>
       </Paper>
+
+      {/* ASSET LIST SECTION */}
+      <Paper
+        sx={{ borderRadius: 3, overflow: "hidden", border: "1px solid #eee" }}
+      >
+        <Box sx={{ p: 2, bgcolor: "#fcfcfc", borderBottom: "1px solid #eee" }}>
+          <Typography variant="subtitle1" fontWeight="bold">
+            Published Assets
+          </Typography>
+        </Box>
+        <div style={{ height: 400, width: "100%" }}>
+          <DataGrid
+            rows={existingResources}
+            columns={columns}
+            loading={gridLoading}
+            pageSizeOptions={[5, 10]}
+            initialState={{ pagination: { paginationModel: { pageSize: 5 } } }}
+            sx={{ border: "none" }}
+          />
+        </div>
+      </Paper>
+
+      {/* DELETE CONFIRMATION DIALOG */}
+      <Dialog
+        open={Boolean(deleteId)}
+        onClose={() => !isDeleting && setDeleteId(null)}
+        aria-labelledby="alert-dialog-title"
+      >
+        <DialogTitle
+          id="alert-dialog-title"
+          sx={{ fontWeight: "bold", color: "error.main" }}
+        >
+          Confirm Permanent Deletion?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to remove this resource? This will delete the
+            document record from the database. (Note: This action cannot be
+            undone.)
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button
+            onClick={() => setDeleteId(null)}
+            disabled={isDeleting}
+            color="inherit"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            color="error"
+            variant="contained"
+            autoFocus
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Deleting..." : "Confirm Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 };

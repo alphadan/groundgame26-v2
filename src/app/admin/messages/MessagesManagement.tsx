@@ -21,6 +21,11 @@ import {
   Button,
   Stack,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
 } from "@mui/material";
 import { DataGrid, GridColDef, GridActionsCellItem } from "@mui/x-data-grid";
 import {
@@ -50,6 +55,9 @@ export default function MessagesManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editingMessage, setEditingMessage] = useState<any | null>(null);
 
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // This triggers the data load as soon as the page opens
   useEffect(() => {
     if (authLoaded) {
@@ -65,14 +73,17 @@ export default function MessagesManagement() {
   const permissions = (localUser?.permissions || {}) as UserPermissions;
   const canManageResources = !!permissions.can_manage_resources;
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this template?")) {
-      try {
-        await remove(id);
-        await fetchAll();
-      } catch (err) {
-        console.error("Delete failed:", err);
-      }
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    setIsDeleting(true);
+    try {
+      await remove(deleteId);
+      await fetchAll();
+      setDeleteId(null); // Close modal
+    } catch (err) {
+      console.error("Delete failed:", err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -94,7 +105,11 @@ export default function MessagesManagement() {
       field: "subject_line",
       headerName: "Subject Line",
       flex: 1,
-      minWidth: 200,
+      renderCell: (params) => (
+        <Tooltip title={params.value}>
+          <span style={{ cursor: "default" }}>{params.value}</span>
+        </Tooltip>
+      ),
     },
     {
       field: "party",
@@ -138,13 +153,13 @@ export default function MessagesManagement() {
         <GridActionsCellItem
           icon={<DeleteIcon color="error" />}
           label="Delete"
-          onClick={() => handleDelete(params.id as string)}
+          onClick={() => setDeleteId(params.id as string)} // Open Modal
         />,
       ],
     },
   ];
 
-  if (!authLoaded) {
+  if (!authLoaded || localUser === undefined) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", mt: 10 }}>
         <CircularProgress size={60} />
@@ -247,6 +262,45 @@ export default function MessagesManagement() {
           />
         </Paper>
       )}
+      {/* --- NEW: Delete Confirmation Dialog --- */}
+      <Dialog
+        open={Boolean(deleteId)}
+        onClose={() => !isDeleting && setDeleteId(null)}
+        aria-labelledby="delete-dialog-title"
+      >
+        <DialogTitle id="delete-dialog-title" sx={{ fontWeight: "bold" }}>
+          Confirm Template Deletion
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this message template? This action
+            will remove it from the database and it will no longer be available
+            to campaign workers.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button
+            onClick={() => setDeleteId(null)}
+            disabled={isDeleting}
+            color="inherit"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            color="error"
+            variant="contained"
+            disabled={isDeleting}
+            autoFocus
+          >
+            {isDeleting ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Delete Template"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

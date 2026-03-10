@@ -248,6 +248,7 @@ export default function PrecinctsManagement() {
           rows={precincts}
           columns={columns}
           loading={loading}
+          getRowId={(row) => (row.id || "").trim()}
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
           pageSizeOptions={[10, 25, 50, 100]}

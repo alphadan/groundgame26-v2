@@ -76,37 +76,38 @@ export function useAdminCRUD<T extends DocumentData>(options: {
         setLoading(false);
       }
     },
-    [collectionName, defaultOrderBy, orderDirection, mapDocs]
+    [collectionName, defaultOrderBy, orderDirection, mapDocs],
   );
 
   const create = useCallback(
     async (item: any) => {
-      const docId =
+      const rawId =
         item.id || item.uid || doc(collection(db, collectionName)).id;
-      const now = Date.now(); // Use Unix Number
+      const cleanId = String(rawId).trim();
+      const now = Date.now();
       const payload = {
         ...item,
-        id: docId,
+        id: cleanId,
         created_at: now,
         updated_at: now,
         created_by: user?.uid || "system",
       };
-      await setDoc(doc(db, collectionName, docId), payload);
+      await setDoc(doc(db, collectionName, cleanId), payload);
       await fetchAll();
-      return docId;
+      return cleanId;
     },
-    [collectionName, user?.uid, fetchAll]
+    [collectionName, user?.uid, fetchAll],
   );
 
   const update = useCallback(
     async (id: string, updates: any) => {
       await updateDoc(doc(db, collectionName, id), {
         ...updates,
-        updated_at: Date.now(), // Use Unix Number
+        updated_at: Date.now(),
       });
       await fetchAll();
     },
-    [collectionName, fetchAll]
+    [collectionName, fetchAll],
   );
 
   const remove = useCallback(
@@ -114,7 +115,7 @@ export function useAdminCRUD<T extends DocumentData>(options: {
       await deleteDoc(doc(db, collectionName, id));
       await fetchAll();
     },
-    [collectionName, fetchAll]
+    [collectionName, fetchAll],
   );
 
   const search = useCallback(
@@ -126,7 +127,7 @@ export function useAdminCRUD<T extends DocumentData>(options: {
       try {
         const q = query(
           collection(db, collectionName),
-          where(field, op, value)
+          where(field, op, value),
         );
         const snapshot = await getDocs(q);
         setData(mapDocs(snapshot));
@@ -137,7 +138,7 @@ export function useAdminCRUD<T extends DocumentData>(options: {
         setLoading(false);
       }
     },
-    [collectionName, fetchAll, mapDocs]
+    [collectionName, fetchAll, mapDocs],
   );
 
   useEffect(() => {
