@@ -54,6 +54,8 @@ LEFT JOIN `groundgame26-v2.groundgame26_voters.baseline_2022_general` v22 ON m.p
 
 3. Weighted Quota Engine for precinct_quotas_2026
 
+// TODO Add area and county quaotas used from goals collection
+
 CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.precinct_quotas_2026` AS
 WITH Benchmarks AS (
   SELECT MAX(avg_rep_gen_score) as top_gen_score
@@ -94,6 +96,8 @@ SELECT
 FROM `groundgame26-v2.groundgame26_voters.gold_standard_poc` m, Benchmarks b;
 
 4. The AI Narrative Strategic Query precinct_field_plan_2026
+
+// TODO Add area and county Narratives
 
 CREATE OR REPLACE TABLE `groundgame26-v2.groundgame26_voters.precinct_field_plan_2026` AS
 WITH AI_Capture AS (
@@ -159,6 +163,10 @@ node sync-bq-to-firestore.js
 5. Copy precinct_quotas_2026 to firestore goals
 
 node sync-bq-quotas-to-firestore.js
+
+6. Copy stats data probably from meta_20260225_chester_county to firestore precinct_monthly_stats
+
+// TODO area_stats and county stats
 
 
 

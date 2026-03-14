@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useCloudFunctions } from "../../../hooks/useCloudFunctions";
 import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
 import { useAuth } from "../../../context/AuthContext";
@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
+
 import {
   Box,
   Typography,
@@ -25,27 +26,25 @@ import {
   Tooltip,
   Alert,
 } from "@mui/material";
+
+import { DataGrid, GridColDef, GridToolbar } from "@mui/x-data-grid";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
-import SecurityIcon from "@mui/icons-material/Security";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import PersonRemoveIcon from "@mui/icons-material/PersonRemove";
+import ToggleOnIcon from "@mui/icons-material/ToggleOn";
+import ToggleOffIcon from "@mui/icons-material/ToggleOff";
+
 import RoleForm from "./RoleForm";
 import AssignUserDialog from "./AssignUserDialog";
 
 export default function ManageRoles() {
-  const [open, setOpen] = useState(false);
-  const { callFunction } = useCloudFunctions();
   const navigate = useNavigate();
-
+  const { callFunction } = useCloudFunctions();
   const { user, isLoaded: authLoaded } = useAuth();
 
-  // 1. Reactive Developer Check from IndexedDB
-  const localUser = useLiveQuery(
-    async () => (user?.uid ? await indexedDb.users.get(user.uid) : null),
-    [user?.uid],
-  );
-  const isDeveloper = localUser?.role === "developer";
-
+  // --- 1. STATES ---
+  const [open, setOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [unassignConfirmOpen, setUnassignConfirmOpen] = useState(false);
@@ -61,6 +60,13 @@ export default function ManageRoles() {
     role: string;
   } | null>(null);
   const [isToggling, setIsToggling] = useState(false);
+
+  // --- 2. DATA HOOKS ---
+  const localUser = useLiveQuery(
+    async () => (user?.uid ? await indexedDb.users.get(user.uid) : null),
+    [user?.uid],
+  );
+  const isDeveloper = localUser?.role === "developer";
 
   const {
     data: roles,
@@ -85,145 +91,214 @@ export default function ManageRoles() {
     },
   });
 
-  // 2. Memoized and Guarded Columns
+  // --- 3. COLUMN DEFINITIONS ---
+  // --- 3. COLUMN DEFINITIONS ---
   const columns: GridColDef<OrgRole>[] = useMemo(() => {
     const baseColumns: GridColDef<OrgRole>[] = [
       {
-        field: "userStatus",
-        headerName: "Status",
-        width: 110,
+        field: "role",
+        headerName: "Position Title",
+        flex: 1,
+        minWidth: 150,
+        display: "flex", // Ensures vertical centering in the cell
+        renderCell: (params) => (
+          <Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 400, textTransform: "uppercase" }}
+            >
+              {params.value}
+            </Typography>
+          </Box>
+        ),
+      },
+      {
+        field: "uid",
+        headerName: "Assigned Personnel",
+        flex: 1.5,
+        minWidth: 220,
         renderCell: (params) => {
           const uid = params.row.uid;
+          // Centers the VACANT chip vertically
           if (params.row.is_vacant || !uid) {
             return (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Box
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    bgcolor: "grey.400",
-                  }}
+              <Box
+                sx={{ display: "flex", alignItems: "center", height: "100%" }}
+              >
+                <Chip
+                  label="VACANT"
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  sx={{ fontWeight: "bold" }}
                 />
-                <Typography variant="caption" color="text.secondary">
-                  Vacant
-                </Typography>
               </Box>
             );
           }
+
           const userObj = fullUserMap?.[uid];
           const isActive = userObj?.active ?? false;
+
           return (
-            <Tooltip title={isActive ? "Account Active" : "Account Disabled"}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Box
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{ height: "100%", py: 0.5 }} // py: 0.5 adds that small internal padding you mentioned
+            >
+              {/* Status Indicator */}
+              <Box
+                sx={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: "50%",
+                  flexShrink: 0, // Prevents the dot from squishing
+                  bgcolor: isActive ? "success.main" : "error.main",
+                  boxShadow: isActive
+                    ? "0 0 8px rgba(76, 175, 80, 0.4)"
+                    : "none",
+                }}
+              />
+              {/* Text Group - Vertically centered as a block */}
+              <Stack spacing={0} justifyContent="center">
+                <Typography
+                  variant="body2"
                   sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    bgcolor: isActive ? "success.main" : "error.main",
-                    boxShadow: isActive ? "0 0 6px #4caf50" : "none",
+                    lineHeight: 1.3,
+                    fontWeight: 500,
+                    color: "text.primary",
                   }}
-                />
-                <Typography variant="caption">
-                  {isActive ? "Active" : "Disabled"}
+                >
+                  {userObj?.display_name || "Unknown User"}
                 </Typography>
-              </Box>
-            </Tooltip>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    lineHeight: 1.1,
+                    color: "text.secondary",
+                    display: "block",
+                  }}
+                >
+                  {userObj?.email}
+                </Typography>
+              </Stack>
+            </Stack>
           );
         },
       },
-      { field: "role", headerName: "Role Type", width: 160 },
       {
-        field: "uid",
-        headerName: "Assigned To",
-        width: 200,
+        field: "authority",
+        headerName: "Geographic Authority",
+        flex: 1.5,
+        minWidth: 250,
         renderCell: (params) => {
-          const uid = params.value;
-          if (params.row.is_vacant || !uid)
-            return (
-              <Chip
-                label="VACANT"
-                color="error"
-                size="small"
-                variant="outlined"
-              />
-            );
-          const userObj = fullUserMap?.[uid];
-          return userObj?.display_name || userObj?.email || "Unknown User";
+          const c = params.row.county_id || "--";
+          const a = params.row.area_id || "--";
+          const p = params.row.precinct_id || "--";
+          return (
+            <Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontWeight: 500 }}
+              >
+                C: {c} • A: {a} • P: {p}
+              </Typography>
+            </Box>
+          );
         },
       },
-      { field: "county_id", headerName: "County", width: 110 },
-      { field: "area_id", headerName: "Area", width: 110 },
-      { field: "precinct_id", headerName: "Precinct", width: 120 },
       {
-        field: "actions",
-        headerName: "Assignment",
-        width: 140,
+        field: "assignment",
+        headerName: "Management",
+        width: 150,
+        sortable: false,
         renderCell: (params) => (
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() => {
-              setSelectedRoleId(params.row.id);
-              setAssignDialogOpen(true);
-            }}
-          >
-            {params.row.is_vacant ? "Assign" : "Reassign"}
-          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
+            <Button
+              size="small"
+              variant={params.row.is_vacant ? "contained" : "outlined"}
+              startIcon={<PersonAddIcon />}
+              onClick={() => {
+                setSelectedRoleId(params.row.id);
+                setAssignDialogOpen(true);
+              }}
+              sx={{ borderRadius: 2, textTransform: "none", py: 0.5 }}
+            >
+              {params.row.is_vacant ? "Fill Seat" : "Change"}
+            </Button>
+          </Box>
         ),
       },
     ];
 
-    // 3. Developer-Only Columns
+    // ... (Developer columns logic) ...
     if (isDeveloper) {
       baseColumns.push(
         {
           field: "unassign",
-          headerName: "Revoke Access",
-          width: 130,
+          headerName: "Vacate",
+          width: 100,
+          sortable: false,
           renderCell: (params) => {
-            const uid = params.row.uid;
-            if (params.row.is_vacant || !uid) return null;
-            const userObj = fullUserMap?.[uid];
-            const assignedUser =
-              userObj?.display_name || userObj?.email || "this user";
+            if (params.row.is_vacant) return null;
             return (
-              <Button
-                size="small"
-                color="error"
-                variant="outlined"
-                onClick={() => {
-                  setRoleToVacate({ id: params.row.id, name: assignedUser });
-                  setUnassignConfirmOpen(true);
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  height: "100%",
+                  justifyContent: "center",
                 }}
               >
-                Unassign
-              </Button>
+                <Tooltip title="Remove user from this position">
+                  <IconButton
+                    color="error"
+                    size="small"
+                    onClick={() => {
+                      const userObj = fullUserMap?.[params.row.uid];
+                      setRoleToVacate({
+                        id: params.row.id,
+                        name: userObj?.display_name || "this user",
+                      });
+                      setUnassignConfirmOpen(true);
+                    }}
+                  >
+                    <PersonRemoveIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
             );
           },
         },
         {
           field: "active",
-          headerName: "Global Status",
-          width: 140,
+          headerName: "Status",
+          width: 130,
           renderCell: (params) => {
             const isActive = params.value;
             return (
-              <Chip
-                label={isActive ? "ENABLED" : "DISABLED"}
-                color={isActive ? "success" : "default"}
-                size="small"
-                onClick={() => {
-                  setRoleToToggle({
-                    id: params.row.id,
-                    active: isActive,
-                    role: params.row.role,
-                  });
-                  setToggleConfirmOpen(true);
-                }}
-                sx={{ fontWeight: "bold", width: 100 }}
-              />
+              <Box
+                sx={{ display: "flex", alignItems: "center", height: "100%" }}
+              >
+                <Button
+                  size="small"
+                  variant="text"
+                  color={isActive ? "success" : "inherit"}
+                  startIcon={isActive ? <ToggleOnIcon /> : <ToggleOffIcon />}
+                  onClick={() => {
+                    setRoleToToggle({
+                      id: params.row.id,
+                      active: isActive,
+                      role: params.row.role,
+                    });
+                    setToggleConfirmOpen(true);
+                  }}
+                  sx={{ fontWeight: "bold" }}
+                >
+                  {isActive ? "Enabled" : "Disabled"}
+                </Button>
+              </Box>
             );
           },
         },
@@ -238,83 +313,102 @@ export default function ManageRoles() {
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1400, margin: "auto" }}>
-      {/* Header */}
+      {/* HEADER */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "flex-start",
+          alignItems: "center",
           mb: 4,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center" }}>
-          <IconButton
-            onClick={() => navigate("/admin")}
-            color="primary"
-            sx={{ mr: 2 }}
-          >
+        <Stack direction="row" spacing={2} alignItems="center">
+          <IconButton onClick={() => navigate("/admin")} color="primary">
             <ArrowBackIcon fontSize="large" />
           </IconButton>
           <Box>
             <Typography variant="h4" fontWeight="bold">
-              Manage Roles
+              Role Administration
             </Typography>
             <Typography variant="subtitle1" color="text.secondary">
-              Assign field permissions and geographic authorities
+              Managing organizational hierarchy and geographic authorities
             </Typography>
           </Box>
-        </Box>
-
-        <Stack direction="row" spacing={2}>
-          {isDeveloper && (
-            <Chip
-              icon={<SecurityIcon />}
-              label="Developer Mode"
-              color="secondary"
-              variant="filled"
-            />
-          )}
-          {isDeveloper && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setOpen(true)}
-              sx={{ borderRadius: 2 }}
-            >
-              Create Position
-            </Button>
-          )}
         </Stack>
+
+        {isDeveloper && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setOpen(true)}
+            sx={{ borderRadius: 2, px: 3, py: 1.2, fontWeight: "bold" }}
+          >
+            Define New Position
+          </Button>
+        )}
       </Box>
 
       {crudError && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          {typeof crudError === "string"
-            ? crudError
-            : (crudError as any).message}
+          {String(crudError)}
         </Alert>
       )}
 
-      <Paper elevation={3} sx={{ borderRadius: 3, overflow: "hidden" }}>
+      <Paper
+        elevation={4}
+        sx={{
+          borderRadius: 4,
+          overflow: "hidden",
+          border: "1px solid",
+          borderColor: "divider",
+        }}
+      >
         <DataGrid
           rows={roles}
           columns={columns}
           loading={rolesLoading}
           autoHeight
-          pageSizeOptions={[10, 25, 50]}
           disableRowSelectionOnClick
-          sx={{ border: "none" }}
+          initialState={{
+            pagination: { paginationModel: { pageSize: 25 } },
+          }}
+          pageSizeOptions={[25, 50, 100]}
+          slots={{ toolbar: GridToolbar }}
+          slotProps={{
+            toolbar: {
+              showQuickFilter: true,
+              quickFilterProps: { debounceMs: 500 },
+            },
+          }}
+          sx={{
+            border: "none",
+            "& .MuiDataGrid-columnHeaders": {
+              bgcolor: "grey.50",
+              borderBottom: "2px solid",
+              borderColor: "divider",
+            },
+            "& .MuiDataGrid-cell": {
+              borderBottom: "1px solid",
+              borderColor: "grey.100",
+            },
+            "& .MuiDataGrid-columnHeaderTitle": {
+              fontWeight: "bold",
+              color: "text.primary",
+            },
+          }}
         />
       </Paper>
 
-      {/* DIALOGS */}
+      {/* DIALOGS (Define, Fill, Vacate, Toggle) */}
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Define New Position</DialogTitle>
+        <DialogTitle sx={{ fontWeight: "bold" }}>
+          Define New Position
+        </DialogTitle>
         <DialogContent dividers>
           <RoleForm
             onSuccess={() => {
@@ -342,23 +436,20 @@ export default function ManageRoles() {
         />
       )}
 
-      {/* Unassign Confirmation */}
+      {/* Vacate Confirmation */}
       <Dialog
         open={unassignConfirmOpen}
         onClose={() => setUnassignConfirmOpen(false)}
       >
-        <DialogTitle>Revoke Position?</DialogTitle>
+        <DialogTitle sx={{ fontWeight: "bold" }}>Vacate Position?</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to remove{" "}
-            <strong>{roleToVacate?.name}</strong> from this position?
-          </Typography>
-          <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-            This will immediately disconnect their mobile app from the cloud
-            database.
+            Remove <strong>{roleToVacate?.name}</strong> from this seat? This
+            will immediately revoke their mobile access for this specific
+            authority.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        <DialogActions sx={{ p: 2.5 }}>
           <Button
             onClick={() => setUnassignConfirmOpen(false)}
             disabled={isVacating}
@@ -386,26 +477,27 @@ export default function ManageRoles() {
               }
             }}
           >
-            {isVacating ? <CircularProgress size={24} /> : "Confirm Revoke"}
+            {isVacating ? <CircularProgress size={24} /> : "Confirm Vacate"}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Toggle Confirmation */}
+      {/* Status Toggle Confirmation */}
       <Dialog
         open={toggleConfirmOpen}
         onClose={() => !isToggling && setToggleConfirmOpen(false)}
       >
-        <DialogTitle>
-          {roleToToggle?.active ? "Deactivate Position?" : "Activate Position?"}
+        <DialogTitle sx={{ fontWeight: "bold" }}>
+          {roleToToggle?.active ? "Disable Position?" : "Enable Position?"}
         </DialogTitle>
         <DialogContent>
           <Typography>
-            Confirm {roleToToggle?.active ? "deactivation" : "activation"} of
-            the {roleToToggle?.role.toUpperCase()} seat.
+            {roleToToggle?.active
+              ? "Disabling this seat prevents any user from being assigned to it and pauses active field access."
+              : "Enabling this seat makes it available to be filled by personnel."}
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
+        <DialogActions sx={{ p: 2.5 }}>
           <Button
             onClick={() => setToggleConfirmOpen(false)}
             disabled={isToggling}
@@ -434,7 +526,11 @@ export default function ManageRoles() {
               }
             }}
           >
-            {isToggling ? <CircularProgress size={24} /> : "Update Status"}
+            {isToggling ? (
+              <CircularProgress size={24} />
+            ) : (
+              "Update Availability"
+            )}
           </Button>
         </DialogActions>
       </Dialog>

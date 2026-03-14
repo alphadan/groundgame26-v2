@@ -19,7 +19,12 @@ import {
   Tooltip,
   LinearProgress,
 } from "@mui/material";
-import { DataGrid, GridColDef, GridToolbarQuickFilter } from "@mui/x-data-grid";
+import {
+  DataGrid,
+  GridColDef,
+  GridToolbar,
+  GridToolbarQuickFilter,
+} from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -189,12 +194,11 @@ export default function GoalsManagement() {
             loading={loading}
             getRowId={(row) => row.id || row.precinct_id}
             disableRowSelectionOnClick
-            slots={{ toolbar: GridToolbarQuickFilter }} // Adds search bar automatically
+            slots={{ toolbar: GridToolbar }}
             slotProps={{
               toolbar: {
                 showQuickFilter: true,
                 quickFilterProps: { debounceMs: 500 },
-                sx: { p: 2, pb: 0 },
               },
             }}
             sx={{

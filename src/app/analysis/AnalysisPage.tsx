@@ -24,11 +24,12 @@ import {
   TableRow,
 } from "@mui/material";
 import { BarChart } from "@mui/x-charts/BarChart";
-import GroupIcon from "@mui/icons-material/Group";
+import InfoIcon from "@mui/icons-material/Info";
 import BoltIcon from "@mui/icons-material/Bolt";
 import FilterAltIcon from "@mui/icons-material/FilterAlt";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import MapIcon from "@mui/icons-material/Map";
+import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 
 export default function AnalysisPage() {
   const theme = useTheme();
@@ -183,10 +184,19 @@ export default function AnalysisPage() {
           ) : (
             <Stack spacing={3}>
               <Alert
-                icon={<GroupIcon />}
+                icon={<InfoIcon sx={{ color: "info.main" }} />}
                 severity="info"
-                variant="filled"
-                sx={{ borderRadius: 3 }}
+                variant="outlined"
+                sx={{
+                  borderRadius: 3,
+                  bgcolor: "rgba(2, 136, 209, 0.05)",
+                  borderColor: "info.light",
+                  color: "info.dark",
+                  fontWeight: 500,
+                  "& .MuiAlert-icon": {
+                    fontSize: 28,
+                  },
+                }}
               >
                 Query complete: Found{" "}
                 <strong>{voters.length.toLocaleString()}</strong> voters
@@ -270,39 +280,58 @@ export default function AnalysisPage() {
               </Grid>
 
               {/* Action Callout */}
-              <Paper
-                sx={{
-                  p: 4,
-                  bgcolor: "primary.dark",
-                  color: "white",
-                  borderRadius: 4,
-                }}
-              >
-                <Grid container spacing={2} alignItems="center">
-                  <Grid size={{ xs: 12, sm: 8 }}>
-                    <Typography variant="h6" fontWeight="bold">
-                      Generate Outreach List
-                    </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      Ready to mobilize this segment? Create a new Walk or Phone
-                      list using these {voters.length} records.
-                    </Typography>
-                  </Grid>
-                  <Grid
-                    size={{ xs: 12, sm: 4 }}
-                    sx={{ textAlign: { sm: "right" } }}
+              {voterFilters && (
+                <Alert
+                  icon={<RocketLaunchIcon sx={{ color: "success.main" }} />}
+                  severity="success"
+                  variant="outlined"
+                  sx={{
+                    p: 3,
+                    borderRadius: 4,
+                    bgcolor: "rgba(46, 125, 50, 0.05)", // Success green tint
+                    borderColor: "success.light",
+                    borderWidth: 2, // Slightly thicker to denote action
+                    "& .MuiAlert-message": { width: "100%" },
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    fontWeight="bold"
+                    color="success.dark"
+                    gutterBottom
                   >
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      size="large"
-                      sx={{ fontWeight: "bold" }}
-                    >
-                      Export to Outreach
-                    </Button>
-                  </Grid>
-                </Grid>
-              </Paper>
+                    Generate Outreach List
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    color="success.dark"
+                    sx={{ mb: 2 }}
+                  >
+                    Ready to mobilize this segment? Create a new Walk or Phone
+                    list using these{" "}
+                    <strong>{voters.length.toLocaleString()}</strong> records
+                    with the following parameters:
+                  </Typography>
+
+                  <Stack direction="row" flexWrap="wrap" gap={1}>
+                    {Object.entries(voterFilters)
+                      .filter(([_, val]) => val !== undefined && val !== "")
+                      .map(([key, val]) => (
+                        <Chip
+                          key={key}
+                          label={`${key.replace(/([A-Z])/g, " $1").toLowerCase()}: ${val}`}
+                          size="small"
+                          sx={{
+                            bgcolor: "success.main",
+                            color: "white",
+                            fontWeight: "bold",
+                            textTransform: "capitalize",
+                          }}
+                        />
+                      ))}
+                  </Stack>
+                </Alert>
+              )}
             </Stack>
           )}
         </Grid>
