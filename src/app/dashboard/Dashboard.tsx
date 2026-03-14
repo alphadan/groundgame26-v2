@@ -65,7 +65,6 @@ export default function Dashboard() {
 
   // --- 2. KPI CALCULATIONS ---
   const progressStats = useMemo(() => {
-    // Ensure we have a valid object even if hooks return null
     const s = stats || {
       gop_registrations: 0,
       gop_has_mail_ballots: 0,
@@ -81,10 +80,15 @@ export default function Dashboard() {
     const calc = (cur: number | undefined, tar: number | undefined) => {
       const safeCur = cur ?? 0;
       const safeTar = tar ?? 0;
+      // Calculate raw percentage
+      const rawPct = safeTar > 0 ? (safeCur / safeTar) * 100 : 0;
+
       return {
         value: safeCur,
         target: safeTar,
-        pct: safeTar > 0 ? Math.min((safeCur / safeTar) * 100, 100) : 0,
+        // We still cap at 100 for the LinearProgress UI only,
+        // but we use the rawPct for the label text.
+        pct: rawPct,
       };
     };
 
@@ -114,6 +118,13 @@ export default function Dashboard() {
     { month: "Dec", total: 58 },
     { month: "Jan", total: 66 },
   ];
+
+  // Helper for dynamic colors
+  const getStatusColor = (pct: number) => {
+    if (pct >= 90) return "success";
+    if (pct >= 50) return "warning";
+    return "error";
+  };
 
   if (!isLoaded) {
     return (
@@ -170,51 +181,50 @@ export default function Dashboard() {
       {/* PROGRESS TRACKER */}
       <Grid container spacing={3} sx={{ mb: 5 }}>
         {[
-          {
-            label: "GOP Registrations",
-            data: progressStats.regs,
-            color: "primary",
-          },
-          {
-            label: "VBM Conversions",
-            data: progressStats.vbm,
-            color: "success",
-          },
-          {
-            label: "Voter Outreach",
-            data: progressStats.outreach,
-            color: "warning",
-          },
-        ].map((kpi) => (
-          <Grid size={{ xs: 12, md: 4 }} key={kpi.label}>
-            <Paper sx={{ p: 3, borderRadius: 3 }}>
-              <Typography
-                variant="caption"
-                fontWeight="bold"
-                color="text.secondary"
-              >
-                {kpi.label}
-              </Typography>
+          { label: "GOP Registrations", data: progressStats.regs },
+          { label: "VBM Conversions", data: progressStats.vbm },
+          { label: "Voter Outreach", data: progressStats.outreach },
+        ].map((kpi) => {
+          const displayPct = kpi.data.pct;
+          const barValue = Math.min(displayPct, 100); // Visual bar shouldn't exceed container
+          const statusColor = getStatusColor(displayPct);
 
-              {/* FIX: Added null-coalescing (?? 0) before toLocaleString */}
-              <Typography variant="h4" fontWeight="900" sx={{ my: 1 }}>
-                {(kpi.data?.value ?? 0).toLocaleString()}
-              </Typography>
+          return (
+            <Grid size={{ xs: 12, md: 4 }} key={kpi.label}>
+              <Paper sx={{ p: 3, borderRadius: 3 }}>
+                <Typography
+                  variant="caption"
+                  fontWeight="bold"
+                  color="text.secondary"
+                >
+                  {kpi.label}
+                </Typography>
 
-              <LinearProgress
-                variant="determinate"
-                value={kpi.data?.pct ?? 0}
-                color={kpi.color as any}
-                sx={{ height: 8, borderRadius: 4, mb: 1 }}
-              />
+                <Typography variant="h4" fontWeight="900" sx={{ my: 1 }}>
+                  {kpi.data.value.toLocaleString()}
+                </Typography>
 
-              <Typography variant="caption" color="text.secondary">
-                Goal: {kpi.data?.target ?? 0} ({(kpi.data?.pct ?? 0).toFixed(0)}
-                %)
-              </Typography>
-            </Paper>
-          </Grid>
-        ))}
+                <LinearProgress
+                  variant="determinate"
+                  value={barValue} // This makes the bar move to 5% if pct is 5
+                  color={statusColor}
+                  sx={{
+                    height: 10,
+                    borderRadius: 5,
+                    mb: 1,
+                    bgcolor: "grey.200", // Keeps the "track" visible
+                    "& .MuiLinearProgress-bar": { borderRadius: 5 },
+                  }}
+                />
+
+                <Typography variant="caption" color="text.secondary">
+                  Goal: {kpi.data.target.toLocaleString()} (
+                  {displayPct.toFixed(1)}%)
+                </Typography>
+              </Paper>
+            </Grid>
+          );
+        })}
       </Grid>
 
       <Divider sx={{ mb: 5 }} />

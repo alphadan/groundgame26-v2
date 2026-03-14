@@ -1,4 +1,3 @@
-// src/app/admin/goals/GoalsManagement.tsx
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
@@ -12,18 +11,28 @@ import {
   Button,
   Stack,
   TextField,
-  Divider,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   IconButton,
   Tooltip,
+  LinearProgress,
 } from "@mui/material";
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import { DataGrid, GridColDef, GridToolbarQuickFilter } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+
+// Helper to style target numbers
+const TargetValue = ({ value, color }: { value: number; color: string }) => (
+  <Typography
+    variant="body2"
+    sx={{ fontWeight: "bold", color: value > 0 ? color : "text.disabled" }}
+  >
+    {value.toLocaleString()}
+  </Typography>
+);
 
 export default function GoalsManagement() {
   const navigate = useNavigate();
@@ -44,149 +53,185 @@ export default function GoalsManagement() {
       {
         field: "precinct_id",
         headerName: "Precinct ID",
-        width: 150,
-        headerAlign: "left",
-        align: "left",
-        valueGetter: (_, row) => row.precinct_id || "N/A",
+        width: 130,
+        renderCell: (params) => (
+          <Typography variant="caption" sx={{ fontFamily: "monospace" }}>
+            {params.value}
+          </Typography>
+        ),
       },
       {
         field: "area_id",
-        headerName: "Area Name",
-        width: 150,
-        headerAlign: "left",
-        align: "left",
-        valueGetter: (_, row) => row.area_id || "N/A",
+        headerName: "Area",
+        width: 140,
       },
       {
         field: "precinct_name",
         headerName: "Precinct Name",
-        width: 200,
-        headerAlign: "left",
-        align: "left",
-        valueGetter: (_, row) => row.precinct_name || "N/A",
+        flex: 1,
+        minWidth: 180,
       },
       {
         field: "registrations",
-        headerName: "Registrations Target",
-        width: 180,
+        headerName: "Voter Reg",
+        width: 120,
         type: "number",
-        headerAlign: "right", // ← crucial for numbers
         align: "right",
-        valueGetter: (_, row) => row.targets?.registrations ?? 0,
+        renderCell: (params) => (
+          <TargetValue
+            value={params.row.targets?.registrations ?? 0}
+            color="primary.main"
+          />
+        ),
       },
       {
         field: "mail_in",
-        headerName: "Mail-In Target",
-        width: 130,
+        headerName: "Mail-In",
+        width: 120,
         type: "number",
-        headerAlign: "right",
         align: "right",
-        valueGetter: (_, row) => row.targets?.mail_in ?? 0,
+        renderCell: (params) => (
+          <TargetValue
+            value={params.row.targets?.mail_in ?? 0}
+            color="secondary.main"
+          />
+        ),
       },
       {
         field: "volunteers",
         headerName: "Volunteers",
         width: 120,
         type: "number",
-        headerAlign: "right",
         align: "right",
-        valueGetter: (_, row) => row.targets?.volunteers ?? 0,
-      },
-      {
-        field: "user_activity",
-        headerName: "Activity Index",
-        width: 130,
-        type: "number",
-        headerAlign: "right",
-        align: "right",
-        valueGetter: (_, row) => row.targets?.user_activity ?? 0,
+        renderCell: (params) => (
+          <TargetValue
+            value={params.row.targets?.volunteers ?? 0}
+            color="success.main"
+          />
+        ),
       },
       {
         field: "actions",
-        headerName: "Actions",
+        headerName: "Edit",
         width: 100,
-        headerAlign: "center", // ← optional, looks better centered
+        sortable: false,
+        filterable: false,
         align: "center",
         renderCell: (params) => (
-          <Button
+          <IconButton
+            color="primary"
             size="small"
-            variant="outlined"
-            startIcon={<EditIcon />}
             onClick={() => {
               setEditingGoal(params.row);
               setOpenDialog(true);
             }}
           >
-            Edit
-          </Button>
+            <EditIcon fontSize="small" />
+          </IconButton>
         ),
       },
     ],
     [],
   );
 
-  const handleClose = () => {
-    setOpenDialog(false);
-    setEditingGoal(null);
-  };
-
   return (
-    <Box sx={{ p: 4 }}>
+    <Box sx={{ p: { xs: 2, md: 4 } }}>
+      {/* Header Section */}
       <Stack
-        direction="row"
+        direction={{ xs: "column", sm: "row" }}
         justifyContent="space-between"
-        alignItems="center"
-        mb={3}
+        alignItems={{ xs: "flex-start", sm: "center" }}
+        spacing={2}
+        mb={4}
       >
-        <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+        <Stack direction="row" alignItems="center" spacing={2}>
           <Tooltip title="Back to Admin">
-            <IconButton
-              onClick={() => navigate("/admin")}
-              color="primary"
-              sx={{ mr: 2 }}
-            >
+            <IconButton onClick={() => navigate("/admin")} color="primary">
               <ArrowBackIcon fontSize="large" />
             </IconButton>
           </Tooltip>
           <Box>
             <Typography variant="h4" fontWeight="bold" color="primary">
-              Manage Goals
+              Precinct Goals
             </Typography>
             <Typography variant="subtitle1" color="text.secondary">
-              Precinct-level performance targets
+              Configure key performance indicators by precinct
             </Typography>
           </Box>
-        </Box>
+        </Stack>
+
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => {
+            setEditingGoal(null);
+            setOpenDialog(true);
+          }}
+          sx={{ borderRadius: 2, px: 3 }}
+        >
+          Set New Goal
+        </Button>
       </Stack>
 
-      <Paper elevation={3} sx={{ borderRadius: 3, overflow: "hidden" }}>
-        <DataGrid
-          rows={goals}
-          columns={columns}
-          loading={loading}
-          autoHeight
-          pageSizeOptions={[10, 25]}
-        />
+      {/* Main Table Container */}
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 3,
+          border: "1px solid #e0e0e0",
+          overflow: "hidden",
+        }}
+      >
+        <Box sx={{ height: 650, width: "100%" }}>
+          <DataGrid
+            rows={goals}
+            columns={columns}
+            loading={loading}
+            getRowId={(row) => row.id || row.precinct_id}
+            disableRowSelectionOnClick
+            slots={{ toolbar: GridToolbarQuickFilter }} // Adds search bar automatically
+            slotProps={{
+              toolbar: {
+                showQuickFilter: true,
+                quickFilterProps: { debounceMs: 500 },
+                sx: { p: 2, pb: 0 },
+              },
+            }}
+            sx={{
+              border: "none",
+              "& .MuiDataGrid-cell:focus": { outline: "none" },
+            }}
+          />
+        </Box>
       </Paper>
 
-      {/* Integrated Dialog for Create/Edit */}
-      <Dialog open={openDialog} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: "bold" }}>
+      {/* Goal Creation/Edit Dialog */}
+      <Dialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: "bold", bgcolor: "grey.50" }}>
           {editingGoal
-            ? `Edit Goal: ${editingGoal.precinct_id}`
-            : "Set New Precinct Goal"}
+            ? `Edit Targets: ${editingGoal.precinct_name}`
+            : "Initialize Precinct Goal"}
         </DialogTitle>
-        <DialogContent dividers>
+        <DialogContent dividers sx={{ p: 0 }}>
           <CreateGoals
             initialData={editingGoal || undefined}
             onSuccess={() => {
-              handleClose();
+              setOpenDialog(false);
+              setEditingGoal(null);
               fetchAll();
             }}
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
+        <DialogActions sx={{ p: 2, bgcolor: "grey.50" }}>
+          <Button onClick={() => setOpenDialog(false)} color="inherit">
+            Cancel
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

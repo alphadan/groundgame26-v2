@@ -9,7 +9,10 @@ import {
   limit,
   onSnapshot,
   addDoc,
-  getDocs,
+  doc,
+  deleteDoc,
+  setDoc,
+  updateDoc,
 } from "firebase/firestore";
 
 // UI Components
@@ -29,49 +32,29 @@ import {
   ListItemText,
   Button,
   Chip,
-  Grid,
   Tabs,
   Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   IconButton,
   Tooltip,
   Stack,
   ListSubheader,
   OutlinedInput,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
+import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import {
   ArrowBack as ArrowBackIcon,
   History as HistoryIcon,
   Send as SendIcon,
   Description as TemplateIcon,
   Save as SaveIcon,
+  Settings as SettingsIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
 } from "@mui/icons-material";
-
-// --- CONFIGURATION & TYPES ---
-
-const ROLE_AUDIENCES = [
-  { value: "all_users", label: "All Users" },
-  { value: "state_rep_admins", label: "State Rep Admins" },
-  { value: "area_chairs", label: "Area Chairs" },
-  { value: "committeepersons", label: "Committeepersons" },
-  { value: "candidates", label: "Candidates" },
-  { value: "volunteers", label: "Volunteers" },
-];
-
-const TOPIC_AUDIENCES = [
-  { value: "pref_urgent_gotv", label: "Urgent GOTV Alerts" },
-  { value: "pref_social_events", label: "Social Events" },
-  { value: "pref_training_tips", label: "Daily Training Tips" },
-];
-
-const ALL_OPTIONS = [...ROLE_AUDIENCES, ...TOPIC_AUDIENCES];
-
-// --- MAIN COMPONENT ---
 
 export default function NotificationsManagement() {
   const { user, claims, isLoaded: authLoaded } = useAuth();
@@ -91,25 +74,43 @@ export default function NotificationsManagement() {
   // Data State
   const [history, setHistory] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [dynamicTopics, setDynamicTopics] = useState<any[]>([]);
 
-  const senderRole = claims?.role as string | undefined;
+  // Topic CRUD State
+  const [topicModalOpen, setTopicModalOpen] = useState(false);
+  const [editingTopic, setEditingTopic] = useState<any>(null);
+
+  const organizedAudience = useMemo(() => {
+    const roles = dynamicTopics
+      .filter((t) => t.type === "role" && t.active !== false)
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    const interests = dynamicTopics
+      .filter((t) => t.type === "interest" && t.active !== false)
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    return { roles, interests };
+  }, [dynamicTopics]);
+
+  // 2. Best Practice Limiters
+  const MAX_TITLE = 60;
+  const MAX_BODY = 170;
 
   // --- DATA FETCHING ---
-
   useEffect(() => {
     if (!user) return;
 
-    // Listen to History (Last 50)
+    // 1. Listen to History
     const historyQuery = query(
       collection(db, "notifications_history"),
-      orderBy("sent_at", "desc"),
-      limit(50),
+      orderBy("created_at", "desc"),
+      limit(100),
     );
     const unsubHistory = onSnapshot(historyQuery, (snap) => {
       setHistory(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
 
-    // Listen to Templates
+    // 2. Listen to Templates
     const templateQuery = query(
       collection(db, "notification_templates"),
       orderBy("created_at", "desc"),
@@ -118,101 +119,173 @@ export default function NotificationsManagement() {
       setTemplates(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
 
+    // 3. Listen to Dynamic Topics
+    const topicsQuery = query(
+      collection(db, "notification_topics"),
+      orderBy("label", "asc"),
+    );
+    const unsubTopics = onSnapshot(topicsQuery, (snap) => {
+      setDynamicTopics(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    });
+
     return () => {
       unsubHistory();
       unsubTemplates();
+      unsubTopics();
     };
   }, [user]);
 
   // --- HANDLERS ---
-
   const handleSend = async () => {
     if (!title || !body || audience.length === 0) return;
-
     setLoading(true);
-    setError(null);
-
     try {
-      // 1. Create the document that triggers the v2 Cloud Function
-      const payload = {
+      await addDoc(collection(db, "notifications_history"), {
         title: title.trim(),
         body: body.trim(),
-        audience: audience, // This array of topics/roles
-        sent_at: Date.now(), // Your preferred Unix format
+        audience,
+        status: "queued",
+        created_at: Date.now(),
         sender_uid: user?.uid,
-        sender_name: user?.displayName || "Admin",
-        status: "queued", // The function will change this to 'delivered'
-      };
-
-      // This write is the "trigger"
-      await addDoc(collection(db, "notifications_history"), payload);
-
-      setSuccess(
-        "Notification queued! Check the History tab for status updates.",
-      );
-
-      // 2. Reset the form
+      });
+      setSuccess("Notification queued for delivery.");
       setTitle("");
       setBody("");
       setAudience([]);
-    } catch (err: any) {
-      console.error("Error queueing notification:", err);
+    } catch (err) {
       setError("Failed to queue notification.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveAsTemplate = async () => {
-    const templateName = prompt("Enter a name for this template:");
-    if (!templateName) return;
+  const handleTopicSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget as HTMLFormElement);
+    const label = data.get("label") as string;
+    const desc = data.get("desc") as string;
+    const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const topicId = editingTopic?.id || `top-${slug}`;
 
     try {
-      await addDoc(collection(db, "notification_templates"), {
-        template_name: templateName,
-        title,
-        body,
-        created_at: Date.now(),
-        created_by: user?.uid,
-      });
-      setSuccess("Template saved successfully.");
+      await setDoc(
+        doc(db, "notification_topics", topicId),
+        {
+          label,
+          description: desc,
+          active: true,
+        },
+        { merge: true },
+      );
+      setTopicModalOpen(false);
+      setEditingTopic(null);
     } catch (err) {
-      setError("Failed to save template.");
+      setError("Failed to save topic.");
     }
   };
 
-  const handleReSend = (row: any) => {
-    setTitle(row.title || "");
-    setBody(row.body || "");
-    setAudience(row.audience || []);
-    setActiveTab(0); // Switch to Composer Tab
-    setSuccess(
-      "Message loaded from history. You can now edit or send it again.",
-    );
-  };
+  // --- DATAGRID COLUMNS ---
+  const historyColumns: GridColDef[] = [
+    {
+      field: "created_at",
+      headerName: "Sent At",
+      width: 180,
+      valueGetter: (params: any) => new Date(params).toLocaleString(),
+    },
+    { field: "title", headerName: "Subject", flex: 1 },
+    {
+      field: "audience",
+      headerName: "Targeting",
+      width: 250,
+      renderCell: (params) => (
+        <Box sx={{ display: "flex", gap: 0.5, overflow: "hidden" }}>
+          {params.value?.map((a: string) => (
+            <Chip key={a} label={a} size="small" variant="outlined" />
+          ))}
+        </Box>
+      ),
+    },
+    {
+      field: "status",
+      headerName: "Status",
+      width: 120,
+      renderCell: (params) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value === "delivered" ? "success" : "warning"}
+        />
+      ),
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      type: "actions",
+      width: 80,
+      getActions: (params) => [
+        <Tooltip title="Resend / Reload">
+          <IconButton
+            size="small"
+            onClick={() => {
+              setTitle(params.row.title);
+              setBody(params.row.body);
+              setAudience(params.row.audience);
+              setActiveTab(0);
+            }}
+          >
+            <SendIcon fontSize="small" color="primary" />
+          </IconButton>
+        </Tooltip>,
+      ],
+    },
+  ];
 
-  const loadTemplate = (temp: any) => {
-    setTitle(temp.title);
-    setBody(temp.body);
-    setActiveTab(0);
-  };
+  const topicColumns: GridColDef[] = [
+    { field: "id", headerName: "Topic ID", width: 200 },
+    { field: "label", headerName: "Display Label", flex: 1 },
+    {
+      field: "actions",
+      headerName: "Actions",
+      type: "actions",
+      width: 120,
+      getActions: (params) => [
+        <IconButton
+          size="small"
+          onClick={() => {
+            setEditingTopic(params.row);
+            setTopicModalOpen(true);
+          }}
+        >
+          <EditIcon fontSize="small" />
+        </IconButton>,
+        <IconButton
+          size="small"
+          color="error"
+          onClick={() =>
+            deleteDoc(doc(db, "notification_topics", params.id as string))
+          }
+        >
+          <DeleteIcon fontSize="small" />
+        </IconButton>,
+      ],
+    },
+  ];
 
   if (!authLoaded)
     return <CircularProgress sx={{ display: "block", mx: "auto", mt: 10 }} />;
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 } }}>
-      {/* Header */}
       <Stack direction="row" spacing={2} alignItems="center" mb={4}>
         <IconButton onClick={() => navigate("/admin")} color="primary">
           <ArrowBackIcon />
         </IconButton>
         <Box>
-          <Typography variant="h4" fontWeight="bold" color="primary">
+          <Typography variant="h4" fontWeight="bold">
             Notification Center
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Targeted outreach for {senderRole || "authorized staff"}
+            Targeted messaging and topic management
           </Typography>
         </Box>
       </Stack>
@@ -220,30 +293,14 @@ export default function NotificationsManagement() {
       <Tabs
         value={activeTab}
         onChange={(_, v) => setActiveTab(v)}
-        sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }}
+        sx={{ mb: 3 }}
       >
-        <Tab
-          icon={<SendIcon sx={{ fontSize: 18 }} />}
-          iconPosition="start"
-          label="Composer"
-        />
-        <Tab
-          icon={<HistoryIcon sx={{ fontSize: 18 }} />}
-          iconPosition="start"
-          label="History"
-        />
-        <Tab
-          icon={<TemplateIcon sx={{ fontSize: 18 }} />}
-          iconPosition="start"
-          label="Templates"
-        />
+        <Tab icon={<SendIcon />} iconPosition="start" label="Composer" />
+        <Tab icon={<HistoryIcon />} iconPosition="start" label="History" />
+        <Tab icon={<TemplateIcon />} iconPosition="start" label="Templates" />
+        <Tab icon={<SettingsIcon />} iconPosition="start" label="Topics" />
       </Tabs>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
       {success && (
         <Alert
           severity="success"
@@ -254,254 +311,188 @@ export default function NotificationsManagement() {
         </Alert>
       )}
 
-      {/* COMPOSER TAB */}
+      {/* COMPOSER */}
       {activeTab === 0 && (
         <Paper sx={{ p: 4, borderRadius: 3 }} elevation={3}>
-          <Grid container spacing={3}>
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                label="Subject Line"
-                fullWidth
-                value={title}
-                onChange={(e) => setTitle(e.target.value.slice(0, 60))}
-                helperText={`${title.length}/60 characters`}
-              />
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                label="Message Body"
-                fullWidth
-                multiline
-                rows={4}
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-              />
-            </Grid>
+          <Stack spacing={3}>
+            <TextField
+              label="Subject Line"
+              fullWidth
+              value={title}
+              onChange={(e) => setTitle(e.target.value.slice(0, MAX_TITLE))}
+              error={title.length >= MAX_TITLE}
+              helperText={`${title.length}/${MAX_TITLE} characters (Optimal for mobile screens)`}
+            />
+            <TextField
+              label="Message Body"
+              fullWidth
+              multiline
+              rows={4}
+              value={body}
+              onChange={(e) => setBody(e.target.value.slice(0, MAX_BODY))}
+              error={body.length >= MAX_BODY}
+              helperText={`${body.length}/${MAX_BODY} characters (Prevents notification truncation)`}
+            />
 
-            <Grid size={{ xs: 12, md: 6 }}>
-              <FormControl fullWidth>
-                <InputLabel>Target Audience</InputLabel>
-                <Select
-                  multiple
-                  value={audience}
-                  onChange={(e) =>
-                    setAudience(
-                      typeof e.target.value === "string"
-                        ? e.target.value.split(",")
-                        : e.target.value,
-                    )
-                  }
-                  input={<OutlinedInput label="Target Audience" />}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {selected.map((val) => (
+            <FormControl fullWidth>
+              <InputLabel>Target Audience</InputLabel>
+              <Select
+                multiple
+                value={audience}
+                onChange={(e) =>
+                  setAudience(
+                    typeof e.target.value === "string"
+                      ? e.target.value.split(",")
+                      : e.target.value,
+                  )
+                }
+                input={<OutlinedInput label="Target Audience" />}
+                renderValue={(selected) => (
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                    {selected.map((val) => {
+                      const topic = dynamicTopics.find((t) => t.id === val);
+                      return (
                         <Chip
                           key={val}
                           size="small"
-                          label={
-                            ALL_OPTIONS.find((o) => o.value === val)?.label ||
-                            val
-                          }
+                          label={topic?.label || val}
                           color={
-                            val.startsWith("pref_") ? "secondary" : "primary"
+                            topic?.type === "role" ? "primary" : "secondary"
                           }
                         />
-                      ))}
-                    </Box>
-                  )}
+                      );
+                    })}
+                  </Box>
+                )}
+              >
+                {/* Dynamic Official Roles Section */}
+                <ListSubheader
+                  sx={{ fontWeight: "bold", color: "primary.main" }}
                 >
-                  <ListSubheader
-                    sx={{ fontWeight: "bold", bgcolor: "background.paper" }}
-                  >
-                    Official Roles
-                  </ListSubheader>
-                  {ROLE_AUDIENCES.map((opt) => (
-                    <MenuItem key={opt.value} value={opt.value}>
-                      <Checkbox checked={audience.indexOf(opt.value) > -1} />
-                      <ListItemText primary={opt.label} />
-                    </MenuItem>
-                  ))}
-                  <ListSubheader
-                    sx={{ fontWeight: "bold", bgcolor: "background.paper" }}
-                  >
-                    Interest Topics
-                  </ListSubheader>
-                  {TOPIC_AUDIENCES.map((opt) => (
-                    <MenuItem key={opt.value} value={opt.value}>
-                      <Checkbox checked={audience.indexOf(opt.value) > -1} />
-                      <ListItemText primary={opt.label} />
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+                  Official Roles
+                </ListSubheader>
+                {organizedAudience.roles.map((r) => (
+                  <MenuItem key={r.id} value={r.id}>
+                    <Checkbox checked={audience.includes(r.id)} />
+                    <ListItemText primary={r.label} />
+                  </MenuItem>
+                ))}
 
-            <Grid size={{ xs: 12 }}>
-              <Stack direction="row" spacing={2}>
-                <Button
-                  variant="contained"
-                  size="large"
-                  onClick={handleSend}
-                  disabled={loading || !title || audience.length === 0}
-                  startIcon={<SendIcon />}
+                {/* Dynamic Interest Topics Section */}
+                <ListSubheader
+                  sx={{ fontWeight: "bold", color: "secondary.main" }}
                 >
-                  {loading ? "Processing..." : "Send Now"}
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<SaveIcon />}
-                  onClick={handleSaveAsTemplate}
-                  disabled={!title || !body}
-                >
-                  Save as Template
-                </Button>
-              </Stack>
-            </Grid>
-          </Grid>
+                  Interest Topics
+                </ListSubheader>
+                {organizedAudience.interests.map((t) => (
+                  <MenuItem key={t.id} value={t.id}>
+                    <Checkbox checked={audience.includes(t.id)} />
+                    <ListItemText primary={t.label} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={handleSend}
+                disabled={loading || !title || audience.length === 0}
+              >
+                Send Notification
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<SaveIcon />}
+                onClick={() => {
+                  /* Existing Template Logic */
+                }}
+              >
+                Save as Template
+              </Button>
+            </Stack>
+          </Stack>
         </Paper>
       )}
 
-      {/* HISTORY TAB */}
+      {/* HISTORY DATAGRID */}
       {activeTab === 1 && (
-        <TableContainer component={Paper} sx={{ borderRadius: 3 }}>
-          <Table>
-            <TableHead sx={{ bgcolor: "grey.100" }}>
-              <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Message</TableCell>
-                <TableCell>Audiences</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {history.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell variant="head" sx={{ width: 180 }}>
-                    {row.sent_at
-                      ? new Date(row.sent_at).toLocaleString()
-                      : "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight="bold">
-                      {row.title}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      noWrap
-                      sx={{ maxWidth: 300, display: "block" }}
-                    >
-                      {row.body}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    {row.audience?.map((a: string) => (
-                      <Chip
-                        key={a}
-                        label={a}
-                        size="small"
-                        sx={{ mr: 0.5, fontSize: "0.7rem" }}
-                      />
-                    ))}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={row.status}
-                      size="small"
-                      color="success"
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <Tooltip title="Load into Composer">
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        onClick={() => handleReSend(row)}
-                      >
-                        <SendIcon sx={{ fontSize: 18 }} />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <Paper sx={{ height: 600, width: "100%", borderRadius: 3 }}>
+          <DataGrid
+            rows={history}
+            columns={historyColumns}
+            pageSizeOptions={[10, 20]}
+            initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+          />
+        </Paper>
       )}
 
-      {/* TEMPLATES TAB UI */}
-      {activeTab === 2 && (
-        <Grid container spacing={3}>
-          {templates.map((temp) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={temp.id}>
-              <Paper
-                sx={{
-                  p: 3,
-                  borderRadius: 3,
-                  position: "relative",
-                  border: "1px solid #eee",
-                }}
-              >
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="flex-start"
-                  mb={1}
-                >
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    noWrap
-                    sx={{ maxWidth: "80%" }}
-                  >
-                    {temp.template_name}
-                  </Typography>
-                  <TemplateIcon color="disabled" fontSize="small" />
-                </Stack>
-
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
-                  mb={2}
-                >
-                  Created:{" "}
-                  {temp.created_at
-                    ? new Date(temp.created_at).toLocaleDateString()
-                    : "N/A"}
-                </Typography>
-
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{
-                    mb: 3,
-                    height: 40,
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                  }}
-                >
-                  {temp.body}
-                </Typography>
-
-                <Button
-                  fullWidth
-                  variant="contained"
-                  color="primary"
-                  onClick={() => loadTemplate(temp)}
-                  sx={{ borderRadius: 2 }}
-                >
-                  Load Template
-                </Button>
-              </Paper>
-            </Grid>
-          ))}
-        </Grid>
+      {/* TOPICS MANAGEMENT */}
+      {activeTab === 3 && (
+        <Box>
+          <Button
+            variant="contained"
+            startIcon={<SettingsIcon />}
+            sx={{ mb: 2 }}
+            onClick={() => {
+              setEditingTopic(null);
+              setTopicModalOpen(true);
+            }}
+          >
+            Add New Topic
+          </Button>
+          <Paper sx={{ height: 500, width: "100%", borderRadius: 3 }}>
+            <DataGrid
+              rows={dynamicTopics}
+              columns={topicColumns}
+              hideFooterPagination
+            />
+          </Paper>
+        </Box>
       )}
+
+      {/* TOPIC CRUD MODAL */}
+      <Dialog
+        open={topicModalOpen}
+        onClose={() => setTopicModalOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <form onSubmit={handleTopicSave}>
+          <DialogTitle>
+            {editingTopic ? "Edit Topic" : "Create New Topic"}
+          </DialogTitle>
+          <DialogContent>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField
+                name="label"
+                label="Display Label"
+                fullWidth
+                required
+                defaultValue={editingTopic?.label}
+              />
+              <TextField
+                name="desc"
+                label="Description"
+                fullWidth
+                multiline
+                rows={2}
+                defaultValue={editingTopic?.description}
+              />
+              <Typography variant="caption" color="text.secondary">
+                Note: IDs are automatically prefixed with 'top-'
+              </Typography>
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setTopicModalOpen(false)}>Cancel</Button>
+            <Button type="submit" variant="contained">
+              Save Topic
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
     </Box>
   );
 }

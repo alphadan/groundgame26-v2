@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Paper,
@@ -14,7 +14,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import { Message, LockReset, InfoOutlined } from "@mui/icons-material";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, collection, onSnapshot } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
 
 interface Props {
@@ -23,31 +23,23 @@ interface Props {
   uid: string;
 }
 
-const OPT_IN_TOPICS = [
-  {
-    id: "pref_urgent_gotv",
-    label: "Urgent GOTV Alerts",
-    desc: "Critical election day updates and reminders",
-  },
-  {
-    id: "pref_social_events",
-    label: "Social Events",
-    desc: "Meetups, town halls, and community gatherings",
-  },
-  {
-    id: "pref_training_tips",
-    label: "Daily Training Tips",
-    desc: "Quick daily tips to improve your canvassing skills",
-  },
-];
-
 export const CommunicationPreferences: React.FC<Props> = ({
   userProfile,
   claims,
   uid,
 }) => {
   const [loadingTopic, setLoadingTopic] = useState<string | null>(null);
+  const [dynamicTopics, setDynamicTopics] = useState<any[]>([]);
 
+  // 1. Fetch topics dynamically from Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "notification_topics"), (snap) => {
+      setDynamicTopics(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, []);
+
+  // 2. Updated Toggle Handler with Date.now()
   const handleToggle = async (topicId: string, isSubscribing: boolean) => {
     if (!uid) return;
     setLoadingTopic(topicId);
@@ -56,9 +48,9 @@ export const CommunicationPreferences: React.FC<Props> = ({
       const userRef = doc(db, "users", uid);
       await updateDoc(userRef, {
         [`notification_preferences.${topicId}`]: isSubscribing,
-        [`notification_preferences.last_updated`]: new Date().toISOString(),
+        // Changed from .toISOString() to Date.now() number
+        [`notification_preferences.last_updated`]: Date.now(),
       });
-      // Note: A Cloud Function should listen to this change to sync with FCM topics
     } catch (error) {
       console.error("Failed to update notification preference:", error);
     } finally {
@@ -104,7 +96,7 @@ export const CommunicationPreferences: React.FC<Props> = ({
               deleteIcon={
                 <LockReset style={{ color: "white", opacity: 0.8 }} />
               }
-              onDelete={() => {}} // Disables the chip's clickability
+              onDelete={() => {}}
               sx={{ fontWeight: "bold" }}
             />
           </Stack>
@@ -122,33 +114,42 @@ export const CommunicationPreferences: React.FC<Props> = ({
           >
             Interest Topics
           </Typography>
-          <List disablePadding>
-            {OPT_IN_TOPICS.map((topic) => (
-              <ListItem
-                key={topic.id}
-                disableGutters
-                secondaryAction={
-                  loadingTopic === topic.id ? (
-                    <CircularProgress size={20} />
-                  ) : (
-                    <Switch
-                      edge="end"
-                      checked={
-                        !!userProfile?.notification_preferences?.[topic.id]
-                      }
-                      onChange={(e) => handleToggle(topic.id, e.target.checked)}
-                    />
-                  )
-                }
-              >
-                <ListItemText
-                  primary={topic.label}
-                  secondary={topic.desc}
-                  primaryTypographyProps={{ fontWeight: "medium" }}
-                />
-              </ListItem>
-            ))}
-          </List>
+
+          {dynamicTopics.length === 0 ? (
+            <Box sx={{ py: 2, textAlign: "center" }}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : (
+            <List disablePadding>
+              {dynamicTopics.map((topic) => (
+                <ListItem
+                  key={topic.id}
+                  disableGutters
+                  secondaryAction={
+                    loadingTopic === topic.id ? (
+                      <CircularProgress size={20} />
+                    ) : (
+                      <Switch
+                        edge="end"
+                        checked={
+                          !!userProfile?.notification_preferences?.[topic.id]
+                        }
+                        onChange={(e) =>
+                          handleToggle(topic.id, e.target.checked)
+                        }
+                      />
+                    )
+                  }
+                >
+                  <ListItemText
+                    primary={topic.label}
+                    secondary={topic.desc || topic.description}
+                    primaryTypographyProps={{ fontWeight: "medium" }}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
         </Box>
       </Stack>
     </Paper>

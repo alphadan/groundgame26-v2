@@ -1,40 +1,59 @@
-// src/app/admin/notifications/NotificationSetup.tsx
 import { useEffect } from "react";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { messaging } from "../../../lib/firebase";
+import { messaging, db } from "../../../lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
 
-export function NotificationSetup() {
+interface Props {
+  uid: string | undefined;
+}
+
+export function NotificationSetup({ uid }: Props) {
   useEffect(() => {
+    // 1. Guard: Only run if user is logged in
+    if (!uid) return;
+
     const setup = async () => {
       try {
+        // 2. Request Permissions
         const permission = await Notification.requestPermission();
-        if (permission !== "granted") return;
+        if (permission !== "granted") {
+          console.warn("🔔 Notification permission denied.");
+          return;
+        }
 
+        // 3. Retrieve Token
         const token = await getToken(messaging, {
           vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY,
         });
 
         if (token) {
-          // Save token to Firestore: /users/{uid}/fcmTokens/{token}
-          // Include role, area, county_id from your user doc
-          // Use a Cloud Function or direct write (with security rules)
-          console.log("FCM Token:", token);
+          // 4. Save Token to Firestore
+          // We use the token itself as the document ID to prevent duplicates
+          const tokenRef = doc(db, "users", uid, "fcmTokens", token);
+
+          await setDoc(tokenRef, {
+            token: token,
+            device_type: "web", // Helpful for debugging
+            last_seen: Date.now(),
+          });
+
+          console.log("✅ FCM Token registered successfully.");
         }
       } catch (err) {
-        console.error("FCM setup error:", err);
+        console.error("❌ FCM setup error:", err);
       }
     };
 
     setup();
 
-    // Foreground messages
+    // 5. Handle Foreground Messages (Toast/Alert logic)
     const unsubscribe = onMessage(messaging, (payload) => {
-      console.log("Foreground message:", payload);
-      // Show custom toast/UI here
+      console.log("📨 Foreground message received:", payload);
+      // Optional: You could trigger a snackbar or sound here
     });
 
     return unsubscribe;
-  }, []);
+  }, [uid]); // Rerun if user switches accounts
 
   return null;
 }

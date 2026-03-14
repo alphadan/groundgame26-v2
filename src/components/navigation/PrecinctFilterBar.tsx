@@ -138,7 +138,7 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
             setSelectedCounty(val);
             setSelectedArea("");
             setSelectedPrecinct("all");
-            onPrecinctSelect("all");
+            onPrecinctSelect(val);
           }}
         >
           {counties.map((c) => (
@@ -165,9 +165,12 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
           value={selectedArea}
           onChange={(e) => {
             const val = e.target.value as string;
+            console.log("🔍 [FilterBar] Area Selected:", val);
             setSelectedArea(val);
             setSelectedPrecinct("all");
-            onPrecinctSelect("all");
+
+            console.log("📡 [FilterBar] Emitting to Dashboard (Aggregate):", val || "all");
+            onPrecinctSelect(val || "all");
           }}
         >
           <MenuItem value="">
@@ -197,8 +200,13 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
           value={selectedPrecinct}
           onChange={(e) => {
             const val = e.target.value as string;
+            console.log("🔍 [FilterBar] Precinct Menu Clicked:", val);
             setSelectedPrecinct(val);
-            onPrecinctSelect(val);
+
+            const targetId = val === "all" ? selectedArea : val;
+
+            console.log("📡 [FilterBar] Emitting to Dashboard:", targetId);
+            onPrecinctSelect(targetId);
           }}
         >
           <MenuItem value="all">

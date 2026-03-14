@@ -2427,17 +2427,50 @@ export const adminCreateOrUpdateSurvey = onCall(
 //  HANDLES NOTIFICATION PREFERENCES FROM USER SETTINGS CHANGES
 // ================================================================
 
-export const onNotificationPreferenceUpdatedV2 = onDocumentUpdated(
-  "users/{uid}/preferences/notifications",
-  async (event) => {
-    const newValue = event.data?.after.data();
-    const oldValue = event.data?.before.data();
+export const syncFCMTopics = onDocumentUpdated("users/{uid}", async (event) => {
+  const before = event.data.before.data().notification_preferences || {};
+  const after = event.data.after.data().notification_preferences || {};
+  const uid = event.params.uid;
 
-    if (newValue?.enabled !== oldValue?.enabled) {
-      logger.info(`Notification settings changed for ${event.params.uid}`);
+  // 1. Get user's device tokens
+  const tokensSnap = await getFirestore()
+    .collection(`users/${uid}/fcmTokens`)
+    .get();
+  const tokens = tokensSnap.docs.map((d) => d.id);
+
+  if (tokens.length === 0) {
+    logger.info(
+      `User ${uid} updated preferences but has no active device tokens.`,
+    );
+    return;
+  }
+
+  // 2. Determine which keys changed
+  const allKeys = new Set([...Object.keys(before), ...Object.keys(after)]);
+
+  for (const key of allKeys) {
+    // 🛡️ SKIP METADATA: Ignore last_updated or other non-topic fields
+    if (key === "last_updated") continue;
+
+    const wasSubscribed = before[key] === true;
+    const isSubscribed = after[key] === true;
+
+    // Only act if the toggle actually changed
+    if (wasSubscribed !== isSubscribed) {
+      try {
+        if (isSubscribed) {
+          await getMessaging().subscribeToTopic(tokens, key);
+          logger.info(`✅ Subscribed ${uid} to topic: ${key}`);
+        } else {
+          await getMessaging().unsubscribeFromTopic(tokens, key);
+          logger.info(`❌ Unsubscribed ${uid} from topic: ${key}`);
+        }
+      } catch (error) {
+        logger.error(`FCM Sync Error for topic ${key}:`, error);
+      }
     }
-  },
-);
+  }
+});
 
 // ================================================================
 //  HANDLES CHRON CLEAN UP OF EXPIRED INTERACTIONS WITH VOTERS
