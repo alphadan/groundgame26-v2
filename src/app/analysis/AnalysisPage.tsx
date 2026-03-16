@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { FilterValues } from "../../types";
 import { useDynamicVoters } from "../../hooks/useDynamicVoters";
@@ -33,11 +33,27 @@ import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 
 export default function AnalysisPage() {
   const theme = useTheme();
-  const { isLoaded } = useAuth();
+
+  // 1. FIX: Destructure userProfile and isLoaded
+  const { isLoaded, userProfile } = useAuth();
+
+  // 2. FIX: Add missing state for SRD selection
+  const [selectedSRD, setSelectedSRD] = useState<string>("");
   const [voterFilters, setVoterFilters] = useState<FilterValues | null>(null);
 
   const { data: voters = [], isLoading: votersLoading } =
     useDynamicVoters(voterFilters);
+
+  // 3. AUTO-SELECT LOGIC: Handles the "District Leader" login flow
+  useEffect(() => {
+    // If user is locked to one district, auto-select it
+    if (userProfile?.access?.districts?.length === 1 && !selectedSRD) {
+      const autoDist = userProfile.access.districts[0];
+      setSelectedSRD(autoDist);
+      // Note: FilterSelector's react-hook-form handles 'setValue' internally
+      // when you pass it the 'onSubmit' callback or via its own state.
+    }
+  }, [userProfile, selectedSRD]);
 
   // --- PRESETS ---
   const PRESET_FILTERS = [
@@ -67,7 +83,6 @@ export default function AnalysisPage() {
   const analysis = useMemo(() => {
     if (!voters.length) return null;
 
-    // Chart Data
     const parties = ["R", "D", "I"];
     const partyCounts = parties.map((p) => ({
       label: p === "I" ? "Other" : p,
@@ -76,15 +91,8 @@ export default function AnalysisPage() {
           ? !["R", "D"].includes(v.political_party)
           : v.political_party === p,
       ).length,
-      mailIn: voters.filter(
-        (v) =>
-          (p === "I"
-            ? !["R", "D"].includes(v.political_party)
-            : v.political_party === p) && v.has_mail_ballot,
-      ).length,
     }));
 
-    // Top Streets Discovery (Extracting Street Name from Address)
     const streetMap: Record<string, number> = {};
     voters.forEach((v) => {
       const street = v.address?.replace(/^\d+\s+/, "").trim() || "Unknown";
@@ -98,12 +106,33 @@ export default function AnalysisPage() {
     return { partyCounts, topStreets };
   }, [voters]);
 
-  const applyQuickFilter = (preset: any) => setVoterFilters(preset);
+  const applyQuickFilter = (presetFilters: any) => {
+    // Merges the quick filter with the current geographic context
+    setVoterFilters((prev) => ({
+      ...prev,
+      ...presetFilters,
+    }));
+  };
+
   const isPresetActive = (preset: any) =>
-    JSON.stringify(voterFilters) === JSON.stringify(preset);
+    voterFilters &&
+    Object.keys(preset).every(
+      (key) => voterFilters[key as keyof FilterValues] === preset[key],
+    );
 
   if (!isLoaded)
-    return <CircularProgress sx={{ display: "block", mx: "auto", mt: 10 }} />;
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "80vh",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
 
   return (
     <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1600, margin: "auto" }}>
@@ -114,14 +143,14 @@ export default function AnalysisPage() {
             Voter Analysis & Discovery
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Deep-dive analysis of the BigQuery voter file
+            Deep-dive analysis of the BigQuery voter file for District Leaders
           </Typography>
         </Box>
       </Stack>
 
       <Grid container spacing={4}>
-        {/* LEFT COLUMN: FILTERS (Fixed Width on Desktop) */}
-        <Grid size={{ xs: 12, md: 6 }}>
+        {/* LEFT COLUMN: FILTERS */}
+        <Grid size={{ xs: 12, md: 6, lg: 6 }}>
           <Stack spacing={3} sx={{ position: { md: "sticky" }, top: 24 }}>
             <Paper sx={{ p: 3, borderRadius: 3 }}>
               <Stack direction="row" spacing={1} alignItems="center" mb={2}>
@@ -145,9 +174,11 @@ export default function AnalysisPage() {
               </Box>
             </Paper>
 
+            {/* FilterSelector now receives the current SRD state */}
             <FilterSelector
               onSubmit={setVoterFilters}
               isLoading={votersLoading}
+              initialSrd={selectedSRD}
               demographicFilters={[
                 "modeledParty",
                 "turnout",
@@ -160,7 +191,7 @@ export default function AnalysisPage() {
         </Grid>
 
         {/* RIGHT COLUMN: WORKSPACE */}
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 6, lg: 6 }}>
           {!voterFilters ? (
             <Paper
               sx={{
@@ -178,7 +209,7 @@ export default function AnalysisPage() {
                 Ready for Analysis
               </Typography>
               <Typography color="text.disabled">
-                Apply a filter to generate voter segments
+                Select a District and apply filters to analyze voter segments
               </Typography>
             </Paper>
           ) : (
@@ -187,24 +218,13 @@ export default function AnalysisPage() {
                 icon={<InfoIcon sx={{ color: "info.main" }} />}
                 severity="info"
                 variant="outlined"
-                sx={{
-                  borderRadius: 3,
-                  bgcolor: "rgba(2, 136, 209, 0.05)",
-                  borderColor: "info.light",
-                  color: "info.dark",
-                  fontWeight: 500,
-                  "& .MuiAlert-icon": {
-                    fontSize: 28,
-                  },
-                }}
+                sx={{ borderRadius: 3, bgcolor: "background.paper" }}
               >
                 Query complete: Found{" "}
-                <strong>{voters.length.toLocaleString()}</strong> voters
-                matching these criteria.
+                <strong>{voters.length.toLocaleString()}</strong> voters.
               </Alert>
 
               <Grid container spacing={3}>
-                {/* Chart 1 */}
                 <Grid size={{ xs: 12, lg: 6 }}>
                   <Paper sx={{ p: 3, borderRadius: 3 }}>
                     <Typography
@@ -229,7 +249,6 @@ export default function AnalysisPage() {
                   </Paper>
                 </Grid>
 
-                {/* Top Streets Table - High Insight Value */}
                 <Grid size={{ xs: 12, lg: 6 }}>
                   <Paper sx={{ p: 3, borderRadius: 3, height: "100%" }}>
                     <Stack
@@ -248,7 +267,7 @@ export default function AnalysisPage() {
                         <TableHead>
                           <TableRow>
                             <TableCell sx={{ fontWeight: "bold" }}>
-                              Street Name
+                              Street
                             </TableCell>
                             <TableCell
                               align="right"
@@ -266,8 +285,8 @@ export default function AnalysisPage() {
                                 <Chip
                                   label={count}
                                   size="small"
-                                  variant="outlined"
                                   color="primary"
+                                  variant="outlined"
                                 />
                               </TableCell>
                             </TableRow>
@@ -279,7 +298,7 @@ export default function AnalysisPage() {
                 </Grid>
               </Grid>
 
-              {/* Action Callout */}
+              {/* ACTION ALERT */}
               {voterFilters && (
                 <Alert
                   icon={<RocketLaunchIcon sx={{ color: "success.main" }} />}
@@ -307,8 +326,7 @@ export default function AnalysisPage() {
                     color="success.dark"
                     sx={{ mb: 2 }}
                   >
-                    Ready to mobilize this segment? Create a new Walk or Phone
-                    list using these{" "}
+                    Create a new Walk or Phone list using these{" "}
                     <strong>{voters.length.toLocaleString()}</strong> records
                     with the following parameters:
                   </Typography>

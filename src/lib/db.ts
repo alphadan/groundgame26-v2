@@ -10,16 +10,21 @@ import {
   Precinct,
   UserProfile,
   AppControl,
+  State_Rep_District, // Ensure this is in your types
 } from "../types";
 
 // --- CONFIGURATION ---
 const APP_VERSION = process.env.REACT_APP_VERSION || "0.0.0";
-const DB_VERSION = Number(process.env.REACT_APP_DB_VERSION) || 1;
+/** * CRITICAL: Increment this value in your .env file (REACT_APP_DB_VERSION)
+ * or change the default below to 2 or 3 to trigger the schema update.
+ */
+const DB_VERSION = Number(process.env.REACT_APP_DB_VERSION) || 3;
 const DB_NAME = "GroundGame26V2DB";
-const SYNC_TIMEOUT_MS = 5000; // 5 seconds to try Firebase before falling back
+const SYNC_TIMEOUT_MS = 5000;
 
 class GroundGame26DB extends Dexie {
   counties!: Table<County>;
+  state_rep_districts!: Table<State_Rep_District>;
   areas!: Table<Area>;
   precincts!: Table<Precinct>;
   groups!: Table<Group>;
@@ -29,15 +34,13 @@ class GroundGame26DB extends Dexie {
   constructor() {
     super(DB_NAME);
 
-    /**
-     * SCHEMA DEFINITION
-     * Fixed DexieError: Added 'active', 'precinct_code', and 'role' to indexes.
-     * Note: Only fields used in .where() or .orderBy() need to be listed here.
-     */
     this.version(DB_VERSION).stores({
       counties: "id, name, active",
+      // Primary key is 'id', indexes provided for filtering in GeographicFilters
+      state_rep_districts: "id, district_number, county_id, party_rep_district",
       areas: "id, county_id, active",
-      precincts: "id, area_id, county_id, active, precinct_code",
+      precincts:
+        "id, area_id, county_id, active, precinct_code, party_rep_district",
       groups: "id, county_id, active",
       users: "uid, role",
       app_control: "id",
@@ -49,16 +52,15 @@ export const db = new GroundGame26DB();
 
 /**
  * PRODUCTION READY INITIALIZER
- * Logic: Checks version -> Resets if needed -> Seeds if empty
- * Added 'isAuthenticated' parameter to prevent unauth cloud calls.
  */
 export async function ensureDBInitialized(
   isAuthenticated: boolean = false,
 ): Promise<void> {
   console.log(`🚀 [DB] Initializing GroundGame DB (Target v${DB_VERSION})...`);
-  const exists = await Dexie.exists(DB_NAME);
 
   try {
+    const exists = await Dexie.exists(DB_NAME);
+
     if (!exists) {
       console.log("📂 [DB] No existing database found. Creating fresh...");
       await db.open();
@@ -95,15 +97,8 @@ export async function ensureDBInitialized(
   }
 }
 
-/**
- * PHASE 2: Seed Strategy
- * Wraps Firebase Sync in a timeout and checks auth status.
- */
 async function seedDatabase(isAuthenticated: boolean) {
   const start = performance.now();
-  console.log("📥 [DB] Beginning seed sequence...");
-
-  // If not logged in, skip Cloud Layer and go straight to Constants for security
   if (!isAuthenticated) {
     console.log("🛡️ [DB] User not authenticated. Bypassing Cloud Layer 1.");
     await seedFromConstants();
@@ -119,31 +114,34 @@ async function seedDatabase(isAuthenticated: boolean) {
     const success = await Promise.race([syncPromise, timeoutPromise]);
 
     if (success) {
-      const end = performance.now();
       console.log(
-        `✅ [DB] Layer 1 Success: Synced from Cloud in ${Math.round(end - start)}ms.`,
+        `✅ [DB] Layer 1 Success: Synced in ${Math.round(performance.now() - start)}ms.`,
       );
       return;
     }
     throw new Error("Layer 1 returned no data");
   } catch (err) {
-    console.error(
-      "⚠️ [DB] Layer 1 Failed:",
-      err instanceof Error ? err.message : err,
-    );
-    console.log("📦 [DB] Switching to Layer 2: Local Static Constants...");
+    console.error("⚠️ [DB] Layer 1 Failed, switching to Layer 2...");
     await seedFromConstants();
   }
 }
 
 /**
  * Layer 1: Firebase Fetch
+ * Included 'state_rep_districts' in the cloud loop.
  */
 async function syncFromFirebase(): Promise<boolean> {
-  const collections = ["counties", "areas", "precincts", "groups"];
+  const collections = [
+    "counties",
+    "state_rep_districts",
+    "areas",
+    "precincts",
+    "groups",
+  ];
   let totalRows = 0;
 
   try {
+    if (!db.isOpen()) await db.open();
     for (const colName of collections) {
       console.log(`🔍 [DB] Querying Cloud Collection: "${colName}"...`);
       const snap = await getDocs(collection(firestore, colName));
@@ -153,8 +151,6 @@ async function syncFromFirebase(): Promise<boolean> {
         await db.table(colName).bulkPut(data);
         totalRows += data.length;
         console.log(`   -> Downloaded ${data.length} rows for ${colName}`);
-      } else {
-        console.warn(`   -> Cloud collection "${colName}" is empty!`);
       }
     }
     return totalRows > 0;
@@ -171,33 +167,33 @@ async function seedFromConstants() {
   try {
     await db.transaction(
       "rw",
-      [db.counties, db.areas, db.precincts, db.groups],
+      [db.counties, db.state_rep_districts, db.areas, db.precincts, db.groups],
       async () => {
         await db.counties.bulkPut(REFERENCE_DATA.counties as County[]);
+        // Ensure REFERENCE_DATA has a state_rep_districts array, or use empty array fallback
+        if ((REFERENCE_DATA as any).state_rep_districts) {
+          await db.state_rep_districts.bulkPut(
+            (REFERENCE_DATA as any).state_rep_districts,
+          );
+        }
         await db.areas.bulkPut(REFERENCE_DATA.areas as Area[]);
         await db.precincts.bulkPut(REFERENCE_DATA.precincts as Precinct[]);
         await db.groups.bulkPut(REFERENCE_DATA.groups as Group[]);
       },
     );
-    console.log(
-      `✨ [DB] Layer 2 Success: Seeded from referenceData.ts (${REFERENCE_DATA.precincts.length} precincts)`,
-    );
+    console.log("✨ [DB] Layer 2 Success: Seeded from local constants.");
   } catch (err) {
     console.error("❌ [DB] Static Seed Error:", err);
   }
 }
 
-// --- CORE UTILITIES ---
-
 async function performHardReset(isAuthenticated: boolean) {
-  console.log("🧹 [DB] Performing Hard Reset (Deleting IndexedDB)...");
+  console.log("🧹 [DB] Performing Hard Reset...");
   db.close();
   await Dexie.delete(DB_NAME);
-  console.log("🧹 [DB] Old data cleared. Re-opening...");
   await db.open();
   await initializeControlRecord();
   await seedDatabase(isAuthenticated);
-  console.log("✨ [DB] Hard-reset complete.");
 }
 
 async function initializeControlRecord() {
@@ -217,12 +213,15 @@ export async function updateAppControlAfterSync(): Promise<void> {
   });
 }
 
+/**
+ * RELATIONAL QUERIES
+ */
+export const getPrecinctsBySRD = async (srdId: string) => {
+  if (!srdId) return [];
+  return await db.precincts.where("party_rep_district").equals(srdId).toArray();
+};
+
 export const getPrecinctsByArea = async (areaId: string) => {
   if (!areaId) return [];
-  // Note: 'area_id' is indexed in our constructor
-  const results = await db.precincts.where("area_id").equals(areaId).toArray();
-  console.log(
-    `🔎 [DB] Query: Precincts in Area ${areaId} -> Found ${results.length}`,
-  );
-  return results;
+  return await db.precincts.where("area_id").equals(areaId).toArray();
 };

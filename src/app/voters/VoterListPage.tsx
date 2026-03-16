@@ -35,7 +35,6 @@ import {
   Message,
   MailOutline,
   Block,
-  Download as DownloadIcon,
   Sort as SortIcon,
   SearchOff as SearchOffIcon,
   OtherHouses as OtherHousesIcon,
@@ -143,72 +142,6 @@ export default function VoterListPage() {
       );
     }
   }, [interactionMap]);
-
-  // Permission Check
-  const canDownload = !!claims?.permissions?.can_manage_resources;
-
-  // --- CSV DOWNLOAD HANDLER ---
-  const handleDownloadCSV = useCallback(() => {
-    if (!voters || voters.length === 0) return;
-
-    const headers = [
-      "Full Name",
-      "Age",
-      "Sex",
-      "Party",
-      "Address",
-      "City",
-      "Zip Code",
-      "Phone Mobile",
-      "Phone Home",
-      "Precinct",
-      "Modeled Party",
-      "Turnout Score General",
-      "Turnout Score Primary",
-      "Has Mail Ballot",
-    ];
-
-    const rows = voters.map((voter: any) => [
-      voter.full_name || "",
-      voter.age || "",
-      voter.sex || "",
-      voter.party || "",
-      voter.address || "",
-      voter.city || "",
-      voter.zip_code || "",
-      voter.phone_mobile || "",
-      voter.phone_home || "",
-      voter.precinct || "",
-      voter.modeled_party || "",
-      voter.turnout_score_general ?? "N/A",
-      voter.turnout_score_primary ?? "N/A",
-      voter.has_mail_ballot ? "Yes" : "No",
-    ]);
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) =>
-        row.map((field) => `"${(field + "").replace(/"/g, '""')}"`).join(","),
-      ),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `voter_list_${new Date().toISOString().slice(0, 10)}.csv`,
-    );
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    setIsRewardToast(false);
-    setSnackbarMessage(`Downloaded ${voters.length} voters as CSV`);
-    setSnackbarOpen(true);
-  }, [voters]);
 
   // --- REWARDED & ANALYTICS ACTION HANDLER ---
   const handleContactAction = async (
@@ -772,24 +705,6 @@ export default function VoterListPage() {
             </Typography>
           </Alert>
 
-          {canDownload && (
-            <Box sx={{ mb: 2, display: "flex", justifyContent: "flex-end" }}>
-              <Button
-                variant="contained"
-                startIcon={<DownloadIcon />}
-                onClick={handleDownloadCSV}
-                sx={{
-                  bgcolor: "#B22234",
-                  px: 3,
-                  py: 1,
-                  fontWeight: "bold",
-                  "&:hover": { bgcolor: "#8B1A1A" },
-                }}
-              >
-                Download (CSV)
-              </Button>
-            </Box>
-          )}
           {isMobile ? (
             // --- MOBILE VIEW ---
             <Box sx={{ mt: 2 }}>

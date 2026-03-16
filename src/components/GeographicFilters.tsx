@@ -12,12 +12,14 @@ import {
 } from "@mui/material";
 import { Control, Controller, UseFormSetValue } from "react-hook-form";
 
-interface GeographicFiltersProps {
+export interface GeographicFiltersProps {
   control: Control<any>;
   setValue: UseFormSetValue<any>;
   selectedCounty: string;
+  selectedSRD: string; // Add this
   selectedArea: string;
   onCountyChange: (value: string) => void;
+  onSRDChange: (value: string) => void; // Add this
   onAreaChange: (value: string) => void;
   onPrecinctChange: (value: string) => void;
   onAreaDistrictChange: (district: string) => void;
@@ -42,8 +44,10 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
   control,
   setValue,
   selectedCounty,
+  selectedSRD,
   selectedArea,
   onCountyChange,
+  onSRDChange,
   onAreaChange,
   onPrecinctChange,
   onAreaDistrictChange,
@@ -59,27 +63,67 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
         .toArray();
     }, []) ?? [];
 
-  // 2. Load Areas - Filtered by County AND Active status
-  const areas =
+  // 2. Load State Rep Districts (SRDs)
+  const srds =
     useLiveQuery(async () => {
       if (!selectedCounty) return [];
-      return await indexedDb.areas
+      return await indexedDb.state_rep_districts
         .where("county_id")
         .equals(selectedCounty)
-        .filter((a) => a.active === true)
+        .filter((d) => d.active === true)
         .toArray();
     }, [selectedCounty]) ?? [];
 
-  // 3. Load Precincts - Filtered by Area AND Active status
+  // 3. Load Areas
+  // If an SRD is selected, we only want to show Areas that contain
+  // precincts belonging to that SRD.
+  const areas =
+    useLiveQuery(async () => {
+      if (!selectedCounty) return [];
+
+      // If no SRD is selected, show all active areas in the county
+      if (!selectedSRD) {
+        return await indexedDb.areas
+          .where("county_id")
+          .equals(selectedCounty)
+          .filter((a) => a.active)
+          .toArray();
+      }
+
+      // If an SRD IS selected, we find which areas have precincts
+      // pointing to this party_rep_district
+      const associatedPrecincts = await indexedDb.precincts
+        .where("party_rep_district")
+        .equals(selectedSRD)
+        .toArray();
+
+      // Extract unique area_ids from those precincts
+      const validAreaIds = [
+        ...new Set(associatedPrecincts.map((p) => p.area_id)),
+      ];
+
+      return await indexedDb.areas
+        .filter((a) => validAreaIds.includes(a.id) && a.active)
+        .toArray();
+    }, [selectedCounty, selectedSRD]) ?? [];
+
+  // 4. Load Precincts
   const precincts =
     useLiveQuery(async () => {
       if (!selectedArea) return [];
-      return await indexedDb.precincts
-        .where("area_id")
-        .equals(selectedArea)
-        .filter((p) => p.active === true)
-        .toArray();
-    }, [selectedArea]) ?? [];
+
+      let query = indexedDb.precincts.where("area_id").equals(selectedArea);
+
+      // CRITICAL FIX: Filter by the existing 'party_rep_district' field
+      // This ensures that in Area 28, only the correct 2 precincts show up for District 2
+      if (selectedSRD) {
+        return await query
+          .filter((p) => p.party_rep_district === selectedSRD && p.active)
+          .toArray();
+      }
+
+      return await query.filter((p) => p.active).toArray();
+    }, [selectedArea, selectedSRD]) ?? [];
 
   // --- AUTO-SELECTION LOGIC ---
 
@@ -122,8 +166,8 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
 
   return (
     <Grid container spacing={2}>
-      {/* County Filter */}
-      <Grid size={{ xs: 12, md: 4 }}>
+      {/* 1. County Filter */}
+      <Grid size={{ xs: 12, md: 3 }}>
         <Controller
           name="county"
           control={control}
@@ -141,10 +185,12 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
                   const obj = counties.find((c) => c.id === val);
                   onCountyCodeChange(obj?.code || "");
 
-                  // Reset descendants
+                  // Reset ALL descendants
+                  onSRDChange("");
                   onAreaChange("");
                   onAreaDistrictChange("");
                   onPrecinctChange("");
+                  setValue("srd", "");
                   setValue("area", "");
                   setValue("precinct", "");
                 }}
@@ -165,8 +211,47 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
         />
       </Grid>
 
-      {/* Area Filter */}
-      <Grid size={{ xs: 12, md: 4 }}>
+      {/* 2. NEW: State Rep District Filter */}
+      <Grid size={{ xs: 12, md: 3 }}>
+        <Controller
+          name="srd"
+          control={control}
+          render={({ field }) => (
+            <FormControl fullWidth size="small" disabled={!selectedCounty}>
+              <InputLabel>State Rep District</InputLabel>
+              <Select
+                {...field}
+                label="State Rep District"
+                value={selectedSRD || ""}
+                onChange={(e) => {
+                  const val = e.target.value as string;
+                  field.onChange(val);
+                  onSRDChange(val);
+
+                  // Reset descendants
+                  onAreaChange("");
+                  onAreaDistrictChange("");
+                  onPrecinctChange("");
+                  setValue("area", "");
+                  setValue("precinct", "");
+                }}
+              >
+                <MenuItem value="">
+                  <em>All Districts</em>
+                </MenuItem>
+                {srds.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
+        />
+      </Grid>
+
+      {/* 3. Area Filter */}
+      <Grid size={{ xs: 12, md: 3 }}>
         <Controller
           name="area"
           control={control}
@@ -204,8 +289,8 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
         />
       </Grid>
 
-      {/* Precinct Filter */}
-      <Grid size={{ xs: 12, md: 4 }}>
+      {/* 4. Precinct Filter */}
+      <Grid size={{ xs: 12, md: 3 }}>
         <Controller
           name="precinct"
           control={control}

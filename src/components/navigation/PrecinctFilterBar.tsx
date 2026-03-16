@@ -9,6 +9,7 @@ import {
   MenuItem,
   Typography,
   CircularProgress,
+  Box,
 } from "@mui/material";
 
 interface PrecinctFilterBarProps {
@@ -21,12 +22,11 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
   isLoading,
 }) => {
   const [selectedCounty, setSelectedCounty] = useState<string>("");
+  const [selectedSRD, setSelectedSRD] = useState<string>(""); // NEW
   const [selectedArea, setSelectedArea] = useState<string>("");
   const [selectedPrecinct, setSelectedPrecinct] = useState<string>("all");
 
-  // 1. Load Data from IndexedDB (Hierarchy + Active Filter)
-
-  // Filter for Active Counties
+  // 1. Load Counties
   const counties =
     useLiveQuery(async () => {
       return await indexedDb.counties
@@ -34,101 +34,99 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
         .toArray();
     }, []) ?? [];
 
-  // Filter for Active Areas within Selected County
-  const areas =
+  // 2. Load State Rep Districts (SRDs) based on County
+  const srds =
     useLiveQuery(async () => {
       if (!selectedCounty) return [];
-      return await indexedDb.areas
+      return await indexedDb.state_rep_districts
         .where("county_id")
         .equals(selectedCounty)
-        .filter((a) => a.active === true)
+        .filter((d) => d.active === true)
         .toArray();
     }, [selectedCounty]) ?? [];
 
-  // Filter for Active Precincts within Selected Area
+  // 3. Load Areas based on SRD
+  const areas =
+    useLiveQuery(async () => {
+      if (!selectedCounty) return [];
+
+      // If no SRD selected, show all areas in county
+      if (!selectedSRD) {
+        return await indexedDb.areas
+          .where("county_id")
+          .equals(selectedCounty)
+          .filter((a) => a.active === true)
+          .toArray();
+      }
+
+      // SRD is selected: Find areas containing precincts belonging to this SRD
+      const associatedPrecincts = await indexedDb.precincts
+        .where("party_rep_district")
+        .equals(selectedSRD)
+        .toArray();
+
+      const validAreaIds = [
+        ...new Set(associatedPrecincts.map((p) => p.area_id)),
+      ];
+
+      return await indexedDb.areas
+        .filter((a) => validAreaIds.includes(a.id) && a.active)
+        .toArray();
+    }, [selectedCounty, selectedSRD]) ?? [];
+
+  // 4. Load Precincts based on Area + SRD (Handles the "Split Area" logic)
   const precincts =
     useLiveQuery(async () => {
       if (!selectedArea) return [];
 
-      // LOG 1: Check what we are searching for
-      console.log(
-        "DEBUG: Querying Precincts where area_id ===",
-        `"${selectedArea}"`,
-      );
+      let query = indexedDb.precincts.where("area_id").equals(selectedArea);
 
-      const results = await indexedDb.precincts
-        .where("area_id")
-        .equals(selectedArea)
-        .toArray();
-
-      // LOG 2: Check raw results before the 'active' filter
-      console.log(
-        `DEBUG: Found ${results.length} TOTAL precincts for area ${selectedArea}`,
-      );
-
-      const activeResults = results.filter((p) => p.active === true);
-
-      // LOG 3: Check after 'active' filter
-      console.log(`DEBUG: Found ${activeResults.length} ACTIVE precincts`);
-
-      if (results.length > 0 && activeResults.length === 0) {
-        console.warn(
-          "DEBUG WARNING: All precincts in this area are marked active: false",
-        );
+      if (selectedSRD) {
+        return await query
+          .filter((p) => p.party_rep_district === selectedSRD && p.active)
+          .toArray();
       }
+      return await query.filter((p) => p.active).toArray();
+    }, [selectedArea, selectedSRD]) ?? [];
 
-      return activeResults;
-    }, [selectedArea]) ?? [];
+  // --- AUTO-SELECTION LOGIC ---
 
-  // 2. Auto-selection logic
-
-  // Auto-select County if only one exists
   useEffect(() => {
     if (counties.length === 1 && !selectedCounty) {
       setSelectedCounty(counties[0].id);
     }
   }, [counties, selectedCounty]);
 
-  // Auto-select Area if only one exists
   useEffect(() => {
-    if (selectedCounty && areas.length === 1 && !selectedArea) {
+    if (selectedCounty && srds.length === 1 && !selectedSRD) {
+      setSelectedSRD(srds[0].id);
+    }
+  }, [selectedCounty, srds, selectedSRD]);
+
+  useEffect(() => {
+    if (selectedSRD && areas.length === 1 && !selectedArea) {
       setSelectedArea(areas[0].id);
     }
-  }, [selectedCounty, areas, selectedArea]);
-
-  // Auto-select Precinct if only one exists AND trigger the parent hook
-  useEffect(() => {
-    if (selectedArea && precincts.length === 1 && selectedPrecinct === "all") {
-      const singlePrecinctId = precincts[0].id;
-      setSelectedPrecinct(singlePrecinctId);
-      onPrecinctSelect(singlePrecinctId);
-    }
-  }, [selectedArea, precincts, selectedPrecinct, onPrecinctSelect]);
+  }, [selectedSRD, areas, selectedArea]);
 
   return (
     <Stack
       direction={{ xs: "column", md: "row" }}
-      spacing={2}
+      spacing={1.5}
       alignItems={{ xs: "stretch", md: "center" }}
-      sx={{
-        width: "100%",
-        px: { xs: 0, md: 0 },
-        maxWidth: "100%",
-      }}
+      sx={{ width: "100%" }}
     >
-      <Typography variant="subtitle2" fontWeight="bold">
-        Focus View:
+      <Typography
+        variant="caption"
+        fontWeight="bold"
+        color="text.secondary"
+        sx={{ textTransform: "uppercase", mr: 1 }}
+      >
+        Focus:
       </Typography>
 
-      {/* County Dropdown */}
-      <FormControl
-        size="small"
-        fullWidth
-        sx={{
-          minWidth: { md: 160 },
-          width: { xs: "100%", md: "auto" },
-        }}
-      >
+      {/* County */}
+      <FormControl size="small" sx={{ minWidth: 140 }}>
         <InputLabel>County</InputLabel>
         <Select
           label="County"
@@ -136,6 +134,7 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
           onChange={(e) => {
             const val = e.target.value as string;
             setSelectedCounty(val);
+            setSelectedSRD("");
             setSelectedArea("");
             setSelectedPrecinct("all");
             onPrecinctSelect(val);
@@ -149,14 +148,39 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
         </Select>
       </FormControl>
 
-      {/* Area Dropdown */}
+      {/* NEW: District (SRD) */}
       <FormControl
         size="small"
-        fullWidth
-        sx={{
-          minWidth: { md: 140 },
-          width: { xs: "100%", md: "auto" },
-        }}
+        sx={{ minWidth: 140 }}
+        disabled={!selectedCounty}
+      >
+        <InputLabel>District</InputLabel>
+        <Select
+          label="District"
+          value={selectedSRD}
+          onChange={(e) => {
+            const val = e.target.value as string;
+            setSelectedSRD(val);
+            setSelectedArea("");
+            setSelectedPrecinct("all");
+            onPrecinctSelect(val || selectedCounty);
+          }}
+        >
+          <MenuItem value="">
+            <em>All Districts</em>
+          </MenuItem>
+          {srds.map((s) => (
+            <MenuItem key={s.id} value={s.id}>
+              {s.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      {/* Area */}
+      <FormControl
+        size="small"
+        sx={{ minWidth: 140 }}
         disabled={!selectedCounty}
       >
         <InputLabel>Area</InputLabel>
@@ -165,12 +189,9 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
           value={selectedArea}
           onChange={(e) => {
             const val = e.target.value as string;
-            console.log("🔍 [FilterBar] Area Selected:", val);
             setSelectedArea(val);
             setSelectedPrecinct("all");
-
-            console.log("📡 [FilterBar] Emitting to Dashboard (Aggregate):", val || "all");
-            onPrecinctSelect(val || "all");
+            onPrecinctSelect(val || selectedSRD || selectedCounty);
           }}
         >
           <MenuItem value="">
@@ -184,28 +205,16 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
         </Select>
       </FormControl>
 
-      {/* Precinct Dropdown */}
-      <FormControl
-        size="small"
-        fullWidth
-        sx={{
-          minWidth: { md: 200 },
-          width: { xs: "100%", md: "auto" },
-        }}
-        disabled={!selectedArea}
-      >
+      {/* Precinct */}
+      <FormControl size="small" sx={{ minWidth: 180 }} disabled={!selectedArea}>
         <InputLabel>Precinct</InputLabel>
         <Select
           label="Precinct"
           value={selectedPrecinct}
           onChange={(e) => {
             const val = e.target.value as string;
-            console.log("🔍 [FilterBar] Precinct Menu Clicked:", val);
             setSelectedPrecinct(val);
-
             const targetId = val === "all" ? selectedArea : val;
-
-            console.log("📡 [FilterBar] Emitting to Dashboard:", targetId);
             onPrecinctSelect(targetId);
           }}
         >
@@ -220,7 +229,7 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
         </Select>
       </FormControl>
 
-      {isLoading && <CircularProgress size={24} />}
+      {isLoading && <CircularProgress size={20} thickness={5} />}
     </Stack>
   );
 };

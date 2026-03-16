@@ -35,16 +35,40 @@ export interface Group extends Omit<BaseMetadata, "id"> {
 }
 
 export interface County extends Omit<BaseMetadata, "id"> {
-  id: string; // e.g., "PA-C-15"
+  id: string;
   name: string;
-  code: string; // BigQuery matching (e.g., "15")
+  code: string;
   state_code: string;
+  state_rep_district_ids?: string[];
 }
 
+export interface DistrictLeader {
+  uid: string;
+  name: string;
+}
+
+export interface State_Rep_District extends Omit<BaseMetadata, "id"> {
+  id: string; // e.g., "PA-SRD-district_2"
+  district_number: string; // "2"
+  name: string; // "Chester County State Republican Party - District 2"
+  party_rep_district: string; // For matching with precincts
+
+  // UPDATED: Array of objects instead of single UIDs
+  district_leaders: DistrictLeader[] | null;
+
+  area_associations: string[];
+  county_id: string;
+  budget_status: "active" | "pending" | "locked";
+  active: boolean;
+  updated_at: number; // Unix Time (ms)
+  created_at: number; // Unix Time (seconds)
+  group_id?: string;
+}
 export interface Area extends Omit<BaseMetadata, "id"> {
   id: string;
   uid: string;
   name: string;
+  state_rep_district_id: string;
   area_district: string;
   county_id: string;
   county_code?: string;
@@ -60,6 +84,7 @@ export interface Precinct extends Omit<BaseMetadata, "id"> {
   precinct_code: string; // e.g., "005"
   county_id: string; // Relational key to County (e.g., "PA-C-15")
   county_code?: string; // Official state number (e.g., "15")
+  state_rep_district_id: string; // NEW: Explicit link to the Power Nexus
   area_id: string; // Relational key to Area (e.g., "PA15-A-12")
   area_district?: string; // District number (e.g., "12")
 

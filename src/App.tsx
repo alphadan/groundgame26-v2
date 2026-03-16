@@ -30,7 +30,7 @@ export default function App() {
       if (!authLoaded || !user) return;
 
       try {
-        await ensureDBInitialized();
+        await ensureDBInitialized(true);
         setDbReady(true);
       } catch (err: any) {
         console.error("App: DB Init Error", err);

@@ -68,7 +68,6 @@ const getPermissionsForRole = (role) => {
     can_upload_collections: false,
     can_create_collections: false,
     can_create_documents: false,
-    can_download_records: false,
   };
 
   switch (role) {
@@ -92,7 +91,6 @@ const getPermissionsForRole = (role) => {
         can_manage_team: true,
         can_create_users: true,
         can_manage_resources: true,
-        can_download_records: true,
       };
     default:
       return base;
@@ -132,6 +130,7 @@ export const getSyncCollections = onCall(async (request) => {
 
     // 3. Dynamic Access and Role Calculation (Mirror logic from getUserProfile)
     const countiesSet = new Set();
+    const districtsSet = new Set();
     const areasSet = new Set();
     const precinctsSet = new Set();
     const rolesSet = new Set();
@@ -142,6 +141,7 @@ export const getSyncCollections = onCall(async (request) => {
       if (d.role) rolesSet.add(d.role);
       if (d.group_id) groupIdsSet.add(d.group_id);
       if (d.county_id) countiesSet.add(d.county_id);
+      if (d.district_id) districtsSet.add(d.district_id);
       if (d.area_id) areasSet.add(d.area_id);
       if (d.precinct_id) precinctsSet.add(d.precinct_id);
     });
@@ -155,9 +155,11 @@ export const getSyncCollections = onCall(async (request) => {
     // WILDCARD EXPANSION (Ensure data visibility matches permissions)
     if (primaryRole === "developer" || primaryRole === "state_admin") {
       countiesSet.add("ALL");
+      districtsSet.add("ALL");
       areasSet.add("ALL");
       precinctsSet.add("ALL");
     } else if (primaryRole === "county_chair") {
+      districtsSet.add("ALL");
       areasSet.add("ALL");
       precinctsSet.add("ALL");
     } else if (
@@ -168,16 +170,18 @@ export const getSyncCollections = onCall(async (request) => {
 
     const finalAccess = {
       counties: Array.from(countiesSet).filter(Boolean),
+      districts: Array.from(districtsSet).filter(Boolean),
       areas: Array.from(areasSet).filter(Boolean),
       precincts: Array.from(precinctsSet).filter(Boolean),
     };
 
     // 4. Parallel Fetch of Global Collections
-    const [pSnap, aSnap, cSnap, gSnap] = await Promise.all([
+    const [pSnap, aSnap, cSnap, gSnap, dSnap] = await Promise.all([
       db.collection("precincts").get(),
       db.collection("areas").get(),
       db.collection("counties").get(),
       db.collection("groups").get(),
+      db.collection("state_rep_districts").get(),
     ]);
 
     const hasAll = (arr) => Array.isArray(arr) && arr.includes("ALL");
@@ -201,6 +205,15 @@ export const getSyncCollections = onCall(async (request) => {
           hasAll(finalAccess.precincts) ||
           allowedAreaIds.has(p.area_id) ||
           finalAccess.precincts.includes(p.id),
+      );
+
+    const filteredDistricts = dSnap.docs
+      .map((d) => ({ ...d.data(), id: d.id }))
+      .filter(
+        (d) =>
+          primaryRole === "developer" ||
+          hasAll(finalAccess.districts) ||
+          finalAccess.districts.includes(d.id),
       );
 
     const filteredCounties = cSnap.docs
@@ -227,6 +240,7 @@ export const getSyncCollections = onCall(async (request) => {
     return {
       success: true,
       profile,
+      districts: filteredDistricts,
       precincts: filteredPrecincts,
       areas: filteredAreas,
       counties: filteredCounties,
@@ -775,74 +789,83 @@ export const incrementCopyCount = onCall(async (request) => {
 export const getUserProfile = onCall(
   { region: "us-central1" },
   async (request) => {
-    // 1. Authentication Check
+    // 1. Authentication Guard
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "User must be logged in.");
     }
     const uid = request.auth.uid;
 
     try {
-      // 2. Fetch Base User Identity (Firestore)
-      const userDoc = await db.collection("users").doc(uid).get();
+      // 2. Fetch Base Identity & Active Roles in parallel
+      const [userDoc, rolesSnap] = await Promise.all([
+        db.collection("users").doc(uid).get(),
+        db
+          .collection("org_roles")
+          .where("uid", "==", uid)
+          .where("is_vacant", "==", false)
+          .where("active", "==", true)
+          .get(),
+      ]);
+
       const userData = userDoc.data() || {};
 
-      // 3. Query all active role assignments
-      const rolesSnap = await db
-        .collection("org_roles")
-        .where("uid", "==", uid)
-        .where("is_vacant", "==", false)
-        .where("active", "==", true)
-        .get();
-
+      // 3. Initialize Access Sets
       const counties = new Set();
+      const districts = new Set(); // NEW
       const areas = new Set();
       const precincts = new Set();
       const roles = new Set();
       const groupIds = new Set();
 
-      // 4. Collect raw data from assignments
+      // 4. Aggregate raw access from all assigned roles
       rolesSnap.forEach((doc) => {
         const d = doc.data();
         if (d.role) roles.add(d.role);
         if (d.group_id) groupIds.add(d.group_id);
         if (d.county_id) counties.add(d.county_id);
+        if (d.district_id) districts.add(d.district_id); // NEW
         if (d.area_id) areas.add(d.area_id);
         if (d.precinct_id) precincts.add(d.precinct_id);
       });
 
-      // 5. Determine Primary Role (using your priority constants)
+      // 5. Determine Primary Role (using priority mapping)
       const primaryRole = ROLE_PRIORITY.find((r) => roles.has(r)) || "base";
       const permissions = getPermissionsForRole(primaryRole);
 
-      // 6. WILDCARD EXPANSION (The "God Mode" logic)
-      // This is crucial for matching your referenceDataSync frontend logic
+      // 6. WILDCARD EXPANSION (The Hierarchy Logic)
+      // This ensures that 'ALL' filters down correctly based on the role rank
       if (primaryRole === "developer" || primaryRole === "state_admin") {
         counties.add("ALL");
+        districts.add("ALL");
         areas.add("ALL");
         precincts.add("ALL");
       } else if (primaryRole === "county_chair") {
-        // County Chairs unlock all children within their county
+        // County Chairs unlock all Districts, Areas, and Precincts in their county
+        districts.add("ALL");
         areas.add("ALL");
         precincts.add("ALL");
-      } else if (
-        primaryRole === "area_chair" ||
-        primaryRole === "state_rep_district" ||
-        primaryRole === "candidate"
-      ) {
-        // Area Chairs/Candidates unlock all precincts within their area
+      } else if (primaryRole === "state_rep_district") {
+        // District Leaders unlock all Areas and Precincts in their District
+        areas.add("ALL");
+        precincts.add("ALL");
+      } else if (primaryRole === "area_chair" || primaryRole === "candidate") {
+        // Area Chairs unlock all Precincts in their Area
         precincts.add("ALL");
       }
 
-      // 7. Cleanup & Format (Filter out nulls/undefined)
-      const finalCounties = Array.from(counties).filter((c) => !!c);
-      const finalAreas = Array.from(areas).filter((a) => !!a);
-      const finalPrecincts = Array.from(precincts).filter((p) => !!p);
+      // 7. Format & Clean final arrays
+      const finalAccess = {
+        counties: Array.from(counties).filter(Boolean),
+        districts: Array.from(districts).filter(Boolean),
+        areas: Array.from(areas).filter(Boolean),
+        precincts: Array.from(precincts).filter(Boolean),
+      };
 
       logger.info(
-        `✅ [getUserProfile] UID: ${uid} | Role: ${primaryRole} | Areas: ${finalAreas.length}`,
+        `✅ [getUserProfile] UID: ${uid} | Role: ${primaryRole} | Districts: ${finalAccess.districts.length}`,
       );
 
-      // 8. Return the computed profile
+      // 8. Return computed profile
       return {
         profile: {
           uid,
@@ -851,11 +874,8 @@ export const getUserProfile = onCall(
           role: primaryRole,
           permissions: permissions,
           group_id: Array.from(groupIds)[0] || null,
-          access: {
-            counties: finalCounties,
-            areas: finalAreas,
-            precincts: finalPrecincts,
-          },
+          access: finalAccess,
+          last_synced: Date.now(),
         },
       };
     } catch (error) {
@@ -984,6 +1004,40 @@ export const syncOrgRolesToClaims = onDocumentWritten(
     }
   },
 );
+
+// ================================================================
+//  SYNC DISTRICT LEADERSHIP ROLES — CENTRALIZED & CLEAN
+//  CLOUD TRIGGERED FUNCTION ONLY
+// ================================================================
+
+export const updateDistrictLeadership = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
+
+  const { districtId, leaders } = request.data; // 'leaders' is now [{uid, name}, ...]
+  const db = getFirestore();
+
+  try {
+    // Basic validation to ensure we don't exceed your 2-leader rule
+    if (leaders && leaders.length > 2) {
+      throw new HttpsError(
+        "invalid-argument",
+        "A district cannot have more than two leaders.",
+      );
+    }
+
+    await db
+      .collection("state_rep_districts")
+      .doc(districtId)
+      .update({
+        district_leaders: leaders || [], // Save the array of maps
+        updated_at: Date.now(),
+      });
+
+    return { success: true };
+  } catch (error) {
+    throw new HttpsError("internal", error.message);
+  }
+});
 
 // ================================================================
 //  SUBMIT VOLUNTEERS
@@ -1633,16 +1687,24 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
     role,
     group_id,
     county_id,
+    district_id,
     area_id,
     precinct_id,
     active,
   } = request.data;
 
   // 2. Data Validation
-  if (!email || !display_name || !role || !group_id || !county_id) {
+  if (
+    !email ||
+    !display_name ||
+    !role ||
+    !group_id ||
+    !county_id ||
+    !district_id
+  ) {
     throw new HttpsError(
       "invalid-argument",
-      "Missing required fields: email, display_name, role, group_id, or county_id.",
+      "Missing required fields: email, display_name, role, group_id, county_id, or district_id.",
     );
   }
 
@@ -1713,7 +1775,13 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
 
     // 6. Generate Deterministic Role ID
     // Standardizes ID as: role_county_area_precinct
-    const roleDocId = [role, county_id, area_id || "ALL", precinct_id || "none"]
+    const roleDocId = [
+      role,
+      county_id,
+      district_id,
+      area_id || "ALL",
+      precinct_id || "none",
+    ]
       .map((p) =>
         String(p)
           .toLowerCase()
@@ -1724,25 +1792,30 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
     // 7. Prepare User Access Object
 
     let accessCounties = [county_id];
+    let accessDistricts = [district_id];
     let accessAreas = area_id ? [area_id] : [];
     let accessPrecincts = precinct_id ? [precinct_id] : [];
 
     if (role === "developer") {
       accessCounties = ["ALL"];
       accessAreas = ["ALL"];
+      accessDistricts = ["ALL"];
       accessPrecincts = ["ALL"];
     } else if (role === "county_chair") {
-      // County Chairs see everything in their one county
+      accessDistricts = ["ALL"];
       accessAreas = ["ALL"];
       accessPrecincts = ["ALL"];
-    } else if (role === "state_rep_district" || role === "area_chair") {
-      // These roles see everything in their specific area(s)
+    } else if (role === "state_rep_district") {
+      accessAreas = ["ALL"];
+      accessPrecincts = ["ALL"];
+    } else if (role === "area_chair") {
       accessPrecincts = ["ALL"];
     }
     // Committeepersons stay restricted to the specific precinct_id provided
 
     const access = {
       counties: accessCounties,
+      districts: accessDistricts,
       areas: accessAreas,
       precincts: accessPrecincts,
     };
@@ -1772,6 +1845,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       role: role,
       group_id: group_id,
       county_id: county_id,
+      district_id: district_id,
       area_id: area_id || null,
       precinct_id: precinct_id || null,
       active: true,
@@ -1793,6 +1867,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       role: role,
       group_id: group_id,
       counties: access.counties,
+      districts: access.districts,
       areas: access.areas,
       precincts: access.precincts,
     });

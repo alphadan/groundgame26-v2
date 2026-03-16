@@ -1,5 +1,5 @@
 // src/components/FilterSelector.tsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { GeographicFilters } from "./GeographicFilters";
 import { DemographicFilters } from "./DemographicFilters";
@@ -11,10 +11,12 @@ import {
   Stack,
   Divider,
   useTheme,
+  Grid,
 } from "@mui/material";
 
 interface FilterValues {
   county: string;
+  srd?: string;
   area: string;
   precinct: string;
   name?: string;
@@ -46,6 +48,7 @@ interface FilterSelectorProps {
   demographicFilters?: FilterKey[];
   showLocationFilters?: boolean;
   showAdditionalCriteria?: boolean;
+  initialSrd?: string;
 }
 
 export const FilterSelector: React.FC<FilterSelectorProps> = ({
@@ -56,6 +59,7 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
   demographicFilters = [],
   showLocationFilters = true,
   showAdditionalCriteria = true,
+  initialSrd = "",
 }) => {
   const theme = useTheme();
 
@@ -68,10 +72,18 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
   const selectedArea = watch("area", "");
 
   // These store the 'friendly' codes (like "15" or "01") used for BigQuery/API calls
+  const [selectedSRD, setSelectedSRD] = useState(initialSrd || "");
   const [selectedAreaDistrict, setSelectedAreaDistrict] =
     React.useState<string>("");
   const [selectedCountyCode, setSelectedCountyCode] =
     React.useState<string>("");
+
+  useEffect(() => {
+    if (initialSrd) {
+      setSelectedSRD(initialSrd);
+      setValue("srd", initialSrd);
+    }
+  }, [initialSrd, setValue]);
 
   const onSubmitForm = (data: FilterValues) => {
     const filters: FilterValues = {
@@ -79,6 +91,7 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
       // Map the IDs back to the codes expected by the backend
       county: selectedCountyCode || data.county,
       area: selectedAreaDistrict || data.area,
+      srd: selectedSRD || data.srd,
     };
 
     onSubmit(filters);
@@ -122,9 +135,14 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
                 control={control}
                 setValue={setValue as any}
                 selectedCounty={selectedCounty}
+                selectedSRD={selectedSRD}
                 selectedArea={selectedArea}
                 onCountyChange={(value) => {
                   setValue("county", value);
+                }}
+                onSRDChange={(value) => {
+                  setSelectedSRD(value);
+                  setValue("srd", value);
                 }}
                 onAreaChange={(value) => {
                   setValue("area", value);

@@ -48,6 +48,9 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
   const [createdData, setCreatedData] = useState<WelcomeEmailData | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [districtOptions, setDistrictOptions] = useState<
+    { id: string; name: string }[]
+  >([]);
 
   const [precinctOptions, setPrecinctOptions] = useState<
     { id: string; name: string }[]
@@ -60,10 +63,38 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
     preferred_name: "",
     phone: "",
     role: "",
-    group_id: "", // Keep if needed for initial role assignment
+    group_id: "",
     precinct_id: "",
-    active: true, // NEW: Active toggle
+    active: true,
+    district_id: "",
   });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const countyId = claims?.counties?.[0];
+      if (!countyId) return;
+
+      try {
+        // Load Districts for the dropdown
+        const dists = await db
+          .table("state_rep_districts")
+          .where("county_id")
+          .equals(countyId)
+          .filter((d) => d.active)
+          .toArray();
+
+        setDistrictOptions(dists.map((d) => ({ id: d.id, name: d.name })));
+
+        // If the admin is a District Leader, auto-lock the form to THEIR district
+        if (claims?.role === "state_rep_district" && claims?.districts?.[0]) {
+          setForm((prev) => ({ ...prev, district_id: claims.districts[0] }));
+        }
+      } catch (err) {
+        console.error("Failed to load management data:", err);
+      }
+    };
+    fetchData();
+  }, [claims]);
 
   // Load precincts scoped to admin's area
   useEffect(() => {
@@ -323,6 +354,24 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
             {GROUPS.map((org) => (
               <MenuItem key={org.id} value={org.id}>
                 {org.name}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TextField
+            select
+            label="State Rep District *"
+            fullWidth
+            required
+            disabled={claims?.role === "state_rep_district"} // Lock if already a Dist Leader
+            value={form.district_id}
+            onChange={(e) => setForm({ ...form, district_id: e.target.value })}
+          >
+            {districtOptions.map((d) => (
+              <MenuItem key={d.id} value={d.id}>
+                {d.name}
               </MenuItem>
             ))}
           </TextField>

@@ -22,6 +22,7 @@ import GpsFixedIcon from "@mui/icons-material/GpsFixed";
 import TheaterComedyIcon from "@mui/icons-material/TheaterComedy";
 import PhoneDisabledIcon from "@mui/icons-material/PhoneDisabled";
 import ScienceIcon from "@mui/icons-material/Science";
+import HubIcon from "@mui/icons-material/Hub";
 
 // ... other icons
 import RouterButton from "../../components/navigation/RouterButton"; // Adjust path based on your folder structure
@@ -156,6 +157,17 @@ const cardConfigs = [
       "Bulk Upload Areas",
     ],
     path: "/admin/areas",
+  },
+  {
+    title: "Manage State Districts",
+    icon: <HubIcon fontSize="large" color="primary" />,
+    description: "Manage State Districts",
+    subActivities: [
+      "Add State Rep Districts",
+      "Edit State Rep Districts",
+      "Delete State Rep Districts",
+    ],
+    path: "/admin/districts",
   },
   // ... add others (Areas, Precincts, Rewards stub, etc.)
 ];

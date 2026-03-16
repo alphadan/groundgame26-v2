@@ -256,7 +256,8 @@ export default function ManageRoles() {
                     color="error"
                     size="small"
                     onClick={() => {
-                      const userObj = fullUserMap?.[params.row.uid];
+                      const uid = params.row.uid;
+                      const userObj = uid ? fullUserMap?.[uid] : null;
                       setRoleToVacate({
                         id: params.row.id,
                         name: userObj?.display_name || "this user",
