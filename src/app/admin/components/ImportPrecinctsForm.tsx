@@ -1,6 +1,7 @@
 // src/app/admin/components/ImportPrecinctsForm.tsx
 import React, { useState, useCallback } from "react";
 import { useCloudFunctions } from "../../../hooks/useCloudFunctions";
+import { useAuth } from "../../../context/AuthContext";
 import {
   Box,
   Button,
@@ -14,6 +15,8 @@ import { UploadFile, CloudUpload } from "@mui/icons-material";
 
 export const ImportPrecinctsForm: React.FC = () => {
   const { callFunction } = useCloudFunctions();
+  const { permissions } = useAuth();
+  const canImport = !!permissions.can_manage_resources;
 
   const [jsonInput, setJsonInput] = useState("");
   const [preview, setPreview] = useState<any[]>([]);
@@ -59,6 +62,13 @@ export const ImportPrecinctsForm: React.FC = () => {
   };
 
   const handleImport = useCallback(async () => {
+    if (!canImport) {
+      setResultMessage(
+        "Access Denied: You do not have permission to perform bulk imports.",
+      );
+      setIsError(true);
+      return;
+    }
     if (preview.length === 0) return;
 
     setIsImporting(true);
@@ -99,7 +109,17 @@ export const ImportPrecinctsForm: React.FC = () => {
     } finally {
       setIsImporting(false);
     }
-  }, [preview, callFunction]);
+  }, [preview, callFunction, canImport]);
+
+  // 3. UI PROTECTION
+  if (!canImport) {
+    return (
+      <Alert severity="warning">
+        Your role has read-only access to precinct definitions. Bulk importing
+        is disabled.
+      </Alert>
+    );
+  }
 
   return (
     <Box>

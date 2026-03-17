@@ -42,9 +42,14 @@ import SurveyResults from "../app/admin/surveys/SurveyResults";
 import DistrictsManagement from "../app/admin/districts/DistrictsManagement";
 
 export default function AppRouter() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   console.log("AppRouter: Auth State - User exists:", !!user);
+
+  const getHomePath = () => {
+    if (role === "volunteer") return "/voters";
+    return "/dashboard";
+  };
 
   return (
     <Routes>
@@ -56,7 +61,6 @@ export default function AppRouter() {
       <Route path="/contact" element={<ContactPage />} />
       <Route path="/volunteer" element={<VolunteerPage />} />
       <Route path="/surveys/:id" element={<SurveysPage />} />
-      <Route path="/legal" element={<LegalPage />} />
 
       {/* 2. AUTHENTICATION ENTRY POINT
           If NO user: Show LoginPage at both "/" and "/login"
@@ -72,19 +76,38 @@ export default function AppRouter() {
       */}
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/analysis" element={<AnalysisPage />} />
         <Route path="/resources" element={<ResourcesPage />} />
         <Route path="/voters" element={<VoterListPage />} />
         <Route path="/walk-lists" element={<WalkListPage />} />
-        <Route path="/name-search" element={<NameSearchPage />} />
-        <Route path="/manage-team" element={<ManageTeamPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/how-to-use" element={<HowToUsePage />} />
         <Route path="/rewards" element={<RewardsRedemptionPage />} />
       </Route>
 
-      {/* 4. ADMIN PROTECTED ROUTES 
-          Requires 'can_manage_team' custom claim permission.
+      {/* 4. BUCKET 2: LEADERSHIP PROTECTED ROUTES
+          Accessible to Candidates, Area Chairs, and higher (HIDDEN FROM VOLUNTEERS).
+      */}
+      <Route
+        element={
+          <ProtectedRoute
+            allowedRoles={[
+              "developer",
+              "state_admin",
+              "county_chair",
+              "state_rep_district",
+              "area_chair",
+              "candidate",
+            ]}
+          />
+        }
+      >
+        <Route path="/analysis" element={<AnalysisPage />} />
+        <Route path="/name-search" element={<NameSearchPage />} />
+        <Route path="/manage-team" element={<ManageTeamPage />} />
+      </Route>
+
+      {/* 5. BUCKET 3: ADMIN PROTECTED ROUTES 
+          Requires dynamic 'can_manage_team' permission from Firestore.
       */}
       <Route element={<ProtectedRoute requiredPermission="can_manage_team" />}>
         <Route path="/admin" element={<AdminDashboard />} />
@@ -111,16 +134,17 @@ export default function AppRouter() {
         <Route path="/admin/districts" element={<DistrictsManagement />} />
       </Route>
 
-      {/* 5. DYNAMIC ROOT & CATCH-ALL
-          This is the critical fix. 
-          If not logged in, the root "/" must show the Login Page.
-      */}
+      {/* 6. DYNAMIC ROOT */}
+      <Route
+        path="/"
+        element={user ? <Navigate to={getHomePath()} replace /> : <LoginPage />}
+      />
+
+      {/* 7. DYNAMIC ROOT & CATCH-ALL */}
       <Route
         path="/"
         element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />}
       />
-
-      {/* Final Fallback: send unknown routes to home/login */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

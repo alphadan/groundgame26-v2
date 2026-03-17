@@ -29,11 +29,6 @@ export const awardPoints = async (
   try {
     await updateDoc(userRef, {
       points_balance: increment(amount),
-      points_history: arrayUnion({
-        action,
-        amount,
-        timestamp: Date.now(),
-      }),
     });
   } catch (err) {
     console.error("awardPoints Error:", err);

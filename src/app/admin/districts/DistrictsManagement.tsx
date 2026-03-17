@@ -1,8 +1,5 @@
-// src/app/admin/districts/DistrictsManagement.tsx
 import React, { useState, useMemo } from "react";
 import { useAuth } from "../../../context/AuthContext";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db as indexedDb } from "../../../lib/db";
 import { State_Rep_District } from "../../../types";
 import { DistrictForm } from "./DistrictForm";
 import AssignDistrictLeaderDialog from "./AssignDistrictLeaderDialog";
@@ -30,24 +27,23 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
+import SecurityIcon from "@mui/icons-material/Security";
 
 export default function DistrictsManagement() {
-  const { user, isLoaded: authLoaded } = useAuth();
+  // 1. DYNAMIC AUTH: Standardized across the app
+  const { role, permissions, isLoaded: authLoaded } = useAuth();
   const navigate = useNavigate();
-  const localUser = useLiveQuery(
-    async () => (user?.uid ? await indexedDb.users.get(user.uid) : null),
-    [user?.uid],
-  );
-  const isDeveloper = localUser?.role === "developer";
+
+  // Logic: Use Firestore-driven flags
+  const isDeveloper = role === "developer";
+  const canModify = isDeveloper || !!permissions?.can_create_documents;
 
   const {
     data: districts,
     loading,
     error: crudError,
-    search,
     remove,
     fetchAll,
   } = useAdminCRUD<State_Rep_District>({
@@ -65,6 +61,7 @@ export default function DistrictsManagement() {
     null,
   );
 
+  // 2. UPDATED COLUMN DEFINITION
   const columns: GridColDef[] = useMemo(
     () => [
       { field: "district_number", headerName: "#", width: 70 },
@@ -111,7 +108,8 @@ export default function DistrictsManagement() {
                 </Typography>
               )}
             </Stack>
-            {isDeveloper && (
+            {/* Lead Assignment restricted by canModify */}
+            {canModify && (
               <IconButton
                 size="small"
                 onClick={() => {
@@ -145,52 +143,85 @@ export default function DistrictsManagement() {
           ),
       },
     ],
-    [isDeveloper],
+    [isDeveloper, canModify],
   );
 
   if (!authLoaded)
     return <CircularProgress sx={{ display: "block", m: "auto", mt: 10 }} />;
 
   return (
-    <Box sx={{ p: 4, maxWidth: 1200, margin: "auto" }}>
-      <Stack direction="row" alignItems="center" spacing={2} mb={4}>
-        <IconButton onClick={() => navigate("/admin")} color="primary">
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h4" fontWeight="900">
-          District Management
-        </Typography>
-      </Stack>
+    <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, margin: "auto" }}>
+      {/* Header Section */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 4,
+        }}
+      >
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <IconButton onClick={() => navigate("/admin")} color="primary">
+            <ArrowBackIcon />
+          </IconButton>
+          <Box>
+            <Typography variant="h4" fontWeight="900" color="primary">
+              District Management
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary">
+              Strategic mapping for state legislative boundaries
+            </Typography>
+          </Box>
+        </Stack>
+      </Box>
+
+      {crudError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {typeof crudError === "string"
+            ? crudError
+            : "Error loading districts."}
+        </Alert>
+      )}
 
       {/* Control Bar */}
       <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
         <Stack direction="row" spacing={2}>
           <TextField
-            label="Search #"
+            label="Filter List"
             size="small"
             fullWidth
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
-          <Button
-            variant="contained"
-            color="success"
-            startIcon={<AddIcon />}
-            sx={{ minWidth: 140, whiteSpace: "nowrap" }}
-            onClick={() => setDistrictDialogOpen(true)}
-          >
-            Add District
-          </Button>
+          {canModify && (
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<AddIcon />}
+              sx={{ minWidth: 140, whiteSpace: "nowrap" }}
+              onClick={() => setDistrictDialogOpen(true)}
+            >
+              Add District
+            </Button>
+          )}
         </Stack>
       </Paper>
 
-      <DataGrid
-        rows={districts}
-        columns={columns}
-        loading={loading}
-        autoHeight
-        disableRowSelectionOnClick
-      />
+      <Paper
+        elevation={0}
+        variant="outlined"
+        sx={{ borderRadius: 2, overflow: "hidden" }}
+      >
+        <DataGrid
+          rows={districts}
+          columns={columns}
+          loading={loading}
+          autoHeight
+          disableRowSelectionOnClick
+          pageSizeOptions={[10, 25]}
+          initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+        />
+      </Paper>
 
       {/* LEADERSHIP DIALOG */}
       <AssignDistrictLeaderDialog
@@ -218,7 +249,9 @@ export default function DistrictsManagement() {
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>Register New District</DialogTitle>
+        <DialogTitle sx={{ fontWeight: "bold" }}>
+          Register New District
+        </DialogTitle>
         <DialogContent dividers>
           <DistrictForm
             onSuccess={() => {
@@ -239,8 +272,8 @@ export default function DistrictsManagement() {
         <DialogContent>
           <Typography>
             Are you sure you want to delete District{" "}
-            <strong>{districtToDelete}</strong>? This action will sync to the
-            cloud and cannot be undone.
+            <strong>{districtToDelete || ""}</strong>? This action cannot be
+            undone.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>

@@ -51,6 +51,7 @@ export const CommunicationPreferences: React.FC<Props> = ({
     const q = query(
       collection(db, "notification_topics"),
       where("active", "==", true),
+      where("type", "==", "interest"),
     );
 
     const unsub = onSnapshot(

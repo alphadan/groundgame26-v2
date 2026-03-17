@@ -58,11 +58,9 @@ export default function MainLayout({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { user, userProfile, claims } = useAuth();
+  const { user, userProfile, permissions, role } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [realBadges, setRealBadges] = useState<any[]>([]);
-
-  const canManageTeam = !!claims?.permissions?.can_manage_team;
 
   const [appControl] = useState({
     current_app_version: "2.1.0",
@@ -83,28 +81,69 @@ export default function MainLayout({ children }: { children?: ReactNode }) {
     return subscribeToUserBadges(user.uid, setRealBadges);
   }, [user?.uid]);
 
+  // 1. ORDERED MENU ITEMS
   const menuItems = useMemo(() => {
-    const items = [
+    const rawItems = [
       { text: "Dashboard", icon: <HomeWork />, path: "/dashboard" },
-      { text: "Analysis", icon: <Analytics />, path: "/analysis" },
+      {
+        text: "Analysis",
+        icon: <Analytics />,
+        path: "/analysis",
+        visible: role !== "volunteer",
+      },
       { text: "Resources", icon: <Campaign />, path: "/resources" },
       { divider: true },
       { text: "Voter List", icon: <Phone />, path: "/voters" },
       { text: "Walk Lists", icon: <DirectionsWalk />, path: "/walk-lists" },
-      { text: "Name Search", icon: <SearchIcon />, path: "/name-search" },
+      {
+        text: "Name Search",
+        icon: <SearchIcon />,
+        path: "/name-search",
+        visible: role !== "volunteer",
+      },
       { divider: true },
-      { text: "Settings", icon: <Settings />, path: "/settings" },
       { text: "How to Use", icon: <TipsAndUpdatesIcon />, path: "/how-to-use" },
+      { text: "Settings", icon: <Settings />, path: "/settings" },
+      {
+        text: "Admin",
+        icon: <DataObjectIcon />,
+        path: "/admin",
+        requiredPermission: "can_manage_team",
+      },
     ];
-    if (canManageTeam) {
-      items.push({ text: "Admin", icon: <DataObjectIcon />, path: "/admin" });
-    }
-    return items;
-  }, [canManageTeam]);
+
+    // Filter based on role and dynamic permissions
+    return rawItems.filter((item) => {
+      if ("divider" in item) return true;
+
+      // Role check (Bucket 2 logic)
+      if (item.visible !== undefined && !item.visible) return false;
+
+      // Permission check (Bucket 3 logic)
+      if (item.requiredPermission) {
+        return !!permissions[
+          item.requiredPermission as keyof typeof permissions
+        ];
+      }
+
+      return true;
+    });
+  }, [role, permissions]);
 
   const drawerContent = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Toolbar sx={{ justifyContent: "center", py: 3 }}>
+      <Toolbar
+        sx={{
+          justifyContent: "center",
+          py: 3,
+          cursor: "pointer",
+          transition: "opacity 0.2s",
+          "&:hover": { opacity: 0.8 },
+        }}
+        onClick={() =>
+          navigate(role === "volunteer" ? "/voters" : "/dashboard")
+        }
+      >
         <Logo width={140} />
       </Toolbar>
       <Divider />

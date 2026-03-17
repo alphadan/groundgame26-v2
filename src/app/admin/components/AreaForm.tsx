@@ -9,6 +9,7 @@ import {
   Alert,
 } from "@mui/material";
 import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
+import { useAuth } from "../../../context/AuthContext"; // Import Auth
 
 interface Area {
   id: string;
@@ -28,6 +29,10 @@ export const AreaForm: React.FC<AreaFormProps> = ({
   initialData,
   onSuccess,
 }) => {
+  // 1. Get the admin's assigned county from claims
+  const { claims } = useAuth();
+  const assignedCounty = claims?.counties?.[0] || "PA-C-15";
+
   const { create, update, loading, error } = useAdminCRUD<Area>({
     collectionName: "areas",
   });
@@ -37,11 +42,10 @@ export const AreaForm: React.FC<AreaFormProps> = ({
     uid: "",
     name: "",
     area_district: "",
-    county_id: "PA-C-15", // Default for Chester County
+    county_id: assignedCounty, // Use the dynamic ID
     active: true,
   });
 
-  // Sync form state if initialData changes (when clicking Edit)
   useEffect(() => {
     if (initialData) {
       setFormData(initialData);
@@ -51,20 +55,28 @@ export const AreaForm: React.FC<AreaFormProps> = ({
         uid: "",
         name: "",
         area_district: "",
-        county_id: "PA-C-15",
+        county_id: assignedCounty,
         active: true,
       });
     }
-  }, [initialData]);
+  }, [initialData, assignedCounty]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Safety check: Don't allow submission without a county_id
+    if (!formData.county_id) {
+      console.error("No county ID assigned to admin.");
+      return;
+    }
+
     const cleanId = (formData.id || "").trim();
 
     const finalData = {
       ...formData,
       id: cleanId,
       uid: cleanId,
+      // Ensure the district code is always two digits (e.g., "5" becomes "05")
       area_district: String(formData.area_district || "").padStart(2, "0"),
     };
 
@@ -93,10 +105,10 @@ export const AreaForm: React.FC<AreaFormProps> = ({
           label="Area ID (e.g. PA15-A-01)"
           fullWidth
           required
-          disabled={!!initialData}
+          disabled={!!initialData} // IDs should be immutable once created
           value={formData.id}
           onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-          helperText="e.g. PA15-A-01"
+          helperText="Immutable unique identifier for this area"
         />
 
         <TextField
@@ -117,15 +129,16 @@ export const AreaForm: React.FC<AreaFormProps> = ({
             setFormData({ ...formData, area_district: e.target.value })
           }
           placeholder="e.g. 05"
-          helperText="Two-digit district code"
+          helperText="Two-digit code for reporting"
         />
 
         <TextField
-          label="County ID"
+          label="Assigned County"
           fullWidth
           value={formData.county_id}
           disabled
           variant="filled"
+          helperText="Areas are automatically assigned to your primary county"
         />
 
         <FormControlLabel
@@ -137,7 +150,7 @@ export const AreaForm: React.FC<AreaFormProps> = ({
               }
             />
           }
-          label="Active Status"
+          label="Active (Visible in field lists)"
         />
 
         <Button
@@ -145,10 +158,9 @@ export const AreaForm: React.FC<AreaFormProps> = ({
           variant="contained"
           fullWidth
           size="large"
-          loading={loading}
           disabled={loading}
         >
-          {initialData ? "Update Area" : "Create Area"}
+          {loading ? "Saving..." : initialData ? "Update Area" : "Create Area"}
         </Button>
       </Stack>
     </Box>

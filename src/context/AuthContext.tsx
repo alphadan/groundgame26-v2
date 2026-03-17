@@ -1,4 +1,3 @@
-// src/context/AuthContext.tsx
 import React, {
   createContext,
   useContext,
@@ -13,13 +12,14 @@ import { auth, db, analytics } from "../lib/firebase";
 import { setUserProperties, setUserId } from "firebase/analytics";
 import { Box, Typography, Button, CircularProgress } from "@mui/material";
 
-// Import shared interfaces from your central types file
-import { UserProfile, CustomClaims, UserRole } from "../types";
+// Import shared interfaces
+import { UserProfile, CustomClaims, UserRole, UserPermissions } from "../types";
 
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   claims: CustomClaims | null;
+  permissions: UserPermissions; // NEW: Dynamic permission set
   role: UserRole;
   isAdmin: boolean;
   isLoaded: boolean;
@@ -27,10 +27,19 @@ interface AuthContextType {
   error: Error | null;
 }
 
+const DEFAULT_PERMISSIONS: UserPermissions = {
+  can_manage_team: false,
+  can_create_users: false,
+  can_manage_resources: false,
+  can_create_documents: false,
+  can_download_records: false,
+};
+
 const defaultContext: AuthContextType = {
   user: null,
   userProfile: null,
   claims: null,
+  permissions: DEFAULT_PERMISSIONS,
   role: "base",
   isAdmin: false,
   isLoaded: false,
@@ -51,6 +60,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [claims, setClaims] = useState<CustomClaims | null>(null);
+  const [permissions, setPermissions] =
+    useState<UserPermissions>(DEFAULT_PERMISSIONS);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -60,20 +71,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
     const unsubscribeAuth = onIdTokenChanged(auth, async (currentUser) => {
       try {
-        // Clear previous profile listener if user changes
         if (unsubscribeProfile) {
           unsubscribeProfile();
           unsubscribeProfile = null;
         }
 
         if (currentUser) {
-          const tokenResult = await getIdTokenResult(currentUser);
+          // Force refresh to get latest Firestore-synced claims
+          const tokenResult = await getIdTokenResult(currentUser, true);
           const currentClaims = tokenResult.claims as CustomClaims;
 
           setUser(currentUser);
           setClaims(currentClaims);
 
-          // --- ANALYTICS SYNC ---
+          // --- DYNAMIC PERMISSIONS SYNC ---
+          // Extract permissions from claims or fallback to default
+          setPermissions(
+            (currentClaims.permissions as UserPermissions) ||
+              DEFAULT_PERMISSIONS,
+          );
+
           if (analytics) {
             setUserId(analytics, currentUser.uid);
             setUserProperties(analytics, {
@@ -82,7 +99,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             });
           }
 
-          // Start Firestore Profile Listener
           unsubscribeProfile = onSnapshot(
             doc(db, "users", currentUser.uid),
             async (snapshot) => {
@@ -92,8 +108,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                 profileData = snapshot.data() as UserProfile;
               }
 
-              // STRATEGIC BYPASS: If Developer is missing a doc or access object,
-              // hydrate a "God Mode" profile to prevent UI crashes
+              // DEVELOPER GOD-MODE BYPASS
               if (currentClaims.role === "developer") {
                 profileData = {
                   uid: currentUser.uid,
@@ -109,25 +124,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                     areas: ["ALL"],
                     precincts: ["ALL"],
                   },
+                  // Ensure developer has full permissions even if doc is missing
+                  permissions: {
+                    can_manage_team: true,
+                    can_create_users: true,
+                    can_manage_resources: true,
+                    can_create_documents: true,
+                    can_download_records: true,
+                  },
                   ...profileData,
                 } as UserProfile;
               }
 
               setUserProfile(profileData);
 
-              // Update Analytics with geographic data once profile is loaded
               if (analytics && profileData) {
                 setUserProperties(analytics, {
-                  user_county: profileData.county_id || "none",
-                  user_area: profileData.area_id || "none",
+                  user_county: profileData.access?.counties?.[0] || "none",
+                  user_role: profileData.role || "none",
                 });
               }
 
-              // Force token refresh if the Cloud Function signalled a sync
-              // This is critical for the "Instant Permission" UX
+              // Check for sync flag from Cloud Function
               if (profileData?.last_claims_sync) {
                 const updatedToken = await getIdTokenResult(currentUser, true);
                 setClaims(updatedToken.claims as CustomClaims);
+                setPermissions(
+                  (updatedToken.claims.permissions as UserPermissions) ||
+                    DEFAULT_PERMISSIONS,
+                );
               }
 
               setIsLoading(false);
@@ -140,11 +165,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             },
           );
         } else {
-          // Reset state and Analytics on Logout
           if (analytics) setUserId(analytics, null);
           setUser(null);
           setUserProfile(null);
           setClaims(null);
+          setPermissions(DEFAULT_PERMISSIONS);
           setIsLoading(false);
           setIsLoaded(true);
         }
@@ -167,15 +192,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       user,
       userProfile,
       claims: claims ?? null,
+      permissions, // Globally exposed dynamic permissions
       role: safeRole,
-      isAdmin: safeRole === "state_admin" || safeRole === "developer",
+      isAdmin: permissions.can_manage_team || safeRole === "developer",
       isLoaded,
       isLoading,
       error,
     };
-  }, [user, userProfile, claims, isLoaded, isLoading, error]);
+  }, [user, userProfile, claims, permissions, isLoaded, isLoading, error]);
 
-  if (isLoading) {
+  // Loading and Error UI remain exactly as you have them...
+  if (isLoading)
     return (
       <Box
         display="flex"
@@ -186,9 +213,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         <CircularProgress size={40} />
       </Box>
     );
-  }
-
-  if (error) {
+  if (error)
     return (
       <Box
         display="flex"
@@ -213,7 +238,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         </Button>
       </Box>
     );
-  }
 
   return (
     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>

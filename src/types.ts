@@ -136,6 +136,21 @@ export interface CustomClaims {
   [key: string]: any;
 }
 
+export type JurisdictionType = "house" | "senate" | "congressional" | "countywide";
+
+export interface CandidateJurisdiction {
+  type: JurisdictionType;
+  value: string; // e.g., "167", "44", "PA06", or "ALL"
+}
+
+export interface UserAccess {
+  counties: string[];
+  districts: string[];
+  areas: string[];
+  precincts: string[];
+  jurisdiction?: CandidateJurisdiction;
+}
+
 // --- UserProfile ---
 
 export interface UserProfile {
@@ -160,11 +175,7 @@ export interface UserProfile {
   county_id?: string;
   area_id?: string;
   precinct_id?: string;
-  access: {
-    counties: string[];
-    areas: string[];
-    precincts: string[];
-  };
+  access: UserAccess;
   active: boolean;
   last_claims_sync?: any;
 }

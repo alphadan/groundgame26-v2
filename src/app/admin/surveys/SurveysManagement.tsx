@@ -1,13 +1,9 @@
 // src/app/admin/surveys/SurveysManagement.tsx
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../../context/AuthContext";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db as indexedDb } from "../../../lib/db";
-import { UserPermissions, Survey } from "../../../types";
+import { Survey } from "../../../types";
 import { SurveyForm } from "./components/SurveyForm";
-
 import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
-
 import { useNavigate } from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -34,19 +30,10 @@ import EditIcon from "@mui/icons-material/Edit";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 
 export default function SurveysManagement() {
-  const { user, isLoaded: authLoaded } = useAuth();
+  const { permissions, isLoaded: authLoaded } = useAuth();
   const navigate = useNavigate();
 
-  const localUser = useLiveQuery(
-    async () => (user?.uid ? await indexedDb.users.get(user.uid) : null),
-    [user?.uid],
-  );
-
-  const permissions: UserPermissions = (localUser?.permissions ||
-    {}) as UserPermissions;
-  const canCreateDocs = !!permissions.can_create_documents;
-
-  const hasAccess = canCreateDocs; // Simplified — only create/edit permission needed now
+  const canModify = !!permissions.can_create_documents;
 
   const {
     data: surveys,
@@ -90,7 +77,7 @@ export default function SurveysManagement() {
     { field: "description", headerName: "Description", flex: 2, minWidth: 250 },
     {
       field: "active",
-      headerName: "Active",
+      headerName: "Status",
       width: 100,
       renderCell: (params) => (
         <Chip
@@ -134,19 +121,19 @@ export default function SurveysManagement() {
         <Stack
           direction="row"
           spacing={1}
-          flexWrap="wrap"
-          sx={{
-            py: 1,
-            alignItems: "center",
-          }}
+          alignItems="center"
+          sx={{ height: "100%" }}
         >
-          <Button
-            size="small"
-            startIcon={<EditIcon />}
-            onClick={() => handleOpenEdit(params.row)}
-          >
-            Edit
-          </Button>
+          {/* EDIT: Guarded by permission */}
+          {canModify && (
+            <Button
+              size="small"
+              startIcon={<EditIcon />}
+              onClick={() => handleOpenEdit(params.row)}
+            >
+              Edit
+            </Button>
+          )}
           <Button
             size="small"
             startIcon={<VisibilityIcon />}
@@ -158,6 +145,7 @@ export default function SurveysManagement() {
           </Button>
           <Button
             size="small"
+            variant="outlined"
             startIcon={<BarChartIcon />}
             onClick={() =>
               navigate(`/admin/surveys/${params.row.survey_id}/results`)
@@ -171,7 +159,7 @@ export default function SurveysManagement() {
     },
   ];
 
-  if (localUser === undefined || !authLoaded) {
+  if (!authLoaded) {
     return (
       <Box
         sx={{
@@ -186,13 +174,13 @@ export default function SurveysManagement() {
     );
   }
 
-  if (!hasAccess) {
+  if (!permissions.can_manage_team && !canModify) {
     return (
       <Box p={6} textAlign="center">
         <Alert severity="error" variant="filled">
           <Typography variant="h6">Access Denied</Typography>
           <Typography variant="body1" mt={1}>
-            You do not have permission to manage surveys.
+            You do not have permission to manage community surveys.
           </Typography>
         </Alert>
       </Box>
@@ -216,26 +204,29 @@ export default function SurveysManagement() {
 
         <Box>
           <Typography variant="h4" fontWeight="bold" color="primary">
-            Manage Survey Meta
+            Manage Surveys
           </Typography>
           <Typography variant="h6" color="text.secondary">
-            Create, edit, and manage community surveys
+            Configure community feedback and canvas scripts
           </Typography>
         </Box>
       </Box>
 
       <Divider sx={{ mb: 4 }} />
 
-      {/* Create Button (No Tabs) */}
-      <Box sx={{ mb: 4 }}>
-        <Button
-          variant="contained"
-          onClick={handleOpenCreate}
-          startIcon={<AddIcon />}
-        >
-          Create New Survey Meta
-        </Button>
-      </Box>
+      {/* CREATE BUTTON: Guarded by permission */}
+      {canModify && (
+        <Box sx={{ mb: 4 }}>
+          <Button
+            variant="contained"
+            onClick={handleOpenCreate}
+            startIcon={<AddIcon />}
+            size="large"
+          >
+            Create New Survey
+          </Button>
+        </Box>
+      )}
 
       {/* Survey List */}
       <Box sx={{ mt: 6 }}>
@@ -249,27 +240,23 @@ export default function SurveysManagement() {
           </Alert>
         )}
 
-        <Paper elevation={3} sx={{ borderRadius: 3, overflow: "hidden" }}>
+        <Paper
+          elevation={0}
+          variant="outlined"
+          sx={{ borderRadius: 3, overflow: "hidden" }}
+        >
           <DataGrid
             rows={surveys}
             columns={columns}
             loading={loading}
             getRowId={(row) => row.survey_id}
             autoHeight
-            pageSizeOptions={[10, 25, 50, 100]}
+            pageSizeOptions={[10, 25, 50]}
             disableRowSelectionOnClick
-            initialState={{
-              pagination: { paginationModel: { pageSize: 25 } },
-            }}
-            sx={{
-              "& .MuiDataGrid-columnHeader": {
-                backgroundColor: "action.hover",
-              },
-            }}
+            initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
           />
         </Paper>
       </Box>
-
       {/* Create/Edit Dialog */}
       <Dialog
         open={surveyDialogOpen}
@@ -277,19 +264,19 @@ export default function SurveysManagement() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>
-          {selectedSurvey ? "Edit Survey Meta" : "Create New Survey Meta"}
+        <DialogTitle sx={{ fontWeight: "bold" }}>
+          {selectedSurvey ? "Update Survey Parameters" : "Register New Survey"}
         </DialogTitle>
         <DialogContent dividers>
           <SurveyForm
             initialData={selectedSurvey}
             onSuccess={() => {
               setSurveyDialogOpen(false);
-              fetchAll(); // Refresh list
+              fetchAll();
             }}
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setSurveyDialogOpen(false)}>Cancel</Button>
         </DialogActions>
       </Dialog>

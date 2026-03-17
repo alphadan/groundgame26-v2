@@ -1,14 +1,7 @@
 // src/app/admin/resources/ResourcesManagement.tsx
 import React, { useEffect, useState } from "react";
-import { useAuth } from "../../../context/AuthContext"; // adjust path as needed
-import { useLiveQuery } from "dexie-react-hooks";
-import { db as indexedDb } from "../../../lib/db"; // adjust path
-import { UserPermissions } from "../../../types"; // adjust path
-
-// Import your existing component
+import { useAuth } from "../../../context/AuthContext";
 import { CampaignResourcesManager } from "../components/CampaignResourcesManager";
-
-// Back button imports
 import { useNavigate } from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -24,25 +17,10 @@ import {
 } from "@mui/material";
 
 export default function ResourcesManagement() {
-  const { user, claims, isLoaded: authLoaded } = useAuth();
+  const { permissions, isLoaded: authLoaded } = useAuth();
   const navigate = useNavigate();
 
-  // Fetch local user permissions
-  const localUser = useLiveQuery(async () => {
-    if (!user?.uid) return null;
-    return await indexedDb.users.get(user.uid);
-  }, [user?.uid]);
-
-  const permissions: UserPermissions = (localUser?.permissions || {
-    can_manage_resources: false,
-    can_upload_collections: false,
-    can_create_collections: false,
-    can_create_documents: false,
-    can_create_users: false,
-  }) as UserPermissions;
-
   const canManageResources = !!permissions.can_manage_resources;
-  const hasAccess = canManageResources;
 
   // Prevent blinking cursor / retain focus from previous page
   useEffect(() => {
@@ -52,7 +30,7 @@ export default function ResourcesManagement() {
   }, []);
 
   // Loading state
-  if (!authLoaded || localUser === undefined) {
+  if (!authLoaded) {
     return (
       <Box
         sx={{
@@ -68,7 +46,7 @@ export default function ResourcesManagement() {
   }
 
   // Access denied
-  if (!hasAccess) {
+  if (!canManageResources) {
     return (
       <Box p={6} textAlign="center">
         <Alert severity="error" variant="filled">

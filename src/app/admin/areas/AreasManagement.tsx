@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../../context/AuthContext";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db as indexedDb } from "../../../lib/db";
-import { UserPermissions, Area } from "../../../types";
+// Removed Dexie imports for permission checks
+import { Area } from "../../../types";
 
 import { AreaForm } from "../components/AreaForm";
 import { ImportAreasForm } from "../components/ImportAreasForm";
@@ -33,26 +32,20 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
+import SearchIcon from "@mui/icons-material/Search";
 import SecurityIcon from "@mui/icons-material/Security";
 
 export default function AreasManagement() {
-  const { user, isLoaded: authLoaded } = useAuth();
+  // 1. DYNAMIC AUTH: Pull directly from the updated AuthContext
+  const { role, permissions, isLoaded: authLoaded } = useAuth();
   const navigate = useNavigate();
 
-  // 1. Reactive Developer Check from IndexedDB
-  const localUser = useLiveQuery(
-    async () => (user?.uid ? await indexedDb.users.get(user.uid) : null),
-    [user?.uid],
-  );
+  // 2. REVISED PERMISSION LOGIC
+  const isDeveloper = role === "developer";
 
-  const isDeveloper = localUser?.role === "developer";
-
-  // 2. Permission logic
-  const permissions: UserPermissions = (localUser?.permissions ||
-    {}) as UserPermissions;
-  // Developers bypass standard permission flags
+  // Use the flags from your Firestore roles_config
   const canModify = isDeveloper || !!permissions.can_create_documents;
-  const canBulkUpload = isDeveloper || !!permissions.can_upload_collections;
+  const canBulkUpload = isDeveloper || !!permissions.can_manage_resources;
 
   const {
     data: areas,
@@ -93,6 +86,7 @@ export default function AreasManagement() {
   };
 
   const handleOpenEdit = (area: Area) => {
+
     setSelectedArea(area);
     setAreaDialogOpen(true);
   };
@@ -112,7 +106,7 @@ export default function AreasManagement() {
     }
   };
 
-  // 3. Conditional Column Definition
+  // 3. UPDATED COLUMN DEFINITION
   const columns: GridColDef[] = useMemo(() => {
     const baseColumns: GridColDef[] = [
       { field: "id", headerName: "Area ID", width: 150 },
@@ -133,8 +127,8 @@ export default function AreasManagement() {
       },
     ];
 
-    // Only inject Actions column if user is a developer
-    if (isDeveloper) {
+    // Show Actions if the user is a Developer or has "can_create_documents" perms
+    if (canModify) {
       baseColumns.push({
         field: "actions",
         headerName: "Actions",
@@ -153,22 +147,25 @@ export default function AreasManagement() {
                 <EditIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Delete Area">
-              <IconButton
-                size="small"
-                color="error"
-                onClick={() => handleDelete(params.row.id)}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            {/* Hard delete only for developers or top-tier admins */}
+            {isDeveloper && (
+              <Tooltip title="Delete Area">
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => handleDelete(params.row.id)}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Stack>
         ),
       });
     }
 
     return baseColumns;
-  }, [isDeveloper]);
+  }, [canModify, isDeveloper]);
 
   if (!authLoaded)
     return (
@@ -180,14 +177,7 @@ export default function AreasManagement() {
   return (
     <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, margin: "auto" }}>
       {/* Header Section */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          mb: 4,
-        }}
-      >
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 4 }}>
         <Box sx={{ display: "flex", alignItems: "center" }}>
           <IconButton
             onClick={() => navigate("/admin")}
@@ -201,29 +191,11 @@ export default function AreasManagement() {
               Area Management
             </Typography>
             <Typography variant="subtitle1" color="text.secondary">
-              Configure geographic boundaries and districts
+              Configure geographic boundaries
             </Typography>
           </Box>
         </Box>
-
-        {isDeveloper && (
-          <Chip
-            icon={<SecurityIcon />}
-            label="Developer Mode"
-            color="secondary"
-            variant="filled"
-            sx={{ fontWeight: "bold" }}
-          />
-        )}
       </Box>
-
-      {crudError && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {typeof crudError === "string"
-            ? crudError
-            : (crudError as any).message}
-        </Alert>
-      )}
 
       {/* Control Bar */}
       <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }}>
@@ -235,11 +207,12 @@ export default function AreasManagement() {
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+            sx={{ bgcolor: "white" }}
           />
           <Button
             variant="outlined"
             onClick={handleSearch}
-            startIcon={<LocationOnIcon />}
+            startIcon={<SearchIcon />}
             sx={{ minWidth: 120 }}
           >
             Search
@@ -251,7 +224,7 @@ export default function AreasManagement() {
               color="success"
               onClick={handleOpenCreate}
               startIcon={<AddIcon />}
-              sx={{ minWidth: 140, whiteSpace: "nowrap" }}
+              sx={{ whiteSpace: "nowrap", minWidth: 160 }}
             >
               Add Area
             </Button>
@@ -260,36 +233,26 @@ export default function AreasManagement() {
       </Paper>
 
       {/* Table Section */}
-      <Paper elevation={3} sx={{ borderRadius: 2, overflow: "hidden" }}>
+      <Paper
+        elevation={0}
+        variant="outlined"
+        sx={{ borderRadius: 2, overflow: "hidden" }}
+      >
         <DataGrid
           rows={areas}
           columns={columns}
           loading={loading}
           autoHeight
           pageSizeOptions={[10, 25, 50]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 10 } },
-          }}
+          initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
           disableRowSelectionOnClick
-          sx={{
-            border: "none",
-            "& .MuiDataGrid-columnHeaders": {
-              backgroundColor: "#f5f5f5",
-              fontWeight: "bold",
-            },
-          }}
         />
       </Paper>
 
       {/* Bulk Operations - Restricted Section */}
       {canBulkUpload && (
         <Box sx={{ mt: 6 }}>
-          <Typography
-            variant="h6"
-            fontWeight="bold"
-            gutterBottom
-            sx={{ display: "flex", alignItems: "center", gap: 1 }}
-          >
+          <Typography variant="h6" fontWeight="bold" gutterBottom>
             Bulk Operations
           </Typography>
           <Paper
@@ -302,23 +265,23 @@ export default function AreasManagement() {
             }}
           >
             <Typography variant="body2" color="text.secondary" mb={3}>
-              Use the tool below to upload geographic definitions in bulk. This
-              will overwrite existing local IDs.
+              Overwrite local definitions by uploading CSV/JSON files. Access
+              restricted to resource managers.
             </Typography>
             <ImportAreasForm />
           </Paper>
         </Box>
       )}
 
-      {/* Modals */}
+      {/* THE DIALOG - Ensure 'open' prop is tied to 'areaDialogOpen' */}
       <Dialog
         open={areaDialogOpen}
         onClose={() => setAreaDialogOpen(false)}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle sx={{ fontWeight: "bold" }}>
-          {selectedArea ? "Edit Area Details" : "Register New Area"}
+        <DialogTitle>
+          {selectedArea ? "Edit Area" : "Register New Area"}
         </DialogTitle>
         <DialogContent dividers>
           <AreaForm
@@ -329,13 +292,11 @@ export default function AreasManagement() {
             }}
           />
         </DialogContent>
-        <DialogActions sx={{ p: 2 }}>
-          <Button onClick={() => setAreaDialogOpen(false)} color="inherit">
-            Cancel
-          </Button>
+        <DialogActions>
+          <Button onClick={() => setAreaDialogOpen(false)}>Cancel</Button>
         </DialogActions>
       </Dialog>
-
+      {/* Delete Confirmation */}
       <Dialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
@@ -343,13 +304,22 @@ export default function AreasManagement() {
         <DialogTitle color="error">Confirm Permanent Deletion</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete Area <strong>{areaToDelete}</strong>
-            ? This action will sync to the cloud and cannot be undone.
+            {/* FIX: Ensure we check if areaToDelete exists before rendering.
+         Also, we use areaToDelete directly since it is a string (the ID).
+      */}
+            Are you sure you want to delete Area{" "}
+            <strong>{areaToDelete || ""}</strong>? This action will sync to the
+            cloud and cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setDeleteConfirmOpen(false)}>Keep Area</Button>
-          <Button color="error" variant="contained" onClick={confirmDelete}>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={confirmDelete}
+            disabled={!areaToDelete} // Guard against empty clicks
+          >
             Confirm Delete
           </Button>
         </DialogActions>

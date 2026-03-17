@@ -1,6 +1,6 @@
-// src/app/admin/components/CreateUserForm.tsx
 import React, { useState, useMemo, useEffect } from "react";
 import { useCloudFunctions } from "../../../hooks/useCloudFunctions";
+import { useAuth } from "../../../context/AuthContext";
 import { db } from "../../../lib/db"; // Dexie
 import {
   getWelcomeEmailTemplate,
@@ -21,7 +21,6 @@ import {
   DialogActions,
   Stack,
   Autocomplete,
-  CircularProgress,
   Divider,
   FormControlLabel,
   Switch,
@@ -30,7 +29,27 @@ import {
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
-// Standard Groups List (for role assignment)
+// --- IMMUTABLE CANDIDATE JURISDICTIONS ---
+const JURISDICTIONS = {
+  congressional: [{ id: "PA06", name: "PA-06 (Congressional)" }],
+  senate: [
+    { id: "9", name: "Senate District 9" },
+    { id: "19", name: "Senate District 19" },
+    { id: "44", name: "Senate District 44" },
+  ],
+  house: [
+    { id: "13", name: "House District 13" },
+    { id: "26", name: "House District 26" },
+    { id: "74", name: "House District 74" },
+    { id: "155", name: "House District 155" },
+    { id: "157", name: "House District 157" },
+    { id: "158", name: "House District 158" },
+    { id: "160", name: "House District 160" },
+    { id: "167", name: "House District 167" },
+  ],
+  countywide: [{ id: "ALL", name: "All County Precincts" }],
+};
+
 const GROUPS = [
   { id: "PA15-G-01", name: "Chester County Republican Committee" },
   { id: "PA15-G-02", name: "Turning Point Action" },
@@ -44,6 +63,9 @@ interface Props {
 export const CreateUserForm: React.FC<Props> = ({ claims }) => {
   const { callFunction } = useCloudFunctions();
 
+  // 1. DYNAMIC AUTH: Pull permissions and the admin's own role
+  const { permissions, role: adminRole } = useAuth();
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdData, setCreatedData] = useState<WelcomeEmailData | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -51,7 +73,6 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
   const [districtOptions, setDistrictOptions] = useState<
     { id: string; name: string }[]
   >([]);
-
   const [precinctOptions, setPrecinctOptions] = useState<
     { id: string; name: string }[]
   >([]);
@@ -67,15 +88,35 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
     precinct_id: "",
     active: true,
     district_id: "",
+    jurisdiction_type: "" as keyof typeof JURISDICTIONS | "",
+    jurisdiction_value: "",
   });
+
+  // 2. DYNAMIC ROLE FILTERING: Only show roles this admin is allowed to provision
+  const availableRoles = useMemo(() => {
+    // Developers get a master list
+    if (adminRole === "developer") {
+      return [
+        "state_admin",
+        "county_chair",
+        "state_rep_district",
+        "area_chair",
+        "candidate",
+        "committeeperson",
+        "volunteer",
+      ];
+    }
+    // Everyone else uses the array we fetched from Firestore roles_config
+    return (
+      (claims?.permissions?.allowed_to_create as string[]) || ["volunteer"]
+    );
+  }, [adminRole, claims]);
 
   useEffect(() => {
     const fetchData = async () => {
       const countyId = claims?.counties?.[0];
       if (!countyId) return;
-
       try {
-        // Load Districts for the dropdown
         const dists = await db
           .table("state_rep_districts")
           .where("county_id")
@@ -85,8 +126,8 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
 
         setDistrictOptions(dists.map((d) => ({ id: d.id, name: d.name })));
 
-        // If the admin is a District Leader, auto-lock the form to THEIR district
-        if (claims?.role === "state_rep_district" && claims?.districts?.[0]) {
+        // Auto-lock District Leaders to their own district
+        if (adminRole === "state_rep_district" && claims?.districts?.[0]) {
           setForm((prev) => ({ ...prev, district_id: claims.districts[0] }));
         }
       } catch (err) {
@@ -94,13 +135,12 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
       }
     };
     fetchData();
-  }, [claims]);
+  }, [claims, adminRole]);
 
-  // Load precincts scoped to admin's area
   useEffect(() => {
     const fetchPrecincts = async () => {
       const areaId = claims?.areas?.[0];
-      if (!areaId) return;
+      if (!areaId || areaId === "ALL") return;
 
       setPrecinctLoading(true);
       try {
@@ -109,12 +149,7 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
           .where("area_id")
           .equals(areaId)
           .toArray();
-        setPrecinctOptions(
-          data.map((p) => ({
-            id: p.id,
-            name: p.name,
-          })),
-        );
+        setPrecinctOptions(data.map((p) => ({ id: p.id, name: p.name })));
       } catch (err) {
         console.error("Failed to load precincts:", err);
       } finally {
@@ -124,34 +159,30 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
     fetchPrecincts();
   }, [claims]);
 
-  // Filter roles based on admin rank
-  const availableRoles = useMemo(() => {
-    const roleMap: Record<string, string[]> = {
-      developer: ["committeeperson", "candidate", "volunteer"],
-      state_rep_district: ["candidate", "volunteer", "committeeperson"],
-      county_chair: ["area_chair"],
-      area_chair: ["committeeperson", "volunteer"],
-    };
-    return roleMap[claims?.role] || ["volunteer"];
-  }, [claims?.role]);
-
   const isPrecinctRequired = ["committeeperson", "volunteer"].includes(
     form.role,
   );
+  const isCandidate = form.role === "candidate";
 
   const handleProvision = async () => {
+    // 3. SECURITY GUARD: Final check before calling the cloud
+    if (!permissions.can_create_users) {
+      alert(
+        "Action Blocked: You do not have permission to provision accounts.",
+      );
+      return;
+    }
+
     setConfirmOpen(false);
     setIsSubmitting(true);
     try {
       const result = await callFunction<WelcomeEmailData>("adminCreateUser", {
         ...form,
         county_id: claims?.counties?.[0] || "",
-        area_id: claims?.areas?.[0] || "",
+        area_id: isCandidate ? "" : claims?.areas?.[0] || "",
         active: form.active,
       });
       setCreatedData(result);
-
-      // Reset form
       setForm({
         email: "",
         display_name: "",
@@ -161,9 +192,12 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
         group_id: "",
         precinct_id: "",
         active: true,
+        district_id: "",
+        jurisdiction_type: "",
+        jurisdiction_value: "",
       });
     } catch (err: any) {
-      alert(err.message || "Provisioning failed. Check logs.");
+      alert(err.message || "Provisioning failed.");
     } finally {
       setIsSubmitting(false);
     }
@@ -175,7 +209,6 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  // Success View
   if (createdData) {
     const emailTemplate = getWelcomeEmailTemplate(createdData);
     return (
@@ -192,9 +225,8 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
             User Provisioned Successfully
           </Typography>
           <Alert severity="info">
-            The account is active by default. Send the welcome email below.
+            Copy the credentials below to send to the new user.
           </Alert>
-
           <Box>
             <Typography
               variant="caption"
@@ -203,12 +235,7 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
             >
               Email Subject:
             </Typography>
-            <Stack
-              direction="row"
-              alignItems="center"
-              spacing={1}
-              sx={{ mt: 0.5 }}
-            >
+            <Stack direction="row" alignItems="center" spacing={1}>
               <Typography variant="body2">{emailTemplate.subject}</Typography>
               <Tooltip title={copiedField === "subject" ? "Copied!" : "Copy"}>
                 <IconButton
@@ -220,9 +247,7 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
               </Tooltip>
             </Stack>
           </Box>
-
           <Divider />
-
           <Box>
             <Typography
               variant="caption"
@@ -255,7 +280,6 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
               </Tooltip>
             </Box>
           </Box>
-
           <Button
             variant="outlined"
             fullWidth
@@ -269,11 +293,10 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
     );
   }
 
-  // Form View
   return (
     <Box>
       <Typography variant="body2" color="text.secondary" mb={4}>
-        Fill out the details. A new user will be provisioned with a temporary
+        Create a new field account. The system will generate a secure temporary
         password.
       </Typography>
 
@@ -285,11 +308,8 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
             required
             value={form.display_name}
             onChange={(e) => setForm({ ...form, display_name: e.target.value })}
-            inputProps={{ maxLength: 100 }}
-            helperText={`${form.display_name.length}/100 characters`}
           />
         </Grid>
-
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             label="Preferred Name *"
@@ -299,11 +319,8 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
             onChange={(e) =>
               setForm({ ...form, preferred_name: e.target.value })
             }
-            inputProps={{ maxLength: 50 }}
-            helperText={`${form.preferred_name.length}/50 characters`}
           />
         </Grid>
-
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             label="Email Address *"
@@ -314,17 +331,14 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
         </Grid>
-
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             label="Phone Number"
             fullWidth
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            helperText="Optional - used for SMS notifications"
           />
         </Grid>
-
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             select
@@ -332,7 +346,14 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
             fullWidth
             required
             value={form.role}
-            onChange={(e) => setForm({ ...form, role: e.target.value })}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                role: e.target.value,
+                jurisdiction_type: "",
+                jurisdiction_value: "",
+              })
+            }
           >
             {availableRoles.map((r) => (
               <MenuItem key={r} value={r} sx={{ textTransform: "capitalize" }}>
@@ -341,11 +362,10 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
             ))}
           </TextField>
         </Grid>
-
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
             select
-            label="Group *"
+            label="Assign Group *"
             fullWidth
             required
             value={form.group_id}
@@ -359,23 +379,71 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
           </TextField>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
-          <TextField
-            select
-            label="State Rep District *"
-            fullWidth
-            required
-            disabled={claims?.role === "state_rep_district"} // Lock if already a Dist Leader
-            value={form.district_id}
-            onChange={(e) => setForm({ ...form, district_id: e.target.value })}
-          >
-            {districtOptions.map((d) => (
-              <MenuItem key={d.id} value={d.id}>
-                {d.name}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Grid>
+        {isCandidate ? (
+          <>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                select
+                label="Candidate Office *"
+                fullWidth
+                required
+                value={form.jurisdiction_type}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    jurisdiction_type: e.target.value as any,
+                    jurisdiction_value: "",
+                  })
+                }
+              >
+                <MenuItem value="congressional">Congressional</MenuItem>
+                <MenuItem value="senate">State Senate</MenuItem>
+                <MenuItem value="house">State House</MenuItem>
+                <MenuItem value="countywide">Countywide</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                select
+                label="District Selection *"
+                fullWidth
+                required
+                disabled={!form.jurisdiction_type}
+                value={form.jurisdiction_value}
+                onChange={(e) =>
+                  setForm({ ...form, jurisdiction_value: e.target.value })
+                }
+              >
+                {form.jurisdiction_type &&
+                  JURISDICTIONS[form.jurisdiction_type].map((j) => (
+                    <MenuItem key={j.id} value={j.id}>
+                      {j.name}
+                    </MenuItem>
+                  ))}
+              </TextField>
+            </Grid>
+          </>
+        ) : (
+          <Grid size={{ xs: 12, md: 6 }}>
+            <TextField
+              select
+              label="Assigned District *"
+              fullWidth
+              required
+              disabled={adminRole === "state_rep_district"}
+              value={form.district_id}
+              onChange={(e) =>
+                setForm({ ...form, district_id: e.target.value })
+              }
+            >
+              {districtOptions.map((d) => (
+                <MenuItem key={d.id} value={d.id}>
+                  {d.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Grid>
+        )}
 
         {isPrecinctRequired && (
           <Grid size={{ xs: 12 }}>
@@ -396,66 +464,41 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
                   label="Assigned Precinct *"
                   required
                   fullWidth
-                  helperText="Select the precinct for this user"
                 />
-              )}
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>
-                  <Box>
-                    <Typography variant="body2">
-                      {option.name} {", ("} {option.id} {")"}
-                    </Typography>
-                  </Box>
-                </li>
               )}
             />
           </Grid>
         )}
-
-        <Grid size={{ xs: 12 }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={form.active}
-                onChange={(e) => setForm({ ...form, active: e.target.checked })}
-              />
-            }
-            label="Active (can log in)"
-          />
-        </Grid>
       </Grid>
 
       <Button
         variant="contained"
         fullWidth
         size="large"
-        sx={{ mt: 4, py: 1.5, fontWeight: "bold" }}
+        sx={{ mt: 4, py: 2, fontWeight: "bold" }}
         disabled={
+          !permissions.can_create_users || // Final UI block
           !form.email ||
           !form.display_name ||
           !form.role ||
           !form.group_id ||
+          (isCandidate && !form.jurisdiction_value) ||
+          (!isCandidate && !form.district_id) ||
           (isPrecinctRequired && !form.precinct_id)
         }
         onClick={() => setConfirmOpen(true)}
       >
-        Provision Account
+        {isSubmitting ? "Processing..." : "Provision Account"}
       </Button>
 
-      {/* Confirmation Dialog */}
       <Dialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle sx={{ fontWeight: "bold" }}>
-          Confirm Provisioning
-        </DialogTitle>
+        <DialogTitle sx={{ fontWeight: "bold" }}>Confirm New User</DialogTitle>
         <DialogContent dividers>
-          <Typography variant="body2" mb={2}>
-            Verify details before creating the account:
-          </Typography>
           <Stack spacing={1}>
             <Typography variant="caption">
               <b>Name:</b> {form.display_name}
@@ -468,14 +511,6 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
             </Typography>
             <Typography variant="caption">
               <b>Group:</b> {GROUPS.find((o) => o.id === form.group_id)?.name}
-            </Typography>
-            {isPrecinctRequired && (
-              <Typography variant="caption">
-                <b>Precinct:</b> {form.precinct_id}
-              </Typography>
-            )}
-            <Typography variant="caption">
-              <b>Active:</b> {form.active ? "Yes" : "No"}
             </Typography>
           </Stack>
         </DialogContent>

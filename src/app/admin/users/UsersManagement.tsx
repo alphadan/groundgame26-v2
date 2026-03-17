@@ -1,9 +1,6 @@
-// src/app/admin/users/UsersManagement.tsx
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../../context/AuthContext";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db as indexedDb } from "../../../lib/db";
-import { UserPermissions, UserProfile } from "../../../types";
+import { UserProfile } from "../../../types";
 import { CreateUserForm } from "../components/CreateUserForm";
 import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
 
@@ -32,23 +29,13 @@ import {
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 
 export default function UsersManagement() {
-  const { user, claims, isLoaded: authLoaded } = useAuth();
+  // 1. DYNAMIC PERMISSIONS: Using AuthContext instead of Dexie
+  const { claims, permissions, isLoaded: authLoaded } = useAuth();
   const navigate = useNavigate();
 
-  // Permissions from IndexedDB
-  const localUser = useLiveQuery(
-    async () => (user?.uid ? await indexedDb.users.get(user.uid) : null),
-    [user?.uid]
-  );
-
-  const permissions: UserPermissions = (localUser?.permissions || {
-    can_manage_resources: false,
-    can_create_users: false,
-    // ... other perms
-  }) as UserPermissions;
-
+  // Functional Gating
   const canCreateUsers = !!permissions.can_create_users;
-  const hasAccess = canCreateUsers; // Can be extended for view-only
+  const canManageTeam = !!permissions.can_manage_team;
 
   // CRUD hook for users
   const {
@@ -57,7 +44,7 @@ export default function UsersManagement() {
     error: crudError,
     search,
     update,
-    fetchAll, // ← ADD THIS LINE
+    fetchAll,
   } = useAdminCRUD<UserProfile>({
     collectionName: "users",
     defaultOrderBy: "display_name",
@@ -79,6 +66,7 @@ export default function UsersManagement() {
     }
   }, []);
 
+  // 2. LOADING & ACCESS GATES
   if (!authLoaded) {
     return (
       <Box
@@ -94,19 +82,21 @@ export default function UsersManagement() {
     );
   }
 
-  if (!hasAccess) {
+  // Block users without management permissions
+  if (!canManageTeam) {
     return (
       <Box p={6} textAlign="center">
         <Alert severity="error" variant="filled">
           <Typography variant="h6">Access Denied</Typography>
           <Typography variant="body1" mt={1}>
-            You do not have permission to manage users.
+            You do not have permission to access User Management.
           </Typography>
         </Alert>
       </Box>
     );
   }
 
+  // --- Handlers ---
   const handleSave = async () => {
     if (!selectedUser) return;
     try {
@@ -115,7 +105,6 @@ export default function UsersManagement() {
       setEditForm({});
     } catch (err) {
       console.error("Update failed:", err);
-      // Optional: show alert or toast
     }
   };
 
@@ -123,7 +112,7 @@ export default function UsersManagement() {
     if (searchEmail.trim()) {
       search("email", "==", searchEmail.trim().toLowerCase());
     } else {
-      fetchAll(); // Reset to all users
+      fetchAll();
       setSearchEmail("");
     }
   };
@@ -138,23 +127,12 @@ export default function UsersManagement() {
     });
   };
 
-  const handleSaveEdit = async () => {
-    if (!selectedUser) return;
-    try {
-      await update(selectedUser.uid, editForm);
-      setSelectedUser(null);
-      setEditForm({});
-    } catch (err) {
-      console.error("Update failed:", err);
-    }
-  };
-
   const handleActiveToggle = () => {
     const newActive = !editForm.active;
     setConfirmMessage(
       newActive
-        ? "Activating this user will restore access..."
-        : "Inactivating this user will also deactivate all their roles in org_roles. Continue?"
+        ? "Activating this user will restore access immediately."
+        : "Inactivating this user will suspend all access and deactivate their roles. Continue?",
     );
     setConfirmOpen(true);
   };
@@ -171,6 +149,7 @@ export default function UsersManagement() {
     }
   };
 
+  // --- Grid Columns ---
   const columns: GridColDef[] = [
     { field: "display_name", headerName: "Display Name", flex: 1 },
     { field: "email", headerName: "Email", flex: 1 },
@@ -183,13 +162,14 @@ export default function UsersManagement() {
         <Chip
           label={params.value ? "Yes" : "No"}
           color={params.value ? "success" : "error"}
+          size="small"
         />
       ),
     },
     {
       field: "actions",
       headerName: "Actions",
-      width: 180,
+      width: 120,
       sortable: false,
       renderCell: (params) => (
         <Button
@@ -205,7 +185,6 @@ export default function UsersManagement() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
-      {/* Back Button + Header */}
       <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
         <Tooltip title="Back to Admin Dashboard" arrow>
           <IconButton
@@ -217,13 +196,12 @@ export default function UsersManagement() {
             <ArrowBackIcon fontSize="large" />
           </IconButton>
         </Tooltip>
-
         <Box>
           <Typography variant="h4" fontWeight="bold" color="primary">
             Manage Users
           </Typography>
           <Typography variant="h6" color="text.secondary">
-            Create, search, edit, and manage user accounts
+            Search and update team member accounts
           </Typography>
         </Box>
       </Box>
@@ -243,34 +221,36 @@ export default function UsersManagement() {
         <Button variant="contained" onClick={handleSearch}>
           Search
         </Button>
-        <Button variant="outlined" onClick={() => setCreateDialogOpen(true)}>
-          Create New User
-        </Button>
+
+        {/* 3. CONDITIONAL BUTTON: Only show if allowed by Firestore config */}
+        {canCreateUsers && (
+          <Button variant="outlined" onClick={() => setCreateDialogOpen(true)}>
+            Provision New User
+          </Button>
+        )}
       </Stack>
 
-      {/* Error from CRUD */}
       {crudError && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {crudError}
         </Alert>
       )}
 
-      {users.length === 0 && !loading && (
-        <Alert severity="info" sx={{ mt: 3 }}>
-          No users found. Try creating one!
-        </Alert>
-      )}
-
-      {/* User List */}
-      <Paper elevation={3} sx={{ borderRadius: 3, overflow: "hidden" }}>
+      <Paper
+        elevation={0}
+        variant="outlined"
+        sx={{ borderRadius: 3, overflow: "hidden" }}
+      >
         <DataGrid
           rows={users}
           columns={columns}
           loading={loading}
-          // getRowId={(row) => row.uid} // <-- You can remove this now
           autoHeight
-          pageSizeOptions={[10, 25, 50, 100]}
+          pageSizeOptions={[10, 25, 50]}
+          initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
           disableRowSelectionOnClick
+          getRowId={(row) => row.uid}
+          sx={{ border: "none" }}
         />
       </Paper>
 
@@ -281,8 +261,10 @@ export default function UsersManagement() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>Create New User</DialogTitle>
-        <DialogContent>
+        <DialogTitle sx={{ fontWeight: "bold" }}>
+          Provision New Field Member
+        </DialogTitle>
+        <DialogContent dividers>
           <CreateUserForm claims={claims} />
         </DialogContent>
         <DialogActions>
@@ -298,46 +280,45 @@ export default function UsersManagement() {
           maxWidth="sm"
           fullWidth
         >
-          <DialogTitle>Edit User: {selectedUser.email}</DialogTitle>
+          <DialogTitle>Update Profile: {selectedUser.email}</DialogTitle>
           <DialogContent>
-            <TextField
-              label="Display Name"
-              fullWidth
-              margin="normal"
-              value={editForm.display_name || ""}
-              onChange={(e) =>
-                setEditForm({ ...editForm, display_name: e.target.value })
-              }
-            />
-            <TextField
-              label="Preferred Name"
-              fullWidth
-              margin="normal"
-              value={editForm.preferred_name || ""}
-              onChange={(e) =>
-                setEditForm({ ...editForm, preferred_name: e.target.value })
-              }
-            />
-            <TextField
-              label="Phone"
-              fullWidth
-              margin="normal"
-              value={editForm.phone || ""}
-              onChange={(e) =>
-                setEditForm({ ...editForm, phone: e.target.value })
-              }
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={editForm.active ?? true}
-                  onChange={handleActiveToggle}
-                />
-              }
-              label="Active"
-            />
+            <Stack spacing={2} mt={1}>
+              <TextField
+                label="Display Name"
+                fullWidth
+                value={editForm.display_name || ""}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, display_name: e.target.value })
+                }
+              />
+              <TextField
+                label="Preferred Name"
+                fullWidth
+                value={editForm.preferred_name || ""}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, preferred_name: e.target.value })
+                }
+              />
+              <TextField
+                label="Phone"
+                fullWidth
+                value={editForm.phone || ""}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, phone: e.target.value })
+                }
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={editForm.active ?? true}
+                    onChange={handleActiveToggle}
+                  />
+                }
+                label="Account Active"
+              />
+            </Stack>
           </DialogContent>
-          <DialogActions>
+          <DialogActions sx={{ p: 2 }}>
             <Button onClick={() => setSelectedUser(null)}>Cancel</Button>
             <Button variant="contained" onClick={handleSave}>
               Save Changes
@@ -346,16 +327,16 @@ export default function UsersManagement() {
         </Dialog>
       )}
 
-      {/* Active Toggle Confirmation */}
+      {/* Status Toggle Confirm */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
-        <DialogTitle>Confirm Status Change</DialogTitle>
+        <DialogTitle>Confirm Account Status Change</DialogTitle>
         <DialogContent>
           <Typography>{confirmMessage}</Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
           <Button color="primary" variant="contained" onClick={confirmToggle}>
-            Confirm
+            Confirm Change
           </Button>
         </DialogActions>
       </Dialog>

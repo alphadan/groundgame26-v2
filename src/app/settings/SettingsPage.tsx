@@ -39,6 +39,7 @@ import {
 import { updateProfile } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
 import { CommunicationPreferences } from "./components/CommunicationPreferences";
+import { PointsProgress } from "./components/PointsProgress";
 import { auth, db } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { useThemeMode } from "../../context/ThemeContext";
@@ -108,6 +109,10 @@ export default function SettingsPage() {
       </Box>
     );
 
+  {
+    /* ... (Keep imports and logic the same) ... */
+  }
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" fontWeight="900" color="primary" gutterBottom>
@@ -115,88 +120,98 @@ export default function SettingsPage() {
       </Typography>
 
       <Grid container spacing={3}>
-        {/* IDENTITY SECTION */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: 4, borderRadius: 3, height: "100%" }}>
-            <Stack alignItems="center" spacing={2} sx={{ mb: 4 }}>
-              <Avatar
-                sx={{
-                  width: 120,
-                  height: 120,
-                  bgcolor: "gold.main",
-                  color: "gold.contrastText",
-                  border: `4px solid ${theme.palette.background.paper}`,
-                  boxShadow: 3,
-                  fontSize: "3rem",
-                  fontWeight: "bold",
-                }}
-              >
-                {(formData.displayName || user?.email || "U")[0].toUpperCase()}
-              </Avatar>
-              <Box textAlign="center">
-                <Typography variant="h6" fontWeight="bold">
-                  {formData.displayName || "User"}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {user?.email}
-                </Typography>
-              </Box>
-            </Stack>
-
-            <Stack spacing={2.5}>
-              <TextField
-                fullWidth
-                label="Public Display Name"
-                value={formData.displayName}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    displayName: e.target.value,
-                  }))
-                }
-              />
-              <TextField
-                fullWidth
-                label="Preferred Name (Internal)"
-                value={formData.preferredName}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    preferredName: e.target.value,
-                  }))
-                }
-              />
-
-              {success && <Alert severity="success">Profile updated!</Alert>}
-              {error && <Alert severity="error">{error}</Alert>}
-
-              <Button
-                fullWidth
-                variant="contained"
-                size="large"
-                startIcon={<Save />}
-                onClick={handleSave}
-                disabled={saving}
-                sx={{ fontWeight: "bold", py: 1.5 }}
-              >
-                {saving ? "Saving..." : "Update Profile"}
-              </Button>
-            </Stack>
-          </Paper>
-        </Grid>
-
-        {/* REWARDS CENTER */}
+        {/* COLUMN 1: IDENTITY & SECURITY */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Stack spacing={3}>
-            {/* Points Summary Card */}
+            {/* IDENTITY SECTION */}
+            <Paper sx={{ p: 4, borderRadius: 3 }}>
+              <Stack alignItems="center" spacing={2} sx={{ mb: 4 }}>
+                <Avatar
+                  sx={{
+                    width: 120,
+                    height: 120,
+                    bgcolor: "primary.main",
+                    color: "white",
+                    border: `4px solid ${theme.palette.background.paper}`,
+                    boxShadow: 3,
+                    fontSize: "3rem",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {(formData.displayName ||
+                    user?.email ||
+                    "U")[0].toUpperCase()}
+                </Avatar>
+                <Box textAlign="center">
+                  <Typography variant="h6" fontWeight="bold">
+                    {formData.displayName || "User"}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {user?.email}
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <Stack spacing={2.5}>
+                <TextField
+                  fullWidth
+                  label="Public Display Name"
+                  value={formData.displayName}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      displayName: e.target.value,
+                    }))
+                  }
+                />
+                <TextField
+                  fullWidth
+                  label="Preferred Name (Internal)"
+                  value={formData.preferredName}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      preferredName: e.target.value,
+                    }))
+                  }
+                />
+                {success && <Alert severity="success">Profile updated!</Alert>}
+                {error && <Alert severity="error">{error}</Alert>}
+                <Button
+                  fullWidth
+                  variant="contained"
+                  size="large"
+                  startIcon={<Save />}
+                  onClick={handleSave}
+                  disabled={saving}
+                  sx={{ fontWeight: "bold", py: 1.5 }}
+                >
+                  {saving ? "Saving..." : "Update Profile"}
+                </Button>
+              </Stack>
+            </Paper>
+
+            {/* COMMUNICATION PREFERENCES */}
+            <CommunicationPreferences
+              uid={user?.uid ?? ""}
+              userProfile={userProfile}
+              claims={claims}
+            />
+          </Stack>
+        </Grid>
+
+        {/* COLUMN 2: REWARDS & COMMUNICATION */}
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Stack spacing={3}>
+            {/* QUICK REDEEM ACTION */}
             <Paper
               sx={{
                 p: 3,
                 borderRadius: 3,
-                border: "2px solid",
-                borderColor: "#4527a0",
+                border: "1px solid",
+                borderColor: "divider",
                 bgcolor:
-                  mode === "dark" ? "rgba(103, 58, 183, 0.1)" : "primary.50",
+                  mode === "dark" ? "rgba(255,255,255,0.02)" : "action.hover",
               }}
             >
               <Stack
@@ -206,19 +221,14 @@ export default function SettingsPage() {
               >
                 <Box>
                   <Typography
-                    variant="subtitle2"
-                    color="primary"
+                    variant="caption"
+                    color="text.secondary"
                     fontWeight="bold"
-                    sx={{ textTransform: "uppercase" }}
                   >
-                    Available Balance
+                    CURRENT BALANCE
                   </Typography>
-                  <Typography
-                    variant="h3"
-                    fontWeight="900"
-                    sx={{ fontFamily: "'Roboto Mono', monospace" }}
-                  >
-                    {userProfile?.points_balance?.toLocaleString() || 0} pts
+                  <Typography variant="h5" fontWeight="bold">
+                    {userProfile?.points_balance || 0} pts
                   </Typography>
                 </Box>
                 <Button
@@ -227,12 +237,15 @@ export default function SettingsPage() {
                   startIcon={<Redeem />}
                   onClick={() => navigate("/rewards")}
                 >
-                  Redeem
+                  Redeem Rewards
                 </Button>
               </Stack>
             </Paper>
 
-            {/* Points History List */}
+            {/* GAMIFIED POINTS PROGRESS (The New Module) */}
+            <PointsProgress userProfile={userProfile} />
+
+            {/* PREFERENCES & SECURITY */}
             <Paper sx={{ p: 3, borderRadius: 3 }}>
               <Typography
                 variant="h6"
@@ -240,226 +253,144 @@ export default function SettingsPage() {
                 gutterBottom
                 sx={{ display: "flex", alignItems: "center", gap: 1 }}
               >
-                <History fontSize="small" /> Points History
+                <LockReset fontSize="small" /> Security & Theme
               </Typography>
-              <List
-                sx={{
-                  maxHeight: 300,
-                  overflow: "auto",
-                  bgcolor: "background.default",
-                  borderRadius: 2,
-                }}
+              <Stack spacing={2}>
+                <FormControlLabel
+                  control={
+                    <Switch checked={mode === "dark"} onChange={toggleTheme} />
+                  }
+                  label={
+                    mode === "dark" ? "Dark Mode Active" : "Light Mode Active"
+                  }
+                />
+                <Divider />
+                <Button
+                  variant="outlined"
+                  fullWidth
+                  startIcon={<LockReset />}
+                  onClick={() =>
+                    auth.currentUser?.email && navigate("/reset-password")
+                  }
+                >
+                  Reset Password
+                </Button>
+              </Stack>
+            </Paper>
+
+            {/* LEGAL CONSENT (READ ONLY) */}
+            <Paper
+              sx={{
+                p: 3,
+                borderRadius: 3,
+                bgcolor: "background.paper",
+                border: "1px solid",
+                borderColor: "divider",
+                height: "100%",
+              }}
+            >
+              <Typography
+                variant="h6"
+                fontWeight="bold"
+                gutterBottom
+                sx={{ display: "flex", alignItems: "center", gap: 1 }}
               >
-                {userProfile?.points_history &&
-                userProfile.points_history.length > 0 ? (
-                  [...userProfile.points_history]
-                    .reverse()
-                    .map((log: any, i: number) => (
-                      <ListItem
-                        key={i}
-                        divider={i !== userProfile.points_history!.length - 1}
-                      >
-                        <MuiListItemIcon sx={{ minWidth: 40 }}>
-                          {log.action === "walk" ? (
-                            <DirectionsWalk color="primary" />
-                          ) : log.action === "email" ? (
-                            <Email color="info" />
-                          ) : (
-                            <Message color="success" />
-                          )}
-                        </MuiListItemIcon>
-                        <ListItemText
-                          primary={
-                            <Typography variant="body2" fontWeight="bold">
-                              +{log.amount} points: {log.action.toUpperCase()}
-                            </Typography>
-                          }
-                          secondary={new Date(log.timestamp).toLocaleString()}
-                        />
-                      </ListItem>
-                    ))
-                ) : (
-                  <ListItem>
-                    <ListItemText secondary="No points earned yet. Start canvassing to earn rewards!" />
-                  </ListItem>
-                )}
-              </List>
+                <Gavel fontSize="small" /> Legal Consent
+              </Typography>
+
+              <Stack spacing={2}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography variant="body2">Current Status:</Typography>
+                  <Chip
+                    size="small"
+                    label={
+                      userProfile?.has_agreed_to_terms
+                        ? "Fully Compliant"
+                        : "Action Required"
+                    }
+                    color={
+                      userProfile?.has_agreed_to_terms ? "success" : "warning"
+                    }
+                  />
+                </Box>
+
+                <Box>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                  >
+                    <strong>Revision:</strong>{" "}
+                    {userProfile?.legal_consent?.version || "N/A"}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                  >
+                    <strong>Signed:</strong>{" "}
+                    {userProfile?.legal_consent?.agreed_at_ms
+                      ? new Date(
+                          userProfile.legal_consent.agreed_at_ms,
+                        ).toLocaleString()
+                      : "N/A"}
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                  >
+                    <strong>Verification:</strong> IP/Device Logged
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{
+                      wordBreak: "break-all",
+                      opacity: 0.7,
+                      display: "block",
+                      mt: 1,
+                    }}
+                  >
+                    <strong>Client:</strong>{" "}
+                    {userProfile?.legal_consent?.user_agent || "System Native"}
+                  </Typography>
+                </Box>
+
+                <Divider sx={{ my: 1 }} />
+
+                {/* ACTION LINK BACK TO LEGAL STANDARDS */}
+                <Button
+                  variant="text"
+                  size="small"
+                  color="primary"
+                  startIcon={<Info />}
+                  onClick={() => navigate("/legal")}
+                  sx={{
+                    justifyContent: "flex-start",
+                    px: 0,
+                    textTransform: "none",
+                  }}
+                >
+                  Review My Signed Terms & PA Compliance Rules
+                </Button>
+              </Stack>
             </Paper>
           </Stack>
         </Grid>
 
-        {/* PREFERENCES & SECURITY */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Paper sx={{ p: 3, borderRadius: 3 }}>
-            <Typography
-              variant="h6"
-              fontWeight="bold"
-              gutterBottom
-              sx={{ display: "flex", alignItems: "center", gap: 1 }}
-            >
-              <MilitaryTech fontSize="small" /> Preferences & Security
-            </Typography>
-            <Stack spacing={2}>
-              <FormControlLabel
-                control={
-                  <Switch checked={mode === "dark"} onChange={toggleTheme} />
-                }
-                label={
-                  mode === "dark" ? "Dark Mode Active" : "Light Mode Active"
-                }
-              />
-              <Divider />
-              <Button
-                variant="outlined"
-                color="primary"
-                startIcon={<LockReset />}
-                onClick={() =>
-                  auth.currentUser?.email && navigate("/reset-password")
-                }
-              >
-                Reset Password
-              </Button>
-            </Stack>
-          </Paper>
-        </Grid>
-
-        {/* LEGAL & COMPLIANCE (READ ONLY) */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Paper
-            sx={{
-              p: 3,
-              borderRadius: 3,
-              bgcolor: "background.paper",
-              border: "1px solid",
-              borderColor: "divider",
-              height: "100%",
-            }}
-          >
-            <Typography
-              variant="h6"
-              fontWeight="bold"
-              gutterBottom
-              sx={{ display: "flex", alignItems: "center", gap: 1 }}
-            >
-              <Gavel fontSize="small" /> Legal Consent
-            </Typography>
-
-            <Stack spacing={2}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Typography variant="body2">Current Status:</Typography>
-                <Chip
-                  size="small"
-                  label={
-                    userProfile?.has_agreed_to_terms
-                      ? "Fully Compliant"
-                      : "Action Required"
-                  }
-                  color={
-                    userProfile?.has_agreed_to_terms ? "success" : "warning"
-                  }
-                />
-              </Box>
-
-              <Box>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
-                >
-                  <strong>Revision:</strong>{" "}
-                  {userProfile?.legal_consent?.version || "N/A"}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
-                >
-                  <strong>Signed:</strong>{" "}
-                  {userProfile?.legal_consent?.agreed_at_ms
-                    ? new Date(
-                        userProfile.legal_consent.agreed_at_ms,
-                      ).toLocaleString()
-                    : "N/A"}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  display="block"
-                >
-                  <strong>Verification:</strong> IP/Device Logged
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{
-                    wordBreak: "break-all",
-                    opacity: 0.7,
-                    display: "block",
-                    mt: 1,
-                  }}
-                >
-                  <strong>Client:</strong>{" "}
-                  {userProfile?.legal_consent?.user_agent || "System Native"}
-                </Typography>
-              </Box>
-
-              <Divider sx={{ my: 1 }} />
-
-              {/* ACTION LINK BACK TO LEGAL STANDARDS */}
-              <Button
-                variant="text"
-                size="small"
-                color="primary"
-                startIcon={<Info />}
-                onClick={() => navigate("/legal")}
-                sx={{
-                  justifyContent: "flex-start",
-                  px: 0,
-                  textTransform: "none",
-                }}
-              >
-                Review My Signed Terms & PA Compliance Rules
-              </Button>
-            </Stack>
-          </Paper>
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Stack spacing={3}>
-            <Paper> {/* Points Summary */} </Paper>
-
-            {/* NEW IMPORTED MODULE */}
-            <CommunicationPreferences
-              uid={user?.uid ?? ""}
-              userProfile={userProfile}
-              claims={claims}
-            />
-
-            <Paper> {/* Points History */} </Paper>
-          </Stack>
-        </Grid>
-
-        {/* FOOTER INFO */}
+        {/* FOOTER */}
         <Grid size={{ xs: 12 }}>
           <Box sx={{ textAlign: "center", mt: 2, opacity: 0.6 }}>
-            <Typography
-              variant="caption"
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 1,
-              }}
-            >
-              <Info sx={{ fontSize: 14 }} />
-              App Version {appControl?.current_app_version || "2.1.0"} |
-              Database {appControl?.current_db_version || "2026.Q1"}
+            <Typography variant="caption">
+              App Version {appControl?.current_app_version || "2.1.0"} | DB{" "}
+              {appControl?.current_db_version || "2026.Q1"}
             </Typography>
           </Box>
         </Grid>

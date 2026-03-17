@@ -60,45 +60,21 @@ const ROLE_HIERARCHY_VALUES = {
 // PERMISSIONS MAPPING
 // ================================================================
 
-const getPermissionsForRole = (role) => {
-  const base = {
-    can_manage_team: false,
-    can_create_users: false,
-    can_manage_resources: false,
-    can_upload_collections: false,
-    can_create_collections: false,
-    can_create_documents: false,
-  };
+async function getPermissionsFromFirestore(role) {
+  const roleRef = db.collection("roles_config").doc(role || "base");
+  const snapshot = await roleRef.get();
 
-  switch (role) {
-    case "developer":
-      return {
-        ...base,
-        can_manage_team: true,
-        can_create_users: true,
-        can_manage_resources: true,
-        can_upload_collections: true,
-        can_create_collections: true,
-        can_create_documents: true,
-        can_download_records: true,
-      };
-    case "state_admin":
-    case "county_chair":
-    case "state_rep_district":
-    case "area_chair":
-      return {
-        ...base,
-        can_manage_team: true,
-        can_create_users: true,
-        can_manage_resources: true,
-      };
-    default:
-      return base;
+  if (!snapshot.exists) {
+    logger.warn(`Role ${role} not found. Falling back to base.`);
+    const baseSnapshot = await db.collection("roles_config").doc("base").get();
+    return baseSnapshot.data();
   }
-};
+
+  return snapshot.data();
+}
 
 // ================================================================
-// 1. SYNC COLLECTIONS FOR USER dEXIE DB
+// 1. SYNC COLLECTIONS FOR USER DEXIE DB
 // ================================================================
 
 // functions/src/index.ts
@@ -1006,6 +982,62 @@ export const syncOrgRolesToClaims = onDocumentWritten(
 );
 
 // ================================================================
+//  Get Jurisdiction Access For Candidates
+//  Helper: Calculates the specific precincts a candidate should have access to.
+//  CLOUD TRIGGERED FUNCTION ONLY FROM adminCreateUser
+// ================================================================
+
+async function getJurisdictionAccess(countyId, type, value) {
+  // 1. Handle Countywide & PA06 (The "ALL" Strategy)
+  if (type === "countywide" || value === "PA06") {
+    return {
+      counties: [countyId],
+      districts: ["ALL"],
+      areas: ["ALL"],
+      precincts: ["ALL"],
+    };
+  }
+
+  // 2. Handle Specific House/Senate Districts
+  // We determine which database column to query based on jurisdiction type
+  const columnMap = {
+    house: "house_district",
+    senate: "senate_district",
+  };
+  const targetColumn = columnMap[type];
+
+  // Query all precincts in the county that belong to this political district
+  const precinctSnap = await db
+    .collection("precincts")
+    .where("county_id", "==", countyId)
+    .where(targetColumn, "==", value)
+    .get();
+
+  if (precinctSnap.empty) {
+    // Fallback: If no precincts found, restrict to empty to prevent accidental broad access
+    return { counties: [countyId], districts: [], areas: [], precincts: [] };
+  }
+
+  const precinctIds = [];
+  const areaIds = new Set();
+  const districtIds = new Set();
+
+  precinctSnap.forEach((doc) => {
+    const data = doc.data();
+    precinctIds.push(doc.id);
+    if (data.area_id) areaIds.add(data.area_id);
+    if (data.party_rep_district) districtIds.add(data.party_rep_district);
+  });
+
+  return {
+    counties: [countyId],
+    districts: Array.from(districtIds),
+    areas: Array.from(areaIds),
+    precincts: precinctIds,
+  };
+}
+
+// ================================================================
 //  SYNC DISTRICT LEADERSHIP ROLES — CENTRALIZED & CLEAN
 //  CLOUD TRIGGERED FUNCTION ONLY
 // ================================================================
@@ -1684,70 +1716,55 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
     display_name,
     preferred_name,
     phone,
-    role,
+    role, // The role we are assigning to the NEW user
     group_id,
     county_id,
     district_id,
     area_id,
     precinct_id,
     active,
+    jurisdiction_type,
+    jurisdiction_value,
   } = request.data;
 
   // 2. Data Validation
+  const isCandidate = role === "candidate";
+  const hasJurisdiction = jurisdiction_type && jurisdiction_value;
+
   if (
     !email ||
     !display_name ||
     !role ||
     !group_id ||
     !county_id ||
-    !district_id
+    (!isCandidate && !district_id) ||
+    (isCandidate && !hasJurisdiction)
   ) {
     throw new HttpsError(
       "invalid-argument",
-      "Missing required fields: email, display_name, role, group_id, county_id, or district_id.",
+      "Missing required fields for provisioning.",
     );
   }
 
-  // 3. Authorization Logic: Verify the Creator's Rank
+  // 3. DYNAMIC AUTHORIZATION LOGIC
   const adminRole = request.auth.token.role || "base";
   const adminName = request.auth.token.name || "A Campaign Lead";
 
-  const allowedRanks = {
-    developer: [
-      "developer",
-      "state_admin",
-      "county_chair",
-      "state_rep_district",
-      "area_chair",
-      "candidate",
-      "committeeperson",
-      "volunteer",
-      "base",
-    ],
-    state_admin: [
-      "county_chair",
-      "state_rep_district",
-      "area_chair",
-      "candidate",
-      "committeeperson",
-      "volunteer",
-      "base",
-    ],
-    state_rep_district: [
-      "area_chair",
-      "candidate",
-      "volunteer",
-      "committeeperson",
-    ],
-    county_chair: ["area_chair", "committeeperson", "volunteer"],
-    area_chair: ["committeeperson", "volunteer"],
-  };
+  // Fetch the creator's permission set from Firestore
+  const adminPerms = await getPermissionsFromFirestore(adminRole);
 
-  const canCreate = allowedRanks[adminRole]?.includes(role);
-  if (!canCreate) {
+  if (!adminPerms) {
+    throw new HttpsError("internal", "Could not verify admin permissions.");
+  }
+
+  // Check if the admin is allowed to create this specific role
+  const isAllowed =
+    adminPerms.allowed_to_create?.includes(role) || adminRole === "developer";
+
+  if (!isAllowed) {
     throw new HttpsError(
       "permission-denied",
-      `A ${adminRole} is not authorized to create a ${role}.`,
+      `Your role (${adminRole}) is not authorized to create a ${role}.`,
     );
   }
 
@@ -1759,68 +1776,83 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       cleanName.length >= 4
         ? cleanName.substring(0, 4)
         : cleanName.padEnd(4, "x");
-
     const tempPassword = `${namePart}-${randomSuffix}-!`;
+
+    // 5. Fetch New User's Permissions (to be embedded in claims)
+    const newUserPerms = await getPermissionsFromFirestore(role);
 
     logger.info(`Provisioning new ${role}: ${email}`);
 
-    // 5. Create Firebase Auth Account
+    // 6. Create Firebase Auth Account
     const userRecord = await auth.createUser({
       email: email.trim(),
       password: tempPassword,
       displayName: display_name.trim(),
     });
-
     const uid = userRecord.uid;
 
-    // 6. Generate Deterministic Role ID
-    // Standardizes ID as: role_county_area_precinct
-    const roleDocId = [
-      role,
-      county_id,
-      district_id,
-      area_id || "ALL",
-      precinct_id || "none",
-    ]
-      .map((p) =>
-        String(p)
-          .toLowerCase()
-          .replace(/[^a-z0-9]/g, "-"),
-      )
-      .join("_");
+    // 7. Generate Access Object & Role ID
+    let access;
+    let roleDocId;
 
-    // 7. Prepare User Access Object
+    if (isCandidate) {
+      access = await getJurisdictionAccess(
+        county_id,
+        jurisdiction_type,
+        jurisdiction_value,
+      );
+      access.jurisdiction = {
+        type: jurisdiction_type,
+        value: jurisdiction_value,
+      };
+      roleDocId = `candidate_${jurisdiction_type}_${jurisdiction_value}_${uid}`
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "-");
+    } else {
+      let accessCounties = [county_id];
+      let accessDistricts = [district_id];
+      let accessAreas = area_id ? [area_id] : [];
+      let accessPrecincts = precinct_id ? [precinct_id] : [];
 
-    let accessCounties = [county_id];
-    let accessDistricts = [district_id];
-    let accessAreas = area_id ? [area_id] : [];
-    let accessPrecincts = precinct_id ? [precinct_id] : [];
+      // Logic overrides for hierarchy
+      if (role === "developer") {
+        accessCounties = ["ALL"];
+        accessAreas = ["ALL"];
+        accessDistricts = ["ALL"];
+        accessPrecincts = ["ALL"];
+      } else if (role === "county_chair") {
+        accessDistricts = ["ALL"];
+        accessAreas = ["ALL"];
+        accessPrecincts = ["ALL"];
+      } else if (role === "state_rep_district") {
+        accessAreas = ["ALL"];
+        accessPrecincts = ["ALL"];
+      } else if (role === "area_chair") {
+        accessPrecincts = ["ALL"];
+      }
 
-    if (role === "developer") {
-      accessCounties = ["ALL"];
-      accessAreas = ["ALL"];
-      accessDistricts = ["ALL"];
-      accessPrecincts = ["ALL"];
-    } else if (role === "county_chair") {
-      accessDistricts = ["ALL"];
-      accessAreas = ["ALL"];
-      accessPrecincts = ["ALL"];
-    } else if (role === "state_rep_district") {
-      accessAreas = ["ALL"];
-      accessPrecincts = ["ALL"];
-    } else if (role === "area_chair") {
-      accessPrecincts = ["ALL"];
+      access = {
+        counties: accessCounties,
+        districts: accessDistricts,
+        areas: accessAreas,
+        precincts: accessPrecincts,
+      };
+      roleDocId = [
+        role,
+        county_id,
+        district_id,
+        area_id || "ALL",
+        precinct_id || "none",
+      ]
+        .map((p) =>
+          String(p)
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "-"),
+        )
+        .join("_");
     }
-    // Committeepersons stay restricted to the specific precinct_id provided
 
-    const access = {
-      counties: accessCounties,
-      districts: accessDistricts,
-      areas: accessAreas,
-      precincts: accessPrecincts,
-    };
-
-    // 8. Create Firestore User Document
+    // 8. Prepare Firestore User Document
     const userDoc = {
       uid: uid,
       display_name: display_name.trim(),
@@ -1830,12 +1862,13 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       role: role,
       group_id: group_id,
       access: access,
+      permissions: newUserPerms, // Save snapshot of permissions in doc
       active: active ?? true,
       has_agreed_to_terms: false,
       created_by: request.auth.uid,
       created_at: Date.now(),
       updated_at: Date.now(),
-      last_claims_sync: Date.now(), // Signals Frontend to refresh
+      last_claims_sync: Date.now(),
     };
 
     // 9. Create/Update Org Role Position
@@ -1845,24 +1878,24 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       role: role,
       group_id: group_id,
       county_id: county_id,
-      district_id: district_id,
-      area_id: area_id || null,
-      precinct_id: precinct_id || null,
+      district_id: isCandidate ? "CANDIDATE" : district_id,
+      area_id: isCandidate ? null : area_id || null,
+      precinct_id: isCandidate ? null : precinct_id || null,
+      jurisdiction: isCandidate ? access.jurisdiction : null,
       active: true,
       is_vacant: false,
       updated_at: Date.now(),
     };
 
-    // 10. Atomic Write Strategy
+    // 10. Atomic Write
     const batch = db.batch();
     batch.set(db.collection("users").doc(uid), userDoc);
-    // Use merge:true to preserve existing role metadata if the seat was previously vacant
     batch.set(db.collection("org_roles").doc(roleDocId), roleDoc, {
       merge: true,
     });
     await batch.commit();
 
-    // 11. Provision Custom Claims (Instant Security Sync)
+    // 11. Provision Custom Claims (The ultimate source of truth for the UI)
     await auth.setCustomUserClaims(uid, {
       role: role,
       group_id: group_id,
@@ -1870,34 +1903,26 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
       districts: access.districts,
       areas: access.areas,
       precincts: access.precincts,
+      permissions: newUserPerms, // Dynamic permissions attached to the token
     });
-
-    logger.info(
-      `User ${uid} successfully provisioned and claims set by ${request.auth.uid}`,
-    );
 
     return {
       success: true,
-      uid: uid,
-      email: email,
-      display_name: display_name,
-      tempPassword: tempPassword,
+      uid,
+      email,
+      display_name,
+      tempPassword,
       created_by: adminName,
     };
   } catch (error) {
     logger.error("Admin Create User failed:", error);
-
     if (error.code === "auth/email-already-exists") {
       throw new HttpsError(
         "already-exists",
         "This email address is already registered.",
       );
     }
-
-    throw new HttpsError(
-      "internal",
-      error.message || "An unexpected error occurred during user provisioning.",
-    );
+    throw new HttpsError("internal", error.message);
   }
 });
 

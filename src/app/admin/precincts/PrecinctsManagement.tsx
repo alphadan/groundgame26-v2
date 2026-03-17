@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../../context/AuthContext";
-import { useLiveQuery } from "dexie-react-hooks";
-import { db as indexedDb } from "../../../lib/db";
-import { UserPermissions, Precinct } from "../../../types";
+import { Precinct } from "../../../types";
 import { useNavigate } from "react-router-dom";
 
 import { CreatePrecinctForm } from "../components/CreatePrecinctForm";
@@ -33,24 +31,18 @@ import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SearchIcon from "@mui/icons-material/Search";
-import SecurityIcon from "@mui/icons-material/Security";
 
 export default function PrecinctsManagement() {
-  const { user, isLoaded: authLoaded } = useAuth();
+  const { role, permissions, isLoaded: authLoaded } = useAuth();
   const navigate = useNavigate();
 
   // 1. Reactive Developer Check from IndexedDB
-  const localUser = useLiveQuery(
-    async () => (user?.uid ? await indexedDb.users.get(user.uid) : null),
-    [user?.uid],
-  );
 
-  const isDeveloper = localUser?.role === "developer";
-  const permissions = (localUser?.permissions || {}) as UserPermissions;
+  const isDeveloper = role === "developer";
 
   // Standardize permission flags
-  const canModify = isDeveloper || !!permissions.can_create_documents;
-  const canBulkUpload = isDeveloper || !!permissions.can_upload_collections;
+  const canModify = isDeveloper || !!permissions?.can_create_documents;
+  const canBulkUpload = isDeveloper || !!permissions?.can_manage_resources;
 
   const {
     data: precincts,
@@ -75,6 +67,12 @@ export default function PrecinctsManagement() {
     pageSize: 12,
     page: 0,
   });
+
+  useEffect(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  }, []);
 
   const handleSearch = () => {
     if (searchText.trim()) {
@@ -117,7 +115,7 @@ export default function PrecinctsManagement() {
       },
     ];
 
-    if (isDeveloper) {
+    if (canModify) {
       baseColumns.push({
         field: "actions",
         headerName: "Actions",
@@ -136,15 +134,17 @@ export default function PrecinctsManagement() {
                 <EditIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title="Delete Precinct">
-              <IconButton
-                size="small"
-                color="error"
-                onClick={() => setDeleteId(params.row.id)}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+            {(isDeveloper || role === "state_admin") && (
+              <Tooltip title="Delete Precinct">
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => setDeleteId(params.row.id)}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
           </Stack>
         ),
       });
@@ -188,15 +188,6 @@ export default function PrecinctsManagement() {
             </Typography>
           </Box>
         </Box>
-
-        {isDeveloper && (
-          <Chip
-            icon={<SecurityIcon />}
-            label="Developer Access"
-            color="secondary"
-            variant="filled"
-          />
-        )}
       </Box>
 
       <Divider sx={{ mb: 4 }} />

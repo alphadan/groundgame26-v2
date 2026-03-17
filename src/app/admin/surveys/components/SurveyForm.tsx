@@ -1,6 +1,7 @@
 // src/app/admin/surveys/components/SurveyForm.tsx
 import React, { useState, useEffect } from "react";
 import { useCloudFunctions } from "../../../../hooks/useCloudFunctions";
+import { useAuth } from "../../../../context/AuthContext";
 import {
   Box,
   Button,
@@ -41,6 +42,8 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
   onSuccess,
 }) => {
   const { callFunction } = useCloudFunctions();
+  const { permissions } = useAuth();
+  const canModify = !!permissions.can_create_documents;
 
   const isEdit = !!initialData;
 
