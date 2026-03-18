@@ -1,27 +1,15 @@
 import { db, ensureDBInitialized, updateAppControlAfterSync } from "../lib/db";
 import { getFunctions, httpsCallable } from "firebase/functions";
+import { doc, getDoc } from "firebase/firestore"; // Added for Keystone fetch
+import { db as firestore } from "../lib/firebase"; // Added for Keystone fetch
 import {
   counties as localCounties,
   areas as localAreas,
   precincts as localPrecincts,
   groups as localGroups,
 } from "../constants/referenceData";
-import {
-  UserProfile,
-  Precinct,
-  Area,
-  Group,
-  County,
-  State_Rep_District,
-} from "../types";
+import { UserProfile, AppControl } from "../types";
 
-/**
- * Production Sync Strategy:
- * 1. Fetch unified payload from Cloud Function 'getSyncCollections'.
- * 2. Handle State Rep Districts tier.
- * 3. Atomic Dexie Transaction to ensure data integrity.
- * 4. Comprehensive logging to debug "NotFoundError" and schema mismatches.
- */
 export async function syncReferenceData(currentUid: string): Promise<void> {
   console.log("🟢 [Sync] Start for UID:", currentUid);
 
@@ -31,7 +19,21 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
   }
 
   try {
-    // 1. Prepare Local Environment
+    // 1. Fetch the Keystone (Source of Truth) BEFORE syncing data
+    // This ensures we stamp the DB with the EXACT version the cloud currently requires.
+    const keystoneRef = doc(firestore, "config", "app_control");
+    const keystoneSnap = await getDoc(keystoneRef);
+    const keystoneData = keystoneSnap.exists()
+      ? (keystoneSnap.data() as AppControl)
+      : null;
+
+    if (!keystoneData) {
+      console.warn(
+        "⚠️ [Sync] Could not find Keystone doc. Syncing with default governance.",
+      );
+    }
+
+    // 2. Prepare Local Environment
     await ensureDBInitialized(true);
     await db.app_control.update("app_control", { sync_status: "syncing" });
 
@@ -48,7 +50,7 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
     let isCloudSource = false;
 
     try {
-      // 2. CLOUD FETCH
+      // 3. CLOUD FETCH
       console.log("📡 [Sync] Calling getSyncCollections...");
       const result = await fetchSyncData();
       const data = result.data as any;
@@ -58,43 +60,32 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
         sourceAreas = data.areas || [];
         sourceCounties = data.counties || [];
         sourceGroups = data.groups || [];
-        sourceDistricts = data.districts || []; // Capture from Cloud
+        sourceDistricts = data.districts || [];
         profileData = data.profile;
         isCloudSource = true;
-        console.log(
-          `✅ [Sync] Cloud Data Retrieved: ${sourceDistricts.length} Districts, ${sourceAreas.length} Areas`,
-        );
-      } else {
-        console.warn(
-          "⚠️ [Sync] Cloud returned success:false. Reason:",
-          data.reason,
-        );
+        console.log(`✅ [Sync] Cloud Data Retrieved.`);
       }
     } catch (cloudErr) {
       console.error(
-        "⚠️ [Sync] Network/Cloud Error. Falling back to local data.",
+        "⚠️ [Sync] Cloud Error. Falling back to local data.",
         cloudErr,
       );
     }
 
-    // 3. RESOLVE PROFILE
+    // 4. RESOLVE PROFILE
     if (!profileData) {
       profileData = (await db.users.get(currentUid)) as UserProfile;
       if (!profileData)
-        throw new Error(
-          "Critical Sync Failure: No local or cloud profile available.",
-        );
-      console.log("💾 [Sync] Using cached profile from IndexedDB.");
+        throw new Error("Critical Sync Failure: No profile available.");
     }
 
-    // 4. PREPARE FINAL COLLECTIONS
+    // 5. PREPARE FINAL COLLECTIONS (Filtering Logic)
     let finalCounties = sourceCounties;
     let finalDistricts = sourceDistricts;
     let finalAreas = sourceAreas;
     let finalPrecincts = sourcePrecincts;
 
     if (!isCloudSource) {
-      console.log("🛠️ [Sync] Manually filtering fallback data...");
       const { access } = profileData;
       const hasAll = (arr: string[] | undefined) =>
         arr?.includes("ALL") || false;
@@ -113,7 +104,7 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
       );
     }
 
-    // 5. SANITIZATION HELPER
+    // 6. SANITIZATION HELPER
     const sanitize = (items: any[]) =>
       items.map((item) => ({
         ...item,
@@ -123,30 +114,7 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
         last_updated: item.last_updated || Date.now(),
       }));
 
-    // 6. ATOMIC TRANSACTION
-    // This is where the 'objectStore not found' error is usually triggered.
-    console.log(
-      "🧬 [Sync] Starting Transaction. Checking Dexie Table Availability...",
-    );
-
-    // Debug: Check if tables are correctly defined in Dexie instance
-    const requiredTables = [
-      { name: "counties", table: db.counties },
-      { name: "state_rep_districts", table: db.state_rep_districts },
-      { name: "areas", table: db.areas },
-      { name: "precincts", table: db.precincts },
-      { name: "groups", table: db.groups },
-      { name: "users", table: db.users },
-    ];
-
-    requiredTables.forEach((t) => {
-      if (!t.table)
-        console.error(
-          `❌ [Sync] ERROR: Table '${t.name}' is UNDEFINED in db.ts!`,
-        );
-      else console.log(`   - Table '${t.name}' is registered.`);
-    });
-
+    // 7. ATOMIC TRANSACTION
     await db.transaction(
       "rw",
       [
@@ -158,10 +126,6 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
         db.users,
       ],
       async () => {
-        console.log(
-          "🧹 [Sync] Transaction Active: Clearing existing local data...",
-        );
-
         await Promise.all([
           db.counties.clear(),
           db.state_rep_districts.clear(),
@@ -170,8 +134,6 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
           db.groups.clear(),
           db.users.clear(),
         ]);
-
-        console.log("📥 [Sync] Writing sanitized data to IndexedDB...");
 
         if (finalCounties.length > 0)
           await db.counties.bulkPut(sanitize(finalCounties));
@@ -182,22 +144,23 @@ export async function syncReferenceData(currentUid: string): Promise<void> {
           await db.precincts.bulkPut(sanitize(finalPrecincts));
         if (sourceGroups.length > 0)
           await db.groups.bulkPut(sanitize(sourceGroups));
-
         await db.users.put(profileData!);
       },
     );
 
-    // 7. FINALIZATION
-    await updateAppControlAfterSync();
-    console.log("🏁 [Sync] SUCCESS. Local database is fully hydrated.");
-  } catch (err: any) {
-    console.error("🔴 [Sync] FATAL ERROR:", err.name, err.message);
+    // 8. FINALIZATION: Stamp local DB with Keystone Governance
+    // This tells VersionGuard that we are now on the correct schema version.
+    await updateAppControlAfterSync(keystoneData || undefined);
 
+    console.log(
+      "🏁 [Sync] SUCCESS. Local database is fully hydrated and governed.",
+    );
+  } catch (err: any) {
+    console.error("🔴 [Sync] FATAL ERROR:", err.message);
     await db.app_control.update("app_control", {
       sync_status: "error",
       last_sync_attempt: Date.now(),
     });
-
     throw err;
   }
 }

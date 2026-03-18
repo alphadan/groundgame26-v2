@@ -19,7 +19,7 @@ interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   claims: CustomClaims | null;
-  permissions: UserPermissions; // NEW: Dynamic permission set
+  permissions: UserPermissions;
   role: UserRole;
   isAdmin: boolean;
   isLoaded: boolean;
@@ -77,15 +77,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         }
 
         if (currentUser) {
-          // Force refresh to get latest Firestore-synced claims
+          // Force refresh to get latest Firestore-synced custom claims
           const tokenResult = await getIdTokenResult(currentUser, true);
           const currentClaims = tokenResult.claims as CustomClaims;
 
           setUser(currentUser);
           setClaims(currentClaims);
-
-          // --- DYNAMIC PERMISSIONS SYNC ---
-          // Extract permissions from claims or fallback to default
           setPermissions(
             (currentClaims.permissions as UserPermissions) ||
               DEFAULT_PERMISSIONS,
@@ -99,6 +96,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             });
           }
 
+          // --- REAL-TIME PROFILE LISTENER ---
           unsubscribeProfile = onSnapshot(
             doc(db, "users", currentUser.uid),
             async (snapshot) => {
@@ -108,9 +106,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                 profileData = snapshot.data() as UserProfile;
               }
 
-              // DEVELOPER GOD-MODE BYPASS
+              // --- SYSTEM GOVERNANCE: DEVELOPER OVERRIDE ---
+              // If the user has the 'developer' claim, we FORCE consent fields to be valid.
+              // This prevents the "Activating..." hang caused by database/claim sync delays.
               if (currentClaims.role === "developer") {
                 profileData = {
+                  ...profileData, // Base data from Firestore (if any)
                   uid: currentUser.uid,
                   display_name:
                     profileData?.display_name ||
@@ -119,12 +120,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                   email: currentUser.email || "",
                   role: "developer",
                   active: true,
+                  // Logic Gates forced to TRUE for developers
+                  has_agreed_to_terms: true,
+                  legal_consent: {
+                    version:
+                      profileData?.legal_consent?.version || "DEV_OVERRIDE",
+                    agreed_at_ms: Date.now(),
+                  },
                   access: profileData?.access || {
                     counties: ["ALL"],
                     areas: ["ALL"],
                     precincts: ["ALL"],
                   },
-                  // Ensure developer has full permissions even if doc is missing
                   permissions: {
                     can_manage_team: true,
                     can_create_users: true,
@@ -132,20 +139,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                     can_create_documents: true,
                     can_download_records: true,
                   },
-                  ...profileData,
                 } as UserProfile;
               }
 
               setUserProfile(profileData);
 
-              if (analytics && profileData) {
-                setUserProperties(analytics, {
-                  user_county: profileData.access?.counties?.[0] || "none",
-                  user_role: profileData.role || "none",
-                });
-              }
-
-              // Check for sync flag from Cloud Function
+              // Handle Cloud-triggered claim refreshes
               if (profileData?.last_claims_sync) {
                 const updatedToken = await getIdTokenResult(currentUser, true);
                 setClaims(updatedToken.claims as CustomClaims);
@@ -165,6 +164,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
             },
           );
         } else {
+          // Reset State on Logout
           if (analytics) setUserId(analytics, null);
           setUser(null);
           setUserProfile(null);
@@ -174,7 +174,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           setIsLoaded(true);
         }
       } catch (err: any) {
-        console.error("❌ Auth Error:", err);
+        console.error("❌ Auth Provider Error:", err);
         setError(err);
         setIsLoading(false);
       }
@@ -191,8 +191,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     return {
       user,
       userProfile,
-      claims: claims ?? null,
-      permissions, // Globally exposed dynamic permissions
+      claims,
+      permissions,
       role: safeRole,
       isAdmin: permissions.can_manage_team || safeRole === "developer",
       isLoaded,
@@ -201,8 +201,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     };
   }, [user, userProfile, claims, permissions, isLoaded, isLoading, error]);
 
-  // Loading and Error UI remain exactly as you have them...
-  if (isLoading)
+  // Loading UI
+  if (isLoading) {
     return (
       <Box
         display="flex"
@@ -210,10 +210,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         alignItems="center"
         minHeight="100vh"
       >
-        <CircularProgress size={40} />
+        <CircularProgress size={40} sx={{ color: "#B22234" }} />
       </Box>
     );
-  if (error)
+  }
+
+  // Error UI
+  if (error) {
     return (
       <Box
         display="flex"
@@ -223,8 +226,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         minHeight="100vh"
         p={3}
       >
-        <Typography variant="h5" color="error" gutterBottom>
-          Authentication Critical Error
+        <Typography variant="h5" color="error" gutterBottom fontWeight="bold">
+          Authentication Error
         </Typography>
         <Typography variant="body1" textAlign="center">
           {error.message}
@@ -238,6 +241,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
         </Button>
       </Box>
     );
+  }
 
   return (
     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>

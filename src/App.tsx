@@ -1,15 +1,18 @@
 import React, { useEffect, useRef, useCallback, useState } from "react";
 import { multiFactor } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
 import { Box, CircularProgress, Typography, Button } from "@mui/material";
+import { db as firestore } from "./lib/firebase";
 import { useAuth } from "./context/AuthContext";
 import { syncReferenceData } from "./services/referenceDataSync";
 import { ensureDBInitialized } from "./lib/db";
+import { AppControl } from "./types";
 import MainLayout from "./app/layout/MainLayout";
 import AppRouter from "./routes/AppRouter";
 import EnrollMFAScreen from "./pages/auth/EnrollMFAScreen";
-import { PublicFooter } from "./components/PublicFooter";
 import ConsentScreen from "./pages/auth/ConsentScreen";
-import { LEGAL_CONFIG } from "./constants/legal"; // THE SINGLE SOURCE OF TRUTH
+import { PublicFooter } from "./components/PublicFooter";
+import { VersionGuard } from "./components/auth/VersionGuard";
 
 export default function App() {
   const {
@@ -17,66 +20,76 @@ export default function App() {
     userProfile,
     isLoaded: authLoaded,
     isLoading: authLoading,
+    role,
   } = useAuth();
 
+  const [keystone, setKeystone] = useState<any>(null);
   const [dbReady, setDbReady] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
   const [initError, setInitError] = useState<Error | null>(null);
   const hasSyncedRef = useRef<string | null>(null);
 
-  // --- 1. DB SCHEMA INITIALIZATION ---
+  // --- HOOKS (Must be at the top, never conditional) ---
+
+  // 1. Keystone Listener
   useEffect(() => {
-    const initDB = async () => {
-      if (!authLoaded || !user) return;
+    if (!user) return;
+    const unsub = onSnapshot(
+      doc(firestore, "config", "app_control"),
+      (snap) => {
+        if (snap.exists()) setKeystone(snap.data());
+      },
+    );
+    return unsub;
+  }, [user]);
 
-      try {
-        await ensureDBInitialized(true);
-        setDbReady(true);
-      } catch (err: any) {
-        console.error("App: DB Init Error", err);
-        setInitError(err);
-      }
-    };
-    initDB();
-  }, [authLoaded, user]);
-
-  // --- 2. DATA SYNC LOGIC ---
+  // 2. Sync Logic Definition
   const performSync = useCallback(async () => {
     if (!user?.uid || !dbReady || hasSyncedRef.current === user.uid) return;
-
-    const mfaUser = multiFactor(user);
-    if (mfaUser.enrolledFactors.length === 0) return;
-
     hasSyncedRef.current = user.uid;
     try {
       await syncReferenceData(user.uid);
       setIsSynced(true);
     } catch (err: any) {
-      console.error("App: Sync Error", err);
       hasSyncedRef.current = null;
       setInitError(err);
     }
   }, [user?.uid, dbReady]);
 
+  // 3. DB Initialization Trigger
   useEffect(() => {
-    if (authLoaded && user?.uid && dbReady) performSync();
-  }, [authLoaded, user?.uid, dbReady, performSync]);
+    // Only init if we have a user and they've passed the "Gates" (checked in render)
+    const canInit = user && authLoaded && userProfile && keystone;
+    const isDev = role === "developer";
+    const hasAgreed =
+      userProfile?.has_agreed_to_terms &&
+      userProfile?.legal_consent?.version === keystone?.legal_terms_version;
 
-  // --- 3. LOADING & PUBLIC STATES ---
+    if (canInit && (isDev || hasAgreed) && !dbReady && !initError) {
+      ensureDBInitialized(true)
+        .then(() => setDbReady(true))
+        .catch(setInitError);
+    }
+  }, [user, authLoaded, userProfile, keystone, dbReady, initError, role]);
+
+  // 4. Sync Trigger
+  useEffect(() => {
+    if (dbReady && !isSynced && !initError) {
+      performSync();
+    }
+  }, [dbReady, isSynced, initError, performSync]);
+
+  // --- RENDER GATES (After all hooks are declared) ---
 
   if (authLoading || !authLoaded) {
     return (
       <Box
         display="flex"
-        flexDirection="column"
         minHeight="100vh"
         justifyContent="center"
         alignItems="center"
       >
-        <CircularProgress size={50} sx={{ color: "#B22234" }} />
-        <Typography variant="body1" sx={{ mt: 2 }} color="text.secondary">
-          Initializing Auth...
-        </Typography>
+        <CircularProgress />
       </Box>
     );
   }
@@ -97,29 +110,41 @@ export default function App() {
     );
   }
 
-  // --- 4. SECURITY & COMPLIANCE GATES ---
+  if (!keystone) {
+    return (
+      <Box
+        display="flex"
+        minHeight="100vh"
+        justifyContent="center"
+        alignItems="center"
+      >
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>System Governance...</Typography>
+      </Box>
+    );
+  }
 
-  // MFA ENROLLMENT
   const mfaUser = multiFactor(user);
   if (mfaUser.enrolledFactors.length === 0) return <EnrollMFAScreen />;
 
-  // CONSENT GATE (Uses the Central Constants File)
+  // CONSENT GATE
   if (userProfile) {
+    const isDev = role === "developer";
     const hasAgreed = userProfile.has_agreed_to_terms === true;
     const isLatestVersion =
-      userProfile.legal_consent?.version === LEGAL_CONFIG.CURRENT_VERSION;
+      userProfile.legal_consent?.version === keystone.legal_terms_version;
 
     console.log(
-      `DEBUG App.tsx: [Version Check] User: ${userProfile.legal_consent?.version} | Required: ${LEGAL_CONFIG.CURRENT_VERSION}`,
+      `🔍 [Gate] Dev: ${isDev} | Agreed: ${hasAgreed} | VersionMatch: ${isLatestVersion}`,
     );
 
-    if (!hasAgreed || !isLatestVersion) {
+    // If NOT a dev and terms are missing/old, show Consent
+    if (!isDev && (!hasAgreed || !isLatestVersion)) {
       return <ConsentScreen />;
     }
   }
 
-  // --- 5. DATABASE READINESS ---
-
+  // HYDRATION LOADING
   if (!dbReady || (!isSynced && !initError)) {
     return (
       <Box
@@ -130,10 +155,10 @@ export default function App() {
         alignItems="center"
       >
         <CircularProgress size={50} sx={{ color: "#B22234" }} />
-        <Typography variant="body1" sx={{ mt: 2 }} color="text.secondary">
+        <Typography variant="body1" sx={{ mt: 2 }}>
           {!dbReady
-            ? "Preparing secure local database..."
-            : "Synchronizing region data..."}
+            ? "Initializing secure storage..."
+            : "Downloading region data..."}
         </Typography>
       </Box>
     );
@@ -149,30 +174,31 @@ export default function App() {
         alignItems="center"
         p={4}
       >
-        <Typography variant="h5" color="error" gutterBottom fontWeight="bold">
+        <Typography variant="h5" color="error" gutterBottom>
           Database Error
         </Typography>
         <Typography variant="body1" sx={{ mb: 3 }}>
           {initError.message}
         </Typography>
         <Button variant="contained" onClick={() => window.location.reload()}>
-          Reload Application
+          Retry
         </Button>
       </Box>
     );
   }
 
-  // --- 6. FINAL: PRIVATE DASHBOARD ---
   return (
-    <Box
-      display="flex"
-      flexDirection="column"
-      minHeight="100vh"
-      bgcolor="background.default"
-    >
-      <MainLayout>
-        <AppRouter />
-      </MainLayout>
-    </Box>
+    <VersionGuard>
+      <Box
+        display="flex"
+        flexDirection="column"
+        minHeight="100vh"
+        bgcolor="background.default"
+      >
+        <MainLayout>
+          <AppRouter />
+        </MainLayout>
+      </Box>
+    </VersionGuard>
   );
 }

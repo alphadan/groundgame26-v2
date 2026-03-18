@@ -23,6 +23,8 @@ import TheaterComedyIcon from "@mui/icons-material/TheaterComedy";
 import PhoneDisabledIcon from "@mui/icons-material/PhoneDisabled";
 import ScienceIcon from "@mui/icons-material/Science";
 import HubIcon from "@mui/icons-material/Hub";
+import DeviceHubIcon from "@mui/icons-material/DeviceHub";
+import StorageIcon from "@mui/icons-material/Storage";
 
 // ... other icons
 import RouterButton from "../../components/navigation/RouterButton"; // Adjust path based on your folder structure
@@ -168,6 +170,18 @@ const cardConfigs = [
       "Delete State Rep Districts",
     ],
     path: "/admin/districts",
+  },
+  {
+    title: "System Governance",
+    icon: <StorageIcon fontSize="large" color="primary" />,
+    description: "Manage System Settings",
+    subActivities: [
+      "Deployment Control",
+      "Current Build Version",
+      "Legal Consent Version",
+      "Maintenance Mode",
+    ],
+    path: "/admin/system",
   },
   // ... add others (Areas, Precincts, Rewards stub, etc.)
 ];

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -10,15 +10,16 @@ import {
   Alert,
   AlertTitle,
   Stack,
+  CircularProgress,
 } from "@mui/material";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { db, auth } from "../../lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { LEGAL_CONFIG } from "../../constants/legal";
 import Logo from "../../components/ui/Logo";
 
-// ICON IMPORTS BELONG HERE
+// ICON IMPORTS
 import GavelIcon from "@mui/icons-material/Gavel";
 import SecurityIcon from "@mui/icons-material/Security";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
@@ -26,7 +27,6 @@ import TimerIcon from "@mui/icons-material/Timer";
 import AppRegistrationIcon from "@mui/icons-material/AppRegistration";
 import PhonelinkLockIcon from "@mui/icons-material/PhonelinkLock";
 
-// The Mapper: Links the 'id' string from legal.ts to the actual MUI Component
 const ICON_MAP: Record<string, React.ElementType> = {
   privacy: VerifiedUserIcon,
   noIncentives: GavelIcon,
@@ -39,8 +39,19 @@ const ICON_MAP: Record<string, React.ElementType> = {
 export default function ConsentScreen() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [keystoneVersion, setKeystoneVersion] = useState<string | null>(null);
 
-  // Initialize checks state from the config file
+  // 1. DYNAMIC FETCH: Listen to the required legal version from the Keystone
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "config", "app_control"), (snap) => {
+      if (snap.exists()) {
+        setKeystoneVersion(snap.data().legal_version || "2026.01");
+      }
+    });
+    return unsub;
+  }, []);
+
+  // Initialize checks state
   const [checks, setChecks] = useState<Record<string, boolean>>(() =>
     LEGAL_CONFIG.REQUIRED_CHECKS.reduce(
       (acc, check) => ({ ...acc, [check.id]: false }),
@@ -54,26 +65,34 @@ export default function ConsentScreen() {
   );
 
   const handleAgree = async () => {
-    if (!user?.uid || !canSubmit) return;
-    setLoading(true);
+    // Ensure we are using the EXACT string from the Keystone
+    if (!keystoneVersion) return;
+
     try {
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
         has_agreed_to_terms: true,
-        terms_agreed_at: Date.now(),
-        legal_consent: {
-          version: LEGAL_CONFIG.CURRENT_VERSION,
-          agreed_at_ms: Date.now(),
-          user_agent: navigator.userAgent,
-        },
+        "legal_consent.version": keystoneVersion, // Should be "2026.02.14"
+        "legal_consent.agreed_at_ms": Date.now(),
       });
-      // App.tsx should detect the change and navigate automatically
-    } catch (err: any) {
-      console.error("Consent Error:", err);
-      setLoading(false);
-      alert(`Activation Error: ${err.message}`);
+      console.log("✅ [Consent] Saved version:", keystoneVersion);
+    } catch (err) {
+      // ... error handling
     }
   };
+
+  if (!keystoneVersion) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="100vh"
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ bgcolor: "background.default", minHeight: "100vh", py: 4 }}>
@@ -91,9 +110,9 @@ export default function ConsentScreen() {
             <Typography
               variant="caption"
               color="text.secondary"
-              sx={{ fontFamily: "monospace" }}
+              sx={{ fontFamily: "monospace", display: "block", mt: 1 }}
             >
-              VERSION: {LEGAL_CONFIG.CURRENT_VERSION}
+              REQUIRED COMPLIANCE VERSION: {keystoneVersion}
             </Typography>
           </Box>
 
@@ -111,13 +130,14 @@ export default function ConsentScreen() {
 
           <Stack spacing={3}>
             {LEGAL_CONFIG.REQUIRED_CHECKS.map((item, index) => {
-              const IconComponent = ICON_MAP[item.id] || SecurityIcon; // Fallback to security icon if missing
+              const IconComponent = ICON_MAP[item.id] || SecurityIcon;
 
               return (
                 <Box key={item.id}>
                   <Stack direction="row" spacing={2} alignItems="flex-start">
                     <Checkbox
                       checked={checks[item.id]}
+                      disabled={loading}
                       onChange={() =>
                         setChecks((prev) => ({
                           ...prev,
@@ -159,6 +179,7 @@ export default function ConsentScreen() {
                 variant="outlined"
                 fullWidth
                 size="large"
+                disabled={loading}
                 onClick={() => signOut(auth)}
                 sx={{ py: 1.5 }}
               >

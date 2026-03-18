@@ -1,6 +1,5 @@
-// src/lib/db.ts
 import Dexie, { Table } from "dexie";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db as firestore } from "./firebase";
 import { REFERENCE_DATA } from "../constants/referenceData";
 import {
@@ -10,17 +9,14 @@ import {
   Precinct,
   UserProfile,
   AppControl,
-  State_Rep_District, // Ensure this is in your types
+  State_Rep_District,
 } from "../types";
 
-// --- CONFIGURATION ---
-const APP_VERSION = process.env.REACT_APP_VERSION || "0.0.0";
-/** * CRITICAL: Increment this value in your .env file (REACT_APP_DB_VERSION)
- * or change the default below to 2 or 3 to trigger the schema update.
- */
-const DB_VERSION = Number(process.env.REACT_APP_DB_VERSION) || 3;
+// --- DYNAMIC CONFIGURATION ---
+// These are fallbacks only. Real enforcement happens in VersionGuard via Firestore.
 const DB_NAME = "GroundGame26V2DB";
-const SYNC_TIMEOUT_MS = 5000;
+const SYNC_TIMEOUT_MS = 8000;
+const CURRENT_APP_VERSION = "0.4.3-beta.9";
 
 class GroundGame26DB extends Dexie {
   counties!: Table<County>;
@@ -34,9 +30,10 @@ class GroundGame26DB extends Dexie {
   constructor() {
     super(DB_NAME);
 
-    this.version(DB_VERSION).stores({
+    // Schema versioning is now managed by the VersionGuard.
+    // We keep a high base version to avoid Dexie's internal auto-upgrade conflicts.
+    this.version(100).stores({
       counties: "id, name, active",
-      // Primary key is 'id', indexes provided for filtering in GeographicFilters
       state_rep_districts: "id, district_number, county_id, party_rep_district",
       areas: "id, county_id, active",
       precincts:
@@ -52,11 +49,13 @@ export const db = new GroundGame26DB();
 
 /**
  * PRODUCTION READY INITIALIZER
+ * Note: version enforcement is now handled by VersionGuard.tsx
+ * before this function is called in App.tsx.
  */
 export async function ensureDBInitialized(
   isAuthenticated: boolean = false,
 ): Promise<void> {
-  console.log(`🚀 [DB] Initializing GroundGame DB (Target v${DB_VERSION})...`);
+  console.log(`🚀 [DB] Initializing GroundGame DB Engine...`);
 
   try {
     const exists = await Dexie.exists(DB_NAME);
@@ -64,43 +63,55 @@ export async function ensureDBInitialized(
     if (!exists) {
       console.log("📂 [DB] No existing database found. Creating fresh...");
       await db.open();
-      await initializeControlRecord();
+      // On fresh install, we seed immediately
       await seedDatabase(isAuthenticated);
       return;
     }
 
-    await db.open();
-    const control = await db.app_control.get("app_control");
-    const currentLocalVersion = control?.current_db_version || 0;
+    if (!db.isOpen()) {
+      await db.open();
+    }
 
-    if (currentLocalVersion < DB_VERSION) {
-      console.warn(
-        `🔄 [DB] Version Mismatch! Local: ${currentLocalVersion}, Env: ${DB_VERSION}. Forcing Hard Reset...`,
-      );
-      await performHardReset(isAuthenticated);
+    const pCount = await db.precincts.count();
+    if (pCount === 0) {
+      console.warn("⚠️ [DB] Tables are empty. Re-seeding...");
+      await seedDatabase(isAuthenticated);
     } else {
-      const pCount = await db.precincts.count();
-      if (pCount === 0) {
-        console.warn(
-          "⚠️ [DB] Database exists but tables are empty. Re-seeding...",
-        );
-        await seedDatabase(isAuthenticated);
-      } else {
-        console.log(
-          `✅ [DB] Database verified (v${currentLocalVersion}) with ${pCount} precincts.`,
-        );
-      }
+      console.log(`✅ [DB] Database verified with ${pCount} precincts.`);
     }
   } catch (err) {
     console.error("❌ [DB] Critical Init Error:", err);
+    // If init fails, we attempt one hard reset to clear corruption
     await performHardReset(isAuthenticated);
   }
 }
 
+/**
+ * THE RESET ENGINE
+ * Exported so VersionGuard can trigger it remotely via Keystone updates.
+ */
+export async function performHardReset(isAuthenticated: boolean) {
+  console.warn("🧹 [DB] SYSTEM SIGNAL: Performing Hard Reset & Cache Wipe...");
+
+  if (db.isOpen()) {
+    db.close();
+  }
+
+  await Dexie.delete(DB_NAME);
+
+  // Re-open and re-initialize
+  await db.open();
+  await seedDatabase(isAuthenticated);
+}
+
+/**
+ * DATA HYDRATION LAYER
+ */
 async function seedDatabase(isAuthenticated: boolean) {
   const start = performance.now();
+
   if (!isAuthenticated) {
-    console.log("🛡️ [DB] User not authenticated. Bypassing Cloud Layer 1.");
+    console.log("🛡️ [DB] User not authenticated. Using Static Fallback.");
     await seedFromConstants();
     return;
   }
@@ -108,28 +119,30 @@ async function seedDatabase(isAuthenticated: boolean) {
   try {
     const syncPromise = syncFromFirebase();
     const timeoutPromise = new Promise<boolean>((_, reject) =>
-      setTimeout(() => reject(new Error("Firebase timeout")), SYNC_TIMEOUT_MS),
+      setTimeout(
+        () => reject(new Error("Cloud Sync Timeout")),
+        SYNC_TIMEOUT_MS,
+      ),
     );
 
     const success = await Promise.race([syncPromise, timeoutPromise]);
 
     if (success) {
       console.log(
-        `✅ [DB] Layer 1 Success: Synced in ${Math.round(performance.now() - start)}ms.`,
+        `✅ [DB] Cloud Sync Success (${Math.round(performance.now() - start)}ms)`,
       );
       return;
     }
-    throw new Error("Layer 1 returned no data");
+    throw new Error("Cloud returned empty dataset");
   } catch (err) {
-    console.error("⚠️ [DB] Layer 1 Failed, switching to Layer 2...");
+    console.error(
+      "⚠️ [DB] Cloud Sync Failed, using local constants fallback.",
+      err,
+    );
     await seedFromConstants();
   }
 }
 
-/**
- * Layer 1: Firebase Fetch
- * Included 'state_rep_districts' in the cloud loop.
- */
 async function syncFromFirebase(): Promise<boolean> {
   const collections = [
     "counties",
@@ -142,15 +155,13 @@ async function syncFromFirebase(): Promise<boolean> {
 
   try {
     if (!db.isOpen()) await db.open();
-    for (const colName of collections) {
-      console.log(`🔍 [DB] Querying Cloud Collection: "${colName}"...`);
-      const snap = await getDocs(collection(firestore, colName));
 
+    for (const colName of collections) {
+      const snap = await getDocs(collection(firestore, colName));
       if (!snap.empty) {
         const data = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         await db.table(colName).bulkPut(data);
         totalRows += data.length;
-        console.log(`   -> Downloaded ${data.length} rows for ${colName}`);
       }
     }
     return totalRows > 0;
@@ -160,9 +171,6 @@ async function syncFromFirebase(): Promise<boolean> {
   }
 }
 
-/**
- * Layer 2: Constants Fallback
- */
 async function seedFromConstants() {
   try {
     await db.transaction(
@@ -170,7 +178,6 @@ async function seedFromConstants() {
       [db.counties, db.state_rep_districts, db.areas, db.precincts, db.groups],
       async () => {
         await db.counties.bulkPut(REFERENCE_DATA.counties as County[]);
-        // Ensure REFERENCE_DATA has a state_rep_districts array, or use empty array fallback
         if ((REFERENCE_DATA as any).state_rep_districts) {
           await db.state_rep_districts.bulkPut(
             (REFERENCE_DATA as any).state_rep_districts,
@@ -181,35 +188,31 @@ async function seedFromConstants() {
         await db.groups.bulkPut(REFERENCE_DATA.groups as Group[]);
       },
     );
-    console.log("✨ [DB] Layer 2 Success: Seeded from local constants.");
   } catch (err) {
     console.error("❌ [DB] Static Seed Error:", err);
   }
 }
 
-async function performHardReset(isAuthenticated: boolean) {
-  console.log("🧹 [DB] Performing Hard Reset...");
-  db.close();
-  await Dexie.delete(DB_NAME);
-  await db.open();
-  await initializeControlRecord();
-  await seedDatabase(isAuthenticated);
-}
-
-async function initializeControlRecord() {
+/**
+ * APP CONTROL UPDATER
+ * Called by referenceDataSync.ts after a successful Cloud update.
+ */
+export async function updateAppControlAfterSync(
+  keystoneData?: Partial<AppControl>,
+): Promise<void> {
   await db.app_control.put({
     id: "app_control",
-    current_app_version: APP_VERSION,
-    current_db_version: DB_VERSION,
+    current_app_version: CURRENT_APP_VERSION,
+    // We save the Keystone's DB version locally to prevent infinite resets
+    current_db_version: keystoneData?.current_db_version || 0,
     last_updated: Date.now(),
     sync_status: "idle",
-  });
-}
-
-export async function updateAppControlAfterSync(): Promise<void> {
-  await db.app_control.update("app_control", {
-    last_updated: Date.now(),
-    sync_status: "idle",
+    latest_stable_build:
+      keystoneData?.latest_stable_build || CURRENT_APP_VERSION,
+    min_required_build: keystoneData?.min_required_build || "0.0.0",
+    maintenance_mode: keystoneData?.maintenance_mode || false,
+    stage: keystoneData?.stage || "production",
+    legal_version: keystoneData?.legal_version || "",
   });
 }
 

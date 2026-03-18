@@ -40,6 +40,7 @@ import DncManagement from "../app/admin/dnc/DncManagement";
 import SurveysManagement from "../app/admin/surveys/SurveysManagement";
 import SurveyResults from "../app/admin/surveys/SurveyResults";
 import DistrictsManagement from "../app/admin/districts/DistrictsManagement";
+import SystemGovernance from "../app/admin/system/SystemGovernance";
 
 export default function AppRouter() {
   const { user, role } = useAuth();
@@ -132,6 +133,7 @@ export default function AppRouter() {
           element={<SurveyResults />}
         />
         <Route path="/admin/districts" element={<DistrictsManagement />} />
+        <Route path="/admin/system" element={<SystemGovernance />} />
       </Route>
 
       {/* 6. DYNAMIC ROOT */}
