@@ -389,8 +389,8 @@ export default function SettingsPage() {
         <Grid size={{ xs: 12 }}>
           <Box sx={{ textAlign: "center", mt: 2, opacity: 0.6 }}>
             <Typography variant="caption">
-              App Version {appControl?.current_app_version || "2.1.0"} | DB{" "}
-              {appControl?.current_db_version || "2026.Q1"}
+              App Version {appControl?.current_app_version || "0.4.39"} | DB{" "}
+              {appControl?.current_db_version || "20"}
             </Typography>
           </Box>
         </Grid>

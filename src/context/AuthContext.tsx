@@ -33,6 +33,8 @@ const DEFAULT_PERMISSIONS: UserPermissions = {
   can_manage_resources: false,
   can_create_documents: false,
   can_download_records: false,
+  can_upload_collections: false,
+  can_create_collections: false,
 };
 
 const defaultContext: AuthContextType = {

@@ -69,6 +69,7 @@ export default function ConsentScreen() {
     if (!keystoneVersion) return;
 
     try {
+      if (!user?.uid) return;
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
         has_agreed_to_terms: true,

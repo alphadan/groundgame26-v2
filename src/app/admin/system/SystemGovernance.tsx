@@ -35,7 +35,7 @@ export default function SystemGovernance() {
     min_app_version: "",
     current_db_version: 0,
     maintenance_mode: false,
-    legal_version: "",
+    legal_terms_version: "",
   });
 
   // 1. DATA FETCH: Automatically populates the form with Cloud values
@@ -49,7 +49,7 @@ export default function SystemGovernance() {
           min_app_version: data.min_app_version || "0.0.0",
           current_db_version: data.current_db_version || 0,
           maintenance_mode: data.maintenance_mode || false,
-          legal_version: data.legal_version || "2026.1",
+          legal_terms_version: data.legal_terms_version || "2026.02.14",
         });
       }
       setLoading(false);

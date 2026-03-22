@@ -202,23 +202,18 @@ export interface OrgRole extends Omit<BaseMetadata, "id"> {
 
 export interface AppControl {
   id: "app_control";
-  // --- VERSION ENFORCEMENT ---
-  latest_stable_build: string; // The "Gold Standard" (e.g., "1.2.5")
-  min_required_build: string; // The "Hard Block" threshold (e.g., "1.2.0")
-  current_db_version: number; // Semantic Integer (e.g., 20260318)
-
-  // --- SYSTEM STATE ---
-  maintenance_mode: boolean; // Global kill-switch
-  stage: "beta" | "production"; // Environment toggle
-  legal_version: string; // Current ToS version (e.g., "v2.1")
-
-  // --- METADATA & SYNC ---
-  last_updated: number; // Timestamp of last Keystone change
-  last_sync_attempt?: number; // Timestamp of last local Dexie sync
-  sync_status?: "idle" | "syncing" | "error" | "reset_required";
-
-  // --- AUDIT (Optional but recommended) ---
-  updated_by_uid?: string; // Which Admin pushed the last update
+  current_app_version: string;
+  current_db_version: number;
+  sync_status?: "idle" | "syncing" | "error";
+  last_sync_attempt?: number;
+  last_updated: number;
+  latest_stable_build: string;
+  legal_terms_version: string;
+  maintenance_mode: boolean;
+  min_app_version: string;
+  min_required_build: string;
+  min_required_version: string;
+  stage: "beta" | "production";
 }
 
 export interface FilterValues {

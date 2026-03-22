@@ -203,16 +203,17 @@ export async function updateAppControlAfterSync(
   await db.app_control.put({
     id: "app_control",
     current_app_version: CURRENT_APP_VERSION,
-    // We save the Keystone's DB version locally to prevent infinite resets
     current_db_version: keystoneData?.current_db_version || 0,
     last_updated: Date.now(),
-    sync_status: "idle",
     latest_stable_build:
       keystoneData?.latest_stable_build || CURRENT_APP_VERSION,
-    min_required_build: keystoneData?.min_required_build || "0.0.0",
+    legal_terms_version: keystoneData?.legal_terms_version || "",
     maintenance_mode: keystoneData?.maintenance_mode || false,
     stage: keystoneData?.stage || "production",
-    legal_version: keystoneData?.legal_version || "",
+    // Add these to satisfy the full interface if necessary
+    min_app_version: keystoneData?.min_app_version || "0.1.0",
+    min_required_build: keystoneData?.min_required_build || "0.0.0",
+    min_required_version: keystoneData?.min_required_version || "0.1.0",
   });
 }
 

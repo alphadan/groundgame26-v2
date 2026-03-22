@@ -152,7 +152,6 @@ export const CampaignResourcesManager: React.FC = () => {
       field: "scope",
       headerName: "Scope",
       width: 100,
-      sx: { textTransform: "capitalize" },
     },
     {
       field: "actions",
