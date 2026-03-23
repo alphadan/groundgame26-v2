@@ -72,6 +72,11 @@ export default function VoterListPage() {
 
   const PRESET_FILTERS = [
     {
+      label: "24-25 Drop-off Voters",
+      icon: "📉",
+      filters: { dropoffOnly: true },
+    },
+    {
       label: "High Primary Turnout",
       icon: "🗳️",
       filters: {
@@ -203,6 +208,22 @@ export default function VoterListPage() {
   const applyQuickFilter = (presetFilters: Partial<FilterValues>) => {
     setFilters((prev) => {
       const currentPrecinct = prev?.precinct || "";
+
+      // Determine if we are toggling the EXACT same filter off
+      const isCurrentlyActive =
+        prev &&
+        Object.keys(presetFilters).every(
+          (key) =>
+            prev[key as keyof FilterValues] ===
+            presetFilters[key as keyof FilterValues],
+        );
+
+      if (isCurrentlyActive) {
+        // Return only the precinct (clear the preset)
+        return { precinct: currentPrecinct } as FilterValues;
+      }
+
+      // Merge the precinct with the new preset
       return {
         ...presetFilters,
         precinct: currentPrecinct,
@@ -670,6 +691,22 @@ export default function VoterListPage() {
       </Box>
 
       <Divider sx={{ my: 3 }} />
+
+      {/* STRATEGIC ALERT FOR DROP-OFF TARGETS */}
+      {filters?.dropoffOnly && voters.length > 0 && (
+        <Alert
+          severity="info"
+          variant="outlined"
+          icon={<BoltIcon />}
+          sx={{ mb: 3, borderRadius: 2, bgcolor: "rgba(2, 136, 209, 0.02)" }}
+        >
+          <AlertTitle sx={{ fontWeight: "bold" }}>
+            2026 Mobilization List
+          </AlertTitle>
+          You are viewing <strong>{voters.length}</strong> casual GOP voters in
+          Precinct {filters.precinct} who missed the 2025 cycle.
+        </Alert>
+      )}
 
       {/* New Message Display */}
       {!isLoading && filters && voters.length === 0 ? (

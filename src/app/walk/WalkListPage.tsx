@@ -17,6 +17,7 @@ import {
   Stack,
   CircularProgress,
   Alert,
+  AlertTitle,
   Button,
   useTheme,
   Snackbar,
@@ -30,6 +31,7 @@ import {
   Map as MapIcon,
   Sort as SortIcon,
 } from "@mui/icons-material";
+import RocketLaunchIcon from "@mui/icons-material/RocketLaunch";
 import BoltIcon from "@mui/icons-material/Bolt";
 import ApartmentIcon from "@mui/icons-material/Apartment";
 import HowToVoteIcon from "@mui/icons-material/HowToVote";
@@ -133,6 +135,17 @@ export default function WalkListPage() {
   // --- HANDLERS ---
   const toggleSubFilter = (filter: string) => {
     setActiveSubFilter((prev) => (prev === filter ? null : filter));
+  };
+
+  const applyQuickFilter = (type: string) => {
+    if (type === "dropoff") {
+      setDbFilters((prev: any) => ({
+        ...prev,
+        dropoffOnly: prev?.dropoffOnly ? undefined : true,
+      }));
+    } else {
+      setActiveSubFilter((prev) => (prev === type ? null : type));
+    }
   };
 
   const handleVisit = async (voter: Voter) => {
@@ -502,6 +515,25 @@ export default function WalkListPage() {
 
       {dbFilters && (
         <>
+          {dbFilters.dropoffOnly && filteredVoters.length > 0 && (
+            <Alert
+              severity="info"
+              variant="outlined"
+              icon={<RocketLaunchIcon />}
+              sx={{
+                mt: 3,
+                borderRadius: 2,
+                bgcolor: "rgba(2, 136, 209, 0.02)",
+                borderColor: "info.light",
+              }}
+            >
+              <AlertTitle sx={{ fontWeight: "bold" }}>
+                2026 Mobilization Target
+              </AlertTitle>
+              Viewing GOP voters who vote in General cycles but skipped 2025.
+              Ensure they commit for 2026!
+            </Alert>
+          )}
           <Paper sx={{ mt: 2, p: 2, borderRadius: 3, bgcolor: "grey.50" }}>
             <Stack
               direction="row"
@@ -520,6 +552,16 @@ export default function WalkListPage() {
                   Refine View:
                 </Typography>
               </Stack>
+              <Chip
+                label="24-25 Drop-off Voters"
+                size="small"
+                icon={<HowToVoteIcon sx={{ fontSize: "1rem !important" }} />}
+                onClick={() => applyQuickFilter("dropoff")}
+                color={dbFilters.dropoffOnly ? "primary" : "default"}
+                variant={dbFilters.dropoffOnly ? "filled" : "outlined"}
+                sx={{ fontWeight: "bold" }}
+              />
+              <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
               <Chip
                 label="Communal Hubs (8+)"
                 size="small"
@@ -552,14 +594,20 @@ export default function WalkListPage() {
                   activeSubFilter === "high_primary" ? "filled" : "outlined"
                 }
               />
-              {activeSubFilter && (
+              {(activeSubFilter || dbFilters.dropoffOnly) && (
                 <Button
                   size="small"
-                  onClick={() => setActiveSubFilter(null)}
+                  onClick={() => {
+                    setActiveSubFilter(null);
+                    setDbFilters((p: any) => ({
+                      ...p,
+                      dropoffOnly: undefined,
+                    }));
+                  }}
                   color="error"
-                  sx={{ ml: "auto" }}
+                  sx={{ ml: "auto", fontWeight: "bold" }}
                 >
-                  Reset Refinement
+                  Clear All
                 </Button>
               )}
             </Stack>
