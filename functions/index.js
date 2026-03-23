@@ -520,7 +520,7 @@ export const queryVotersDynamic = onCall(
       SELECT 
         voter_id, full_name, sex, age, political_party, precinct, area_district,
         address, house_int, city, email, phone_mobile, phone_home, has_mail_ballot,
-        modeled_party, turnout_score_general, turnout_score_primary, date_registered, likely_moved, zip_code, date_of_birth
+        modeled_party, turnout_score_general, turnout_score_primary, date_registered, likely_moved, zip_code, date_of_birth, GN_PR_11_04_25, GN_11_05_24
       FROM \`${table}\`
       WHERE 1=1
     `;
@@ -600,6 +600,31 @@ export const queryVotersDynamic = onCall(
     if (filters.birthDay && filters.birthDay.trim() !== "") {
       sql += ` AND date_of_birth LIKE @dobPattern`;
       params.dobPattern = `%${filters.birthDay.trim()}%`;
+    }
+
+    // NEW: Handle the specific logic for Drop-off voters
+    // Logic: Voted in 2025 Primary (gn_pr_11_04_25) but NOT in 2024 General (gn_11_05_24)
+    if (filters.dropoffOnly === true) {
+      sql += ` AND gn_11_05_24 IS NOT NULL 
+               AND gn_pr_11_04_25 IS NULL 
+               AND political_party = 'R'`;
+    }
+
+    if (filters.party && filters.party.trim() !== "" && !filters.dropoffOnly) {
+      sql += ` AND political_party = @party`;
+      params.party = filters.party.trim();
+    }
+
+    // === General Election Day Voters 2025 ===
+    if (filters.gn_pr_11_04_25 && filters.gn_pr_11_04_25.trim() !== "") {
+      sql += ` AND gn_pr_11_04_25 = @v25`;
+      params.v25 = filters.gn_pr_11_04_25.trim();
+    }
+
+    // === General Election Day Voters 2024 ===
+    if (filters.gn_11_05_24 && filters.gn_11_05_24.trim() !== "") {
+      sql += ` AND gn_11_05_24 = @v24`;
+      params.v24 = filters.gn_11_05_24.trim();
     }
 
     // === Mail Ballot ===

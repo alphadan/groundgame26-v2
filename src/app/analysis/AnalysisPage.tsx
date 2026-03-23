@@ -10,6 +10,7 @@ import {
   Grid,
   Stack,
   Alert,
+  AlertTitle,
   CircularProgress,
   useTheme,
   Divider,
@@ -57,6 +58,11 @@ export default function AnalysisPage() {
 
   // --- PRESETS ---
   const PRESET_FILTERS = [
+    {
+      label: "24-25 Drop-off Voters",
+      icon: "📉",
+      filters: { dropoffOnly: true },
+    },
     {
       label: "GOP Low Turnout",
       icon: "⚠️",
@@ -107,11 +113,27 @@ export default function AnalysisPage() {
   }, [voters]);
 
   const applyQuickFilter = (presetFilters: any) => {
-    // Merges the quick filter with the current geographic context
-    setVoterFilters((prev) => ({
-      ...prev,
-      ...presetFilters,
-    }));
+    setVoterFilters((prev) => {
+      // 1. Keep the existing geographic context (Precinct, Area, County)
+      const geoContext = {
+        precinct: prev?.precinct,
+        area: prev?.area,
+        county: prev?.county,
+        precinct_id: prev?.precinct_id,
+      };
+
+      // 2. If we are clicking a preset that is already active,
+      // we reset to just the geographic context (clears the preset)
+      if (isPresetActive(presetFilters)) {
+        return geoContext;
+      }
+
+      // 3. Otherwise, merge the preset into the current geography
+      return {
+        ...geoContext,
+        ...presetFilters,
+      };
+    });
   };
 
   const isPresetActive = (preset: any) =>
@@ -160,17 +182,30 @@ export default function AnalysisPage() {
                 </Typography>
               </Stack>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                {PRESET_FILTERS.map((preset) => (
-                  <Chip
-                    key={preset.label}
-                    label={preset.label}
-                    onClick={() => applyQuickFilter(preset.filters)}
-                    color={
-                      isPresetActive(preset.filters) ? "primary" : "default"
-                    }
-                    sx={{ borderRadius: 2, fontWeight: 600 }}
-                  />
-                ))}
+                {PRESET_FILTERS.map((preset) => {
+                  const active = isPresetActive(preset.filters);
+                  return (
+                    <Chip
+                      key={preset.label}
+                      label={preset.label}
+                      onClick={() => applyQuickFilter(preset.filters)}
+                      // Visual indicator that it's active
+                      color={active ? "primary" : "default"}
+                      variant={active ? "filled" : "outlined"}
+                      // Add a delete icon if active to clear it
+                      onDelete={
+                        active
+                          ? () => applyQuickFilter(preset.filters)
+                          : undefined
+                      }
+                      sx={{
+                        borderRadius: 2,
+                        fontWeight: 600,
+                        transition: "all 0.2s",
+                      }}
+                    />
+                  );
+                })}
               </Box>
             </Paper>
 
@@ -192,6 +227,32 @@ export default function AnalysisPage() {
 
         {/* RIGHT COLUMN: WORKSPACE */}
         <Grid size={{ xs: 12, md: 6, lg: 6 }}>
+          {/* Inside the Workspace section of AnalysisPage.tsx */}
+          {voterFilters?.dropoffOnly && (
+            <Alert
+              severity="info"
+              variant="outlined"
+              icon={<RocketLaunchIcon />}
+              sx={{
+                mb: 2,
+                borderRadius: 3,
+                bgcolor: "rgba(2, 136, 209, 0.03)",
+                borderColor: "info.light",
+              }}
+            >
+              <AlertTitle sx={{ fontWeight: "bold" }}>
+                2026 Mobilization Target:{" "}
+                {voterFilters.precinct
+                  ? `Precinct ${voterFilters.precinct}`
+                  : "District Wide"}
+              </AlertTitle>
+              <Typography variant="body2">
+                Found <strong>{voters.length.toLocaleString()}</strong>{" "}
+                Republicans in this area who vote in Presidential cycles but
+                skipped last year.
+              </Typography>
+            </Alert>
+          )}
           {!voterFilters ? (
             <Paper
               sx={{

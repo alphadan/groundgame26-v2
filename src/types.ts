@@ -228,6 +228,9 @@ export interface FilterValues {
   turnout?: string;
   turnout_score_general?: number;
   turnout_score_primary?: number;
+  gn_pr_11_04_25?: string; // For dropoff voters
+  gn_11_05_24?: string; // For dropoff voters
+  dropoffOnly?: boolean;
   ageGroup?: string;
   mailBallot?: string;
   sex?: string;
@@ -304,6 +307,8 @@ export interface Voter {
   email?: string;
   modeled_party?: string;
   turnout_score_general?: string;
+  gn_pr_11_04_25?: string; // For dropoff voters
+  gn_11_05_24?: string; // For dropoff voters
   has_mail_ballot?: boolean;
   isFirstInHouse?: boolean; // For household grouping
   isDnc?: boolean; // From useDncMap
