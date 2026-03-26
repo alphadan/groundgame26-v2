@@ -1549,35 +1549,70 @@ export const toggleFavoriteMessage = onCall(async (request) => {
 // ================================================================
 
 // functions/src/index.js
+// functions/index.js
+
 export const adminGenerateResourceUploadUrl = onCall(
   { cors: true },
   async (request) => {
+    // ADD LOGGING HERE
+    logger.info("Incoming Upload Request Data:", request.data);
+
     const {
       title,
       category,
+      description,
       fileName,
+      county_id,
+      area_id,
+      precinct_id,
       county_code,
       area_code,
       precinct_code,
       scope,
     } = request.data;
 
-    // 1. File size & Type security (Logic check)
     if (!fileName.toLowerCase().endsWith(".pdf")) {
       throw new HttpsError("invalid-argument", "Only PDF files are allowed.");
     }
 
+    logger.info("Incoming Upload Request Data:title", title);
+    logger.info("Incoming Upload Request Data:category", category);
+    logger.info("Incoming Upload Request Data:description", description);
+    logger.info("Incoming Upload Request Data:fileName", fileName);
+    logger.info("Incoming Upload Request Data:county_id ", county_id);
+    logger.info("Incoming Upload Request Data:county_code ", county_code);
+    logger.info("Incoming Upload Request Data:area_id ", area_id);
+    logger.info("Incoming Upload Request Data:area_code ", area_code);
+    logger.info("Incoming Upload Request Data:precinct_id", precinct_id);
+    logger.info("Incoming Upload Request Data:precinct_code", precinct_code);
+    logger.info("Incoming Upload Request Data:scope ", scope);
+
     const filePath = `resources/${category.toLowerCase()}/${Date.now()}-${fileName}`;
     const file = bucket.file(filePath);
 
+    // SWITCH TO HYPHENS: GCS prefers hyphens over underscores in headers
+    const extensionHeaders = {
+      "x-goog-meta-title": title,
+      "x-goog-meta-category": category,
+      "x-goog-meta-description": description || "",
+      "x-goog-meta-scope": scope,
+      "x-goog-meta-county-id": county_id || "",
+      "x-goog-meta-county-code": county_code || "",
+      "x-goog-meta-area-id": area_id || "",
+      "x-goog-meta-area-code": area_code || "",
+      "x-goog-meta-precinct-id": precinct_id || "",
+      "x-goog-meta-precinct-code": precinct_code || "",
+    };
+
     const [url] = await file.getSignedUrl({
+      version: "v4",
       action: "write",
       expires: Date.now() + 15 * 60 * 1000,
       contentType: "application/pdf",
-      version: "v4",
+      extensionHeaders,
     });
 
-    return { uploadUrl: url, filePath };
+    return { uploadUrl: url, filePath, extensionHeaders };
   },
 );
 
@@ -1586,70 +1621,60 @@ export const adminGenerateResourceUploadUrl = onCall(
 // ================================================================
 
 export const onResourceUploaded = onObjectFinalized(async (event) => {
-  const metadata = event.data.metadata;
-  // Guard: Only process files in the resources folder
+  const meta = event.data.metadata || {};
   if (!event.data.name.startsWith("resources/")) return;
 
-  const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${
-    event.data.bucket
-  }/o/${encodeURIComponent(event.data.name)}?alt=media`;
-
   try {
-    await db.collection("campaign_resources").add({
-      title: metadata.title || "Untitled Resource",
-      category: metadata.category || "General",
-      scope: metadata.scope || "county",
-      county_code: metadata["county-code"] || null,
-      area_code: metadata["area-code"] || null,
-      precinct_code: metadata["precinct-code"] || null,
-      url: downloadUrl,
-      // CRITICAL: This is the 'link' used by onResourceDeleted to find the file
+    const rawTitle = meta.title || "Untitled";
+    const rawScope = (meta.scope || "county").toLowerCase();
+
+    // Map hyphenated metadata keys back to your _code search fields
+    const cCode = meta["county-code"] || "15";
+    const aCode = meta["area-code"] || "";
+    const pCode = meta["precinct-code"] || "";
+
+    // Generate Custom ID using the Code (Consistent with DownloadCenter)
+    const codeForId = pCode || aCode || cCode;
+    const titleSlug = rawTitle
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .substring(0, 8)
+      .toUpperCase();
+    const customDocId = `${rawScope.toUpperCase()}-${codeForId}-${meta.category.toUpperCase()}-${titleSlug}`;
+
+    const resourceData = {
+      id: customDocId,
+      title: rawTitle,
+      category: meta.category,
+      description: meta.description,
+      scope: rawScope,
+      // SEARCH FIELDS (DownloadCenter uses these)
+      county_code: cCode,
+      area_code: aCode || null,
+      precinct_code: pCode || null,
+      // DB REFERENCE FIELDS (AdminManager uses these)
+      county_id: meta["county-id"],
+      area_id: meta["area-id"] || null,
+      precinct_id: meta["precinct-id"] || null,
+
+      url: `https://firebasestorage.googleapis.com/v0/b/${event.data.bucket}/o/${encodeURIComponent(event.data.name)}?alt=media`,
       storagePath: event.data.name,
+      active: true,
       created_at: Date.now(),
-    });
-    logger.info(`Resource indexed: ${metadata.title}`);
+    };
+
+    await db
+      .collection("campaign_resources")
+      .doc(customDocId)
+      .set(resourceData);
+    logger.info(`Successfully indexed ${customDocId}`);
   } catch (error) {
-    logger.error("Error indexing uploaded resource:", error);
+    logger.error("Indexing failed", error);
   }
 });
 
 // ================================================================
 //  DELETES RESOURCES TEMPLATES BUCKET FILES WHEN DOCUMENTS ARE DELETED
 // ================================================================
-
-export const onResourceDeleted = onDocumentDeleted(
-  "campaign_resources/{docId}",
-  async (event) => {
-    const deletedData = event.data.data();
-
-    // We need this field to know what to delete in Storage
-    const filePath = deletedData.storagePath;
-
-    if (!filePath) {
-      logger.warn(
-        `No storagePath found for document ${event.params.docId}. Storage cleanup skipped.`,
-      );
-      return;
-    }
-
-    try {
-      const file = bucket.file(filePath);
-
-      // Check if it exists before trying to delete to avoid 404 errors in logs
-      const [exists] = await file.exists();
-
-      if (exists) {
-        await file.delete();
-        logger.info(`Successfully deleted orphaned file: ${filePath}`);
-      } else {
-        logger.info(`File ${filePath} was already removed or does not exist.`);
-      }
-    } catch (error) {
-      logger.error("Error during storage cleanup on document deletion:", error);
-      // We don't throw here to avoid infinite retry loops for a missing file
-    }
-  },
-);
 
 // ================================================================
 //  GET DOWNLOADABLE TEMPLATES
@@ -1682,15 +1707,15 @@ export const getResourcesByLocation = onCall(
         Filter.or(
           // Search using the _code fields that match your frontend/BigQuery values
           Filter.and(
-            Filter.where("county_code", "==", county),
+            Filter.where("county_id", "==", county),
             Filter.where("scope", "==", "county"),
           ),
           Filter.and(
-            Filter.where("area_code", "==", area),
+            Filter.where("area_id", "==", area),
             Filter.where("scope", "==", "area"),
           ),
           Filter.and(
-            Filter.where("precinct_code", "==", precinct),
+            Filter.where("precinct_id", "==", precinct),
             Filter.where("scope", "==", "precinct"),
           ),
         ),
@@ -1712,6 +1737,7 @@ export const getResourcesByLocation = onCall(
         Ballots: resources.filter((r) => r.category === "Ballots"),
         Graphics: resources.filter((r) => r.category === "Graphics"),
         Forms: resources.filter((r) => r.category === "Forms"),
+        Maps: resources.filter((r) => r.category === "Maps"),
         Scripts: resources.filter((r) => r.category === "Scripts"),
       };
 

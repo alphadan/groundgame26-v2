@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db as indexedDb } from "../../../lib/db";
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -55,6 +55,7 @@ export const CampaignResourcesManager: React.FC = () => {
   // --- 2. Form State ---
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Brochures");
+  const [description, setDescription] = useState("");
   const [scope, setScope] = useState("county");
 
   // Use Claims to auto-set the admin's primary county
@@ -64,6 +65,12 @@ export const CampaignResourcesManager: React.FC = () => {
   const [selectedArea, setSelectedArea] = useState("");
   const [selectedPrecinct, setSelectedPrecinct] = useState("");
   const [file, setFile] = useState<File | null>(null);
+
+  useEffect(() => {
+    if (claims?.counties?.[0]) {
+      setSelectedCounty(claims.counties[0]);
+    }
+  }, [claims]);
 
   // --- 3. UI State ---
   const [isUploading, setIsUploading] = useState(false);
@@ -97,34 +104,52 @@ export const CampaignResourcesManager: React.FC = () => {
     }, [selectedArea]) ?? [];
 
   // --- 6. Handlers ---
+
   const handleUpload = async () => {
     if (!file || !title || !canModify) return;
+
+    // 1. Find the full objects from your Dexie results
+    // This ensures we get both the ID (for DB) and the Code (for Search)
+    const countyObj = counties.find((c) => c.id === selectedCounty);
+    const areaObj = areas.find((a) => a.id === selectedArea);
+    const precinctObj = precincts.find((p) => p.id === selectedPrecinct);
+
+    console.log("countyObj :", countyObj.code);
+    console.log("areaObj :", areaObj.area_district);
+    console.log("precinctObj :", precinctObj.precinct_code);
+
     setIsUploading(true);
-    setStatus(null);
     try {
       const result = await adminGenerateResourceUploadUrl({
-        title,
+        title: title.trim(),
         category,
+        description: description.trim(),
         fileName: file.name,
         scope,
-        county_code: selectedCounty,
-        area_code: selectedArea,
-        precinct_code: selectedPrecinct,
+        county_id: countyObj?.id,
+        county_code: countyObj?.code,
+        area_id: areaObj?.id || "",
+        area_code: areaObj?.area_district || "",
+        precinct_id: precinctObj?.id || "",
+        precinct_code: precinctObj?.precinct_code || "",
       });
 
-      const { uploadUrl } = result.data as any;
+      const { uploadUrl, extensionHeaders } = result.data as any;
+
+      // 2. Perform the upload with the Hyphenated Metadata headers
       await fetch(uploadUrl, {
         method: "PUT",
         body: file,
-        headers: { "Content-Type": "application/pdf" },
+        headers: {
+          "Content-Type": "application/pdf",
+          ...extensionHeaders,
+        },
       });
 
-      setStatus({ type: "success", msg: "Upload complete! Updating list..." });
-      setTitle("");
-      setFile(null);
-      setTimeout(fetchAll, 2500);
+      setStatus({ type: "success", msg: "Published successfully!" });
+      // ... reset form
     } catch (err: any) {
-      setStatus({ type: "error", msg: "Upload failed. Verify permissions." });
+      setStatus({ type: "error", msg: err.message });
     } finally {
       setIsUploading(false);
     }
@@ -148,6 +173,7 @@ export const CampaignResourcesManager: React.FC = () => {
   const columns: GridColDef[] = [
     { field: "title", headerName: "Title", flex: 1 },
     { field: "category", headerName: "Category", width: 130 },
+    { field: "description", headerName: "Description", flex: 1.5 },
     {
       field: "scope",
       headerName: "Scope",
@@ -233,6 +259,7 @@ export const CampaignResourcesManager: React.FC = () => {
                   "Ballots",
                   "Graphics",
                   "Forms",
+                  "Maps",
                   "Scripts",
                   "Legal",
                 ].map((c) => (
@@ -310,6 +337,16 @@ export const CampaignResourcesManager: React.FC = () => {
                 ))}
               </TextField>
             )}
+            <TextField
+              label="Short Description"
+              fullWidth
+              size="small"
+              multiline
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe the resource (e.g., Precinct 105 Walk Map)"
+            />
 
             <Button
               variant="outlined"

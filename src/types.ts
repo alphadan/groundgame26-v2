@@ -394,14 +394,27 @@ export interface VoterInteraction {
 export interface CampaignResource {
   id: string;
   title: string;
-  category: string;
+  category:
+    | "Maps"
+    | "Brochures"
+    | "Ballots"
+    | "Graphics"
+    | "Forms"
+    | "Scripts"
+    | "Legal"
+    | string;
+  description: string;
   url: string;
-  description?: string;
-  verified_by_role?: "county_chair" | "area_chair" | string;
-  scope?: "county" | "area" | "precinct";
-  county_id?: string;
-  area_id?: string;
-  precinct_id?: string;
+  storagePath: string;
+  scope: "county" | "area" | "precinct";
+  location: {
+    county: { id: string; code: string };
+    area?: { id: string; code: string } | null;
+    precinct?: { id: string; code: string } | null;
+  };
+  active: boolean;
+  created_at: number;
+  verified_by_role?: string;
 }
 
 export interface UsefulLink {

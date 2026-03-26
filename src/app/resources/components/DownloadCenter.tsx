@@ -94,6 +94,8 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
   ) => {
     if (items.length === 0) return null;
 
+    const isMapCategory = categoryName === "Maps";
+
     const { page, size } = pageSettings[categoryName] || { page: 0, size: 8 };
     const pagedItems = items.slice(page * size, page * size + size);
 
@@ -102,15 +104,25 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
         <Typography
           variant="h6"
           fontWeight="bold"
-          color="primary"
+          color={isMapCategory ? "secondary.main" : "primary.main"}
           gutterBottom
-          sx={{ borderLeft: 4, pl: 2, borderColor: "primary.main" }}
+          sx={{
+            borderLeft: 4,
+            pl: 2,
+            borderColor: isMapCategory ? "secondary.main" : "primary.main",
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
         >
           {categoryName}
+          {isMapCategory && (
+            <Chip label="Field Maps" size="small" color="secondary" />
+          )}
         </Typography>
 
         <Grid container spacing={3} sx={{ mt: 1 }}>
-          {pagedItems.map((item) => (
+          {items.map((item) => (
             <Grid key={item.id} size={{ xs: 12, sm: 6, md: 3 }}>
               <Paper
                 variant="outlined"
@@ -120,66 +132,36 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
                   height: 280,
                   display: "flex",
                   flexDirection: "column",
-                  transition: "transform 0.2s",
-                  "&:hover": { transform: "translateY(-4px)", boxShadow: 3 },
                 }}
               >
-                <Box sx={{ flexGrow: 1, overflowY: "auto", pr: 1 }}>
-                  <Stack direction="row" justifyContent="space-between" mb={1}>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                      {item.title}
-                    </Typography>
-                    {item.scope && (
-                      <Chip
-                        label={item.scope}
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          textTransform: "capitalize",
-                          fontSize: "0.65rem",
-                        }}
-                      />
-                    )}
-                  </Stack>
-                  <Typography variant="body2" color="text.secondary">
-                    {item.description}
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight="bold"
+                    gutterBottom
+                  >
+                    {item.title || "Unknown Resource"}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontStyle: isMapCategory ? "italic" : "normal" }}
+                  >
+                    {item.description || "No description provided."}
                   </Typography>
                 </Box>
-
                 <Button
                   fullWidth
                   variant="contained"
                   startIcon={<DownloadIcon />}
                   onClick={() => handleDownload(item)}
-                  sx={{ mt: 2 }}
                 >
-                  Download / View
+                  {isMapCategory ? "Open Map" : "Download"}
                 </Button>
               </Paper>
             </Grid>
           ))}
         </Grid>
-
-        <TablePagination
-          component="div"
-          count={items.length}
-          page={page}
-          onPageChange={(_, newPage) => {
-            setPageSettings((prev) => ({
-              ...prev,
-              [categoryName]: { ...prev[categoryName], page: newPage },
-            }));
-          }}
-          rowsPerPage={size}
-          rowsPerPageOptions={[8, 16, 24]}
-          onRowsPerPageChange={(e) => {
-            const newSize = parseInt(e.target.value, 10);
-            setPageSettings((prev) => ({
-              ...prev,
-              [categoryName]: { page: 0, size: newSize },
-            }));
-          }}
-        />
       </Box>
     );
   };

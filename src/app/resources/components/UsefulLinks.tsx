@@ -83,7 +83,7 @@ export const UsefulLinks: React.FC<UsefulLinksProps> = ({ links }) => {
   const displayLinks = links && links.length > 0 ? links : USEFUL_LINKS_DATA;
 
   return (
-    <Box>
+    <Box sx={{ pl: 2, pr: 2, pt: 1, pb: 3 }}>
       <Typography variant="h5" gutterBottom fontWeight="bold">
         Useful Links
       </Typography>
