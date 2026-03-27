@@ -215,7 +215,7 @@ export default function AnalysisPage() {
               isLoading={votersLoading}
               initialSrd={selectedSRD}
               demographicFilters={[
-                "modeledParty",
+                "party",
                 "turnout",
                 "ageGroup",
                 "mailBallot",
@@ -242,9 +242,11 @@ export default function AnalysisPage() {
             >
               <AlertTitle sx={{ fontWeight: "bold" }}>
                 2026 Mobilization Target:{" "}
-                {voterFilters.precinct
-                  ? `Precinct ${voterFilters.precinct}`
-                  : "District Wide"}
+                {voterFilters.precinct?.name
+                  ? `Precinct ${voterFilters.precinct.name}`
+                  : voterFilters.area?.name
+                    ? `Area ${voterFilters.area.name}`
+                    : "District Wide"}
               </AlertTitle>
               <Typography variant="body2">
                 Found <strong>{voters.length.toLocaleString()}</strong>{" "}
@@ -394,20 +396,30 @@ export default function AnalysisPage() {
 
                   <Stack direction="row" flexWrap="wrap" gap={1}>
                     {Object.entries(voterFilters)
-                      .filter(([_, val]) => val !== undefined && val !== "")
-                      .map(([key, val]) => (
-                        <Chip
-                          key={key}
-                          label={`${key.replace(/([A-Z])/g, " $1").toLowerCase()}: ${val}`}
-                          size="small"
-                          sx={{
-                            bgcolor: "success.main",
-                            color: "white",
-                            fontWeight: "bold",
-                            textTransform: "capitalize",
-                          }}
-                        />
-                      ))}
+                      .filter(
+                        ([_, val]) =>
+                          val !== undefined && val !== null && val !== "",
+                      )
+                      .map(([key, val]) => {
+                        // If the value is our GeoPayload object, show the .name
+                        const displayValue =
+                          val && typeof val === "object" && "name" in val
+                            ? val.name
+                            : String(val);
+
+                        return (
+                          <Chip
+                            key={key}
+                            label={`${key.replace(/([A-Z])/g, " $1").toLowerCase()}: ${displayValue}`}
+                            size="small"
+                            sx={{
+                              bgcolor: "success.main",
+                              color: "white",
+                              fontWeight: "bold",
+                            }}
+                          />
+                        );
+                      })}
                   </Stack>
                 </Alert>
               )}

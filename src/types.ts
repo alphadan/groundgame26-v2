@@ -216,24 +216,40 @@ export interface AppControl {
   stage: "beta" | "production";
 }
 
+export interface GeoPayload {
+  sql: string; // e.g., "5" (Cleaned for BigQuery)
+  full: string; // e.g., "PA15-P-005" (Firestore Doc ID)
+  name: string; // e.g., "Atglen" (For UI/Analytics)
+}
+
 export interface FilterValues {
-  precinct_id?: string;
-  county?: string;
-  area?: string;
-  precinct?: string;
+  // --- Geographic Context (Upgraded to Dual-Value) ---
+  county?: GeoPayload | null;
+  area?: GeoPayload | null;
+  precinct?: GeoPayload | null;
+  srd?: GeoPayload | null; // State Rep District
+
+  // --- Search & Identity ---
   name?: string;
   street?: string;
+  precinct_id?: string; // Legacy support or direct lookup
+
+  // --- Demographic & Party ---
   modeledParty?: string;
   party?: string;
+  sex?: string;
+  ageGroup?: string;
+
+  // --- Turnout & Behavioral ---
   turnout?: string;
   turnout_score_general?: number;
   turnout_score_primary?: number;
-  gn_pr_11_04_25?: string; // For dropoff voters
-  gn_11_05_24?: string; // For dropoff voters
-  dropoffOnly?: boolean;
-  ageGroup?: string;
   mailBallot?: string;
-  sex?: string;
+
+  // --- Specific Election Dropoff Logic ---
+  gn_pr_11_04_25?: string;
+  gn_11_05_24?: string;
+  dropoffOnly?: boolean;
 }
 
 /**

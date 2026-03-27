@@ -11,34 +11,8 @@ import {
   Stack,
   Divider,
   useTheme,
-  Grid,
 } from "@mui/material";
-
-interface FilterValues {
-  county: string;
-  srd?: string;
-  area: string;
-  precinct: string;
-  name?: string;
-  street?: string;
-  modeledParty?: string;
-  turnout?: string;
-  ageGroup?: string;
-  mailBallot?: string;
-  zipCode?: string;
-  sex?: string;
-}
-
-type FilterKey =
-  | "name"
-  | "street"
-  | "modeledParty"
-  | "party"
-  | "turnout"
-  | "ageGroup"
-  | "mailBallot"
-  | "zipCode"
-  | "sex";
+import { FilterValues, GeoPayload, FilterKey } from "../types";
 
 interface FilterSelectorProps {
   onSubmit: (filters: FilterValues) => void;
@@ -63,105 +37,90 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
 }) => {
   const theme = useTheme();
 
-  // FIX: Added setValue to the destructured useForm hook
   const { control, handleSubmit, watch, setValue } = useForm<FilterValues>({
-    defaultValues,
+    defaultValues: {
+      ...defaultValues,
+      srd: initialSrd || defaultValues.srd || "",
+    },
   });
 
-  const selectedCounty = watch("county", "");
-  const selectedArea = watch("area", "");
+  // Dual-Value State Store for the Payloads
+  const [geoStore, setGeoStore] = useState<{
+    county: GeoPayload | null;
+    srd: GeoPayload | null;
+    area: GeoPayload | null;
+    precinct: GeoPayload | null;
+  }>({
+    county: null,
+    srd: null,
+    area: null,
+    precinct: null,
+  });
 
-  // These store the 'friendly' codes (like "15" or "01") used for BigQuery/API calls
-  const [selectedSRD, setSelectedSRD] = useState(initialSrd || "");
-  const [selectedAreaDistrict, setSelectedAreaDistrict] =
-    React.useState<string>("");
-  const [selectedCountyCode, setSelectedCountyCode] =
-    React.useState<string>("");
+  // Watch the form strings for UI reactivity
+  const watchedCounty = watch("county") || "";
+  const watchedArea = watch("area") || "";
+  const watchedSRD = watch("srd") || "";
 
-  useEffect(() => {
-    if (initialSrd) {
-      setSelectedSRD(initialSrd);
-      setValue("srd", initialSrd);
-    }
-  }, [initialSrd, setValue]);
-
-  const onSubmitForm = (data: FilterValues) => {
-    const filters: FilterValues = {
+  const onSubmitForm = (data: any) => {
+    // Merge demographic strings with the structured GeoPayloads
+    const finalFilters: FilterValues = {
       ...data,
-      // Map the IDs back to the codes expected by the backend
-      county: selectedCountyCode || data.county,
-      area: selectedAreaDistrict || data.area,
-      srd: selectedSRD || data.srd,
+      ...geoStore,
     };
-
-    onSubmit(filters);
+    onSubmit(finalFilters);
   };
 
   return (
     <Paper
       sx={{
-        p: { xs: 0, sm: 4 },
-        borderRadius: { xs: 0, sm: 3 },
-        bgcolor: { xs: "transparent", sm: "background.paper" },
-        boxShadow: {
-          xs: "none",
-          sm: theme.shadows[3],
-        },
+        p: { xs: 2, sm: 4 },
+        borderRadius: 3,
+        bgcolor: "background.paper",
+        boxShadow: theme.shadows[3],
       }}
     >
-      <Typography
-        fontWeight="bold"
-        color="primary"
-        gutterBottom
-        sx={{
-          fontSize: { xs: "1.25rem", sm: "1.5rem" },
-        }}
-      >
-        Filters
-      </Typography>
-      <Typography variant="body2" color="text.secondary" mb={4}>
-        Narrow down results by location and attributes for targeted analysis.
+      <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
+        Campaign Filters
       </Typography>
 
       <form onSubmit={handleSubmit(onSubmitForm)}>
         <Stack spacing={4}>
-          {/* Geographic Filters */}
+          {/* Section 1: Geography */}
           {showLocationFilters && (
             <Box>
               <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                Location
+                Location Scope
               </Typography>
               <GeographicFilters
                 control={control}
                 setValue={setValue as any}
-                selectedCounty={selectedCounty}
-                selectedSRD={selectedSRD}
-                selectedArea={selectedArea}
-                onCountyChange={(value) => {
-                  setValue("county", value);
-                }}
-                onSRDChange={(value) => {
-                  setSelectedSRD(value);
-                  setValue("srd", value);
-                }}
-                onAreaChange={(value) => {
-                  setValue("area", value);
-                }}
-                onPrecinctChange={(value) => {
-                  setValue("precinct", value);
-                }}
-                onAreaDistrictChange={setSelectedAreaDistrict}
-                onCountyCodeChange={setSelectedCountyCode}
+                selectedCounty={watchedCounty as string}
+                selectedSRD={watchedSRD as string}
+                selectedArea={watchedArea as string}
+                onCountyChange={(p) =>
+                  setGeoStore((prev) => ({ ...prev, county: p }))
+                }
+                onSRDChange={(p) =>
+                  setGeoStore((prev) => ({ ...prev, srd: p }))
+                }
+                onAreaChange={(p) =>
+                  setGeoStore((prev) => ({ ...prev, area: p }))
+                }
+                onPrecinctChange={(p) =>
+                  setGeoStore((prev) => ({ ...prev, precinct: p }))
+                }
               />
             </Box>
           )}
 
+          {/* Section 2: Demographics */}
           {showAdditionalCriteria && demographicFilters.length > 0 && (
             <>
-              {showLocationFilters && <Divider sx={{ mb: 3 }} />}
+              <Divider />
               <Box>
                 <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
-                  Demographics
+                  Voter Demographics
                 </Typography>
                 <DemographicFilters
                   control={control}
@@ -171,22 +130,16 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
             </>
           )}
 
-          {/* Submit */}
-          <Box sx={{ textAlign: { xs: "center", sm: "right" }, mt: 2 }}>
+          {/* Section 3: Submit */}
+          <Box sx={{ textAlign: "right", mt: 2 }}>
             <Button
               type="submit"
               variant="contained"
               size="large"
               disabled={disabled || isLoading}
-              sx={{
-                width: { xs: "100%", sm: "auto" },
-                px: 6,
-                py: 1.5,
-                fontWeight: "bold",
-                fontSize: "1.1rem",
-              }}
+              sx={{ px: 6, py: 1.5, fontWeight: "bold", borderRadius: 2 }}
             >
-              {isLoading ? "Loading..." : "Apply Filters"}
+              {isLoading ? "Processing..." : "Apply Filters"}
             </Button>
           </Box>
         </Stack>

@@ -42,15 +42,32 @@ export default function NameSearchPage() {
     queryKey: ["voterSearch", geoFilters, triggerSearch],
     queryFn: async () => {
       if (!triggerSearch || triggerSearch.length < 3) return [];
-      const result = await callFunction<{ voters: any[] }>(
-        "searchVotersUniversal",
-        {
-          term: triggerSearch,
-          ...geoFilters,
-        },
-      );
-      console.log("🔍 Search Results Raw Data:", result.voters);
-      return result.voters ?? [];
+
+      const sqlParams = {
+        term: triggerSearch,
+        // If geoFilters contains the objects, extract .sql.
+        // Fallback to the value itself if it's already a string.
+        county: geoFilters?.county?.sql || geoFilters?.county,
+        area: geoFilters?.area?.sql || geoFilters?.area,
+        precinct: geoFilters?.precinct?.sql || geoFilters?.precinct,
+        srd: geoFilters?.srd?.sql || geoFilters?.srd,
+      };
+
+      console.log("🚀 Sending Flattened Params to BigQuery:", sqlParams);
+
+      try {
+        const result = await callFunction<{ voters: any[] }>(
+          "searchVotersUniversal",
+          sqlParams,
+        );
+
+        console.log("🔍 Search Results Raw Data:", result.voters);
+        return result.voters ?? [];
+      } catch (err: any) {
+        // Log the specific error from Firebase to help debugging
+        console.error("❌ Search Function Error:", err.message, err.details);
+        throw err;
+      }
     },
     enabled: !!triggerSearch && triggerSearch.length >= 3,
   });

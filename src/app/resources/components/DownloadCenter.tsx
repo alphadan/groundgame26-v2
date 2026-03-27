@@ -13,31 +13,24 @@ import {
   Button,
   CircularProgress,
   Chip,
-  Stack,
   Paper,
   Divider,
+  Stack,
 } from "@mui/material";
 import {
   Download as DownloadIcon,
-  Verified as VerifiedIcon,
+  Map as MapIcon,
+  Description as FileIcon,
 } from "@mui/icons-material";
-import { CampaignResource } from "../../../types";
+import { CampaignResource, FilterValues } from "../../../types";
 
 interface DownloadCenterProps {
-  resources?: CampaignResource[];
   onNotify: (message: string) => void;
 }
 
-/**
- * DownloadCenter Component
- * Handles geographic-based resource filtering with independent category pagination.
- * Tracks downloads via Firebase Analytics for Campaign Intelligence.
- */
 export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-
-  // States for categorized data and pagination
   const [categorized, setCategorized] = useState<Record<
     string,
     CampaignResource[]
@@ -46,43 +39,64 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
     Record<string, { page: number; size: number }>
   >({});
 
-  // --- ANALYTICS & DOWNLOAD HANDLER ---
   const handleDownload = (resource: CampaignResource) => {
     if (!resource.url) return;
-
-    // 1. Log the event for Looker Studio
-    logEvent("resource_downloaded", {
-      resource_id: resource.id,
-      title: resource.title,
-      category: resource.category,
-      scope: resource.scope,
-      volunteer_uid: user?.uid || "anonymous",
-      timestamp: Date.now(),
-    });
-
-    // 2. Open the file
     window.open(resource.url, "_blank");
     onNotify(`Opening ${resource.title}...`);
   };
 
-  const handleFetch = async (filters: any) => {
+  const handleFetch = async (filters: FilterValues) => {
+    console.log("DEBUG: 1. FilterSelector Submitted:", filters);
+
+    // Check for the Dual-Value Payload specifically
+    if (filters.precinct) {
+      console.log("DEBUG: 2. Precinct Payload Found:", {
+        sql_code: filters.precinct.sql,
+        firestore_id: filters.precinct.full,
+      });
+    }
+
     setLoading(true);
     try {
       const getResources = httpsCallable(functions, "getResourcesByLocation");
-      const result: any = await getResources(filters);
 
-      const data = result.data.categorized;
+      console.log("DEBUG: 3. Calling Cloud Function with:", {
+        county: filters.county?.full,
+        area: filters.area?.full,
+        precinct: filters.precinct?.full,
+      });
+
+      const result: any = await getResources({
+        county: filters.county,
+        area: filters.area,
+        precinct: filters.precinct,
+      });
+
+      console.log("DEBUG: 4. Cloud Function Raw Response:", result);
+
+      const data = result.data?.categorized || {};
+
+      if (Object.keys(data).length === 0) {
+        console.warn(
+          "DEBUG: 5. Search returned 0 results. Check Firestore 'location.precinct.id' values.",
+        );
+      } else {
+        console.log(
+          "DEBUG: 5. Results categorized successfully:",
+          Object.keys(data),
+        );
+      }
+
       setCategorized(data);
 
-      // Initialize unique pagination state for every category found
       const initialPages: Record<string, { page: number; size: number }> = {};
       Object.keys(data).forEach((cat) => {
         initialPages[cat] = { page: 0, size: 8 };
       });
       setPageSettings(initialPages);
     } catch (err) {
-      console.error("Fetch error:", err);
-      onNotify("Error loading resources. Please try again.");
+      console.error("DEBUG: ERROR in handleFetch:", err);
+      onNotify("Error loading resources.");
     } finally {
       setLoading(false);
     }
@@ -92,71 +106,58 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
     categoryName: string,
     items: CampaignResource[],
   ) => {
-    if (items.length === 0) return null;
-
-    const isMapCategory = categoryName === "Maps";
-
+    const isMap = categoryName.toLowerCase().includes("map");
     const { page, size } = pageSettings[categoryName] || { page: 0, size: 8 };
     const pagedItems = items.slice(page * size, page * size + size);
 
     return (
       <Box sx={{ mb: 6 }} key={categoryName}>
-        <Typography
-          variant="h6"
-          fontWeight="bold"
-          color={isMapCategory ? "secondary.main" : "primary.main"}
-          gutterBottom
-          sx={{
-            borderLeft: 4,
-            pl: 2,
-            borderColor: isMapCategory ? "secondary.main" : "primary.main",
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-          }}
-        >
-          {categoryName}
-          {isMapCategory && (
-            <Chip label="Field Maps" size="small" color="secondary" />
-          )}
-        </Typography>
+        <Divider sx={{ mb: 3 }}>
+          <Chip
+            label={categoryName.toUpperCase()}
+            color={isMap ? "secondary" : "primary"}
+            sx={{ fontWeight: "bold" }}
+          />
+        </Divider>
 
-        <Grid container spacing={3} sx={{ mt: 1 }}>
-          {items.map((item) => (
-            <Grid key={item.id} size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid container spacing={3}>
+          {pagedItems.map((item) => (
+            <Grid item key={item.id} xs={12} sm={6} md={3}>
               <Paper
                 variant="outlined"
                 sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  height: 280,
+                  p: 2.5,
+                  borderRadius: 4,
+                  height: 260,
                   display: "flex",
                   flexDirection: "column",
                 }}
               >
                 <Box sx={{ flexGrow: 1 }}>
-                  <Typography
-                    variant="subtitle1"
-                    fontWeight="bold"
-                    gutterBottom
-                  >
-                    {item.title || "Unknown Resource"}
+                  <Stack direction="row" justifyContent="space-between" mb={1}>
+                    {isMap ? (
+                      <MapIcon color="secondary" />
+                    ) : (
+                      <FileIcon color="primary" />
+                    )}
+                    <Typography variant="caption" color="text.disabled">
+                      {item.scope}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    {item.title}
                   </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ fontStyle: isMapCategory ? "italic" : "normal" }}
-                  >
-                    {item.description || "No description provided."}
+                  <Typography variant="body2" color="text.secondary">
+                    {item.description}
                   </Typography>
                 </Box>
                 <Button
                   fullWidth
                   variant="contained"
-                  startIcon={<DownloadIcon />}
+                  color={isMap ? "secondary" : "primary"}
                   onClick={() => handleDownload(item)}
                 >
-                  {isMapCategory ? "Open Map" : "Download"}
+                  {isMap ? "View Map" : "Download"}
                 </Button>
               </Paper>
             </Grid>
@@ -167,10 +168,11 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
   };
 
   return (
-    <Box sx={{ pb: 4 }}>
-      <Typography variant="h5" gutterBottom fontWeight="bold">
-        Download Materials
+    <Box>
+      <Typography variant="h5" fontWeight="bold" gutterBottom>
+        Download Center
       </Typography>
+
       <FilterSelector
         onSubmit={handleFetch}
         showAdditionalCriteria={false}
@@ -178,22 +180,12 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
       />
 
       {loading ? (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            py: 10,
-          }}
-        >
-          <CircularProgress size={50} />
-          <Typography sx={{ mt: 2, color: "text.secondary" }}>
-            Searching for localized materials...
-          </Typography>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
+          <CircularProgress />
         </Box>
       ) : (
         <Box sx={{ mt: 4 }}>
-          {categorized ? (
+          {categorized && Object.keys(categorized).length > 0 ? (
             Object.entries(categorized).map(([name, items]) =>
               renderCategorySection(name, items),
             )
@@ -204,15 +196,11 @@ export const DownloadCenter: React.FC<DownloadCenterProps> = ({ onNotify }) => {
                 p: 6,
                 textAlign: "center",
                 bgcolor: "grey.50",
-                borderRadius: 4,
+                borderStyle: "dashed",
               }}
             >
-              <Typography variant="h6" color="text.secondary">
-                No results to show.
-              </Typography>
               <Typography color="text.secondary">
-                Please select a County and Area above to view localized campaign
-                resources.
+                No materials found. Select a location to search.
               </Typography>
             </Paper>
           )}

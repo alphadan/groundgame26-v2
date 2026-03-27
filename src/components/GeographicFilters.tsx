@@ -9,36 +9,22 @@ import {
   MenuItem,
   Grid,
   CircularProgress,
+  Box,
 } from "@mui/material";
 import { Control, Controller, UseFormSetValue } from "react-hook-form";
+import { GeoPayload } from "../types";
 
 export interface GeographicFiltersProps {
   control: Control<any>;
   setValue: UseFormSetValue<any>;
-  selectedCounty: string;
-  selectedSRD: string; // Add this
-  selectedArea: string;
-  onCountyChange: (value: string) => void;
-  onSRDChange: (value: string) => void; // Add this
-  onAreaChange: (value: string) => void;
-  onPrecinctChange: (value: string) => void;
-  onAreaDistrictChange: (district: string) => void;
-  onCountyCodeChange: (code: string) => void;
+  selectedCounty: string; // The "Full ID" string from watch("county")
+  selectedSRD: string; // The "Full ID" string from watch("srd")
+  selectedArea: string; // The "Full ID" string from watch("area")
+  onCountyChange: (payload: GeoPayload | null) => void;
+  onSRDChange: (payload: GeoPayload | null) => void;
+  onAreaChange: (payload: GeoPayload | null) => void;
+  onPrecinctChange: (payload: GeoPayload | null) => void;
 }
-
-/**
- * Normalization Helpers for BigQuery Matching
- */
-const cleanAreaForBigQuery = (areaId: string): string => {
-  if (!areaId) return "";
-  return areaId.split("-").pop() || "";
-};
-
-const cleanPrecinctForBigQuery = (code: string): string => {
-  if (!code) return "";
-  const numeric = Number(code);
-  return isNaN(numeric) ? code : String(numeric);
-};
 
 export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
   control,
@@ -50,119 +36,121 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
   onSRDChange,
   onAreaChange,
   onPrecinctChange,
-  onAreaDistrictChange,
-  onCountyCodeChange,
 }) => {
   const { isLoaded: authLoaded } = useAuth();
 
-  // 1. Load Counties - Only show Active
+  // --- 1. Payload Helper (Centralized Logic) ---
+  const createPayload = (
+    obj: any,
+    type: "county" | "area" | "precinct" | "srd",
+  ): GeoPayload => {
+    if (!obj) return { sql: "", full: "", name: "" };
+    let sqlVal = "";
+
+    if (type === "precinct") {
+      sqlVal = String(Number(obj.precinct_code || 0));
+    } else if (type === "area") {
+      // e.g., "PA15-A-12" -> "12"
+      sqlVal = obj.id.split("-").pop() || "";
+    } else {
+      // Counties/SRDs usually use their code directly
+      sqlVal = obj.code || obj.id;
+    }
+
+    return {
+      sql: sqlVal,
+      full: obj.id,
+      name: obj.name,
+    };
+  };
+
+  // --- 2. Data Queries (Reactive Dexie hooks) ---
+
   const counties =
     useLiveQuery(async () => {
-      return await indexedDb.counties
-        .filter((c) => c.active === true)
-        .toArray();
-    }, []) ?? [];
+      const all = await indexedDb.counties.toArray();
+      return all.filter((c) => c.active === true || c.active === 1);
+    }) ?? [];
 
-  // 2. Load State Rep Districts (SRDs)
   const srds =
     useLiveQuery(async () => {
       if (!selectedCounty) return [];
-      return await indexedDb.state_rep_districts
+      const all = await indexedDb.state_rep_districts
         .where("county_id")
         .equals(selectedCounty)
-        .filter((d) => d.active === true)
         .toArray();
+      return all.filter((d) => d.active === true || d.active === 1);
     }, [selectedCounty]) ?? [];
 
-  // 3. Load Areas
-  // If an SRD is selected, we only want to show Areas that contain
-  // precincts belonging to that SRD.
   const areas =
     useLiveQuery(async () => {
       if (!selectedCounty) return [];
-
-      // If no SRD is selected, show all active areas in the county
       if (!selectedSRD) {
-        return await indexedDb.areas
+        const all = await indexedDb.areas
           .where("county_id")
           .equals(selectedCounty)
-          .filter((a) => a.active)
           .toArray();
+        return all.filter((a) => a.active === true || a.active === 1);
       }
-
-      // If an SRD IS selected, we find which areas have precincts
-      // pointing to this party_rep_district
-      const associatedPrecincts = await indexedDb.precincts
+      // SRD Logic: Find areas containing precincts for this specific SRD
+      const associated = await indexedDb.precincts
         .where("party_rep_district")
         .equals(selectedSRD)
         .toArray();
-
-      // Extract unique area_ids from those precincts
-      const validAreaIds = [
-        ...new Set(associatedPrecincts.map((p) => p.area_id)),
-      ];
-
-      return await indexedDb.areas
-        .filter((a) => validAreaIds.includes(a.id) && a.active)
+      const validIds = [...new Set(associated.map((p) => p.area_id))];
+      const allAreas = await indexedDb.areas
+        .filter((a) => validIds.includes(a.id))
         .toArray();
+      return allAreas.filter((a) => a.active === true || a.active === 1);
     }, [selectedCounty, selectedSRD]) ?? [];
 
-  // 4. Load Precincts
   const precincts =
     useLiveQuery(async () => {
       if (!selectedArea) return [];
-
       let query = indexedDb.precincts.where("area_id").equals(selectedArea);
-
-      // CRITICAL FIX: Filter by the existing 'party_rep_district' field
-      // This ensures that in Area 28, only the correct 2 precincts show up for District 2
+      let results = await query.toArray();
       if (selectedSRD) {
-        return await query
-          .filter((p) => p.party_rep_district === selectedSRD && p.active)
-          .toArray();
+        results = results.filter((p) => p.party_rep_district === selectedSRD);
       }
-
-      return await query.filter((p) => p.active).toArray();
+      return results.filter((p) => p.active === true || p.active === 1);
     }, [selectedArea, selectedSRD]) ?? [];
 
-  // --- AUTO-SELECTION LOGIC ---
+  // --- 3. Auto-Selection Logic (Cascading Effects) ---
 
+  // Auto-Select County if only one exists
   useEffect(() => {
     if (counties.length === 1 && !selectedCounty) {
       const single = counties[0];
-      onCountyChange(single.id);
-      onCountyCodeChange(single.code || "");
       setValue("county", single.id);
+      onCountyChange(createPayload(single, "county"));
     }
-  }, [counties, selectedCounty, onCountyChange, onCountyCodeChange, setValue]);
+  }, [counties, selectedCounty, setValue, onCountyChange]);
 
+  // Auto-Select Area if only one exists
   useEffect(() => {
     if (selectedCounty && areas.length === 1 && !selectedArea) {
       const single = areas[0];
-      const cleanArea = cleanAreaForBigQuery(single.id);
-      onAreaChange(single.id);
-      onAreaDistrictChange(cleanArea);
       setValue("area", single.id);
+      onAreaChange(createPayload(single, "area"));
     }
-  }, [
-    selectedCounty,
-    areas,
-    selectedArea,
-    onAreaChange,
-    onAreaDistrictChange,
-    setValue,
-  ]);
+  }, [selectedCounty, areas, selectedArea, setValue, onAreaChange]);
 
+  // Auto-Select Precinct if only one exists
   useEffect(() => {
     if (selectedArea && precincts.length === 1) {
       const single = precincts[0];
-      const cleanPrecinct = cleanPrecinctForBigQuery(single.precinct_code);
-      setValue("precinct", cleanPrecinct);
-      onPrecinctChange(cleanPrecinct);
+      // We don't check for !selectedPrecinct because we want to force the payload update
+      setValue("precinct", single.id);
+      onPrecinctChange(createPayload(single, "precinct"));
     }
   }, [selectedArea, precincts, setValue, onPrecinctChange]);
 
-  if (!authLoaded) return <CircularProgress size={20} />;
+  if (!authLoaded)
+    return (
+      <Box sx={{ py: 2, textAlign: "center" }}>
+        <CircularProgress size={24} />
+      </Box>
+    );
 
   return (
     <Grid container spacing={2}>
@@ -180,26 +168,18 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
                 value={selectedCounty || ""}
                 onChange={(e) => {
                   const val = e.target.value as string;
-                  field.onChange(val);
-                  onCountyChange(val);
                   const obj = counties.find((c) => c.id === val);
-                  onCountyCodeChange(obj?.code || "");
-
-                  // Reset ALL descendants
-                  onSRDChange("");
-                  onAreaChange("");
-                  onAreaDistrictChange("");
-                  onPrecinctChange("");
+                  field.onChange(val);
+                  onCountyChange(val ? createPayload(obj, "county") : null);
+                  // Resets
                   setValue("srd", "");
                   setValue("area", "");
                   setValue("precinct", "");
+                  onSRDChange(null);
+                  onAreaChange(null);
+                  onPrecinctChange(null);
                 }}
               >
-                {counties.length > 1 && (
-                  <MenuItem value="">
-                    <em>All Counties</em>
-                  </MenuItem>
-                )}
                 {counties.map((c) => (
                   <MenuItem key={c.id} value={c.id}>
                     {c.name}
@@ -211,29 +191,28 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
         />
       </Grid>
 
-      {/* 2. NEW: State Rep District Filter */}
+      {/* 2. SRD Filter */}
       <Grid size={{ xs: 12, md: 3 }}>
         <Controller
           name="srd"
           control={control}
           render={({ field }) => (
             <FormControl fullWidth size="small" disabled={!selectedCounty}>
-              <InputLabel>State Rep District</InputLabel>
+              <InputLabel>District</InputLabel>
               <Select
                 {...field}
-                label="State Rep District"
+                label="District"
                 value={selectedSRD || ""}
                 onChange={(e) => {
                   const val = e.target.value as string;
+                  const obj = srds.find((s) => s.id === val);
                   field.onChange(val);
-                  onSRDChange(val);
-
-                  // Reset descendants
-                  onAreaChange("");
-                  onAreaDistrictChange("");
-                  onPrecinctChange("");
+                  onSRDChange(val ? createPayload(obj, "srd") : null);
+                  // Resets
                   setValue("area", "");
                   setValue("precinct", "");
+                  onAreaChange(null);
+                  onPrecinctChange(null);
                 }}
               >
                 <MenuItem value="">
@@ -264,20 +243,17 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
                 value={selectedArea || ""}
                 onChange={(e) => {
                   const val = e.target.value as string;
-                  const cleanArea = cleanAreaForBigQuery(val);
+                  const obj = areas.find((a) => a.id === val);
                   field.onChange(val);
-                  onAreaChange(val);
-                  onAreaDistrictChange(cleanArea);
-
-                  onPrecinctChange("");
+                  onAreaChange(val ? createPayload(obj, "area") : null);
+                  // Resets
                   setValue("precinct", "");
+                  onPrecinctChange(null);
                 }}
               >
-                {areas.length > 1 && (
-                  <MenuItem value="">
-                    <em>All Areas</em>
-                  </MenuItem>
-                )}
+                <MenuItem value="">
+                  <em>All Areas</em>
+                </MenuItem>
                 {areas.map((a) => (
                   <MenuItem key={a.id} value={a.id}>
                     {a.name}
@@ -303,18 +279,16 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
                 value={field.value || ""}
                 onChange={(e) => {
                   const val = e.target.value as string;
-                  const cleanPrecinct = cleanPrecinctForBigQuery(val);
-                  field.onChange(cleanPrecinct);
-                  onPrecinctChange(cleanPrecinct);
+                  const obj = precincts.find((p) => p.id === val);
+                  field.onChange(val);
+                  onPrecinctChange(val ? createPayload(obj, "precinct") : null);
                 }}
               >
-                {precincts.length > 1 && (
-                  <MenuItem value="">
-                    <em>All Precincts</em>
-                  </MenuItem>
-                )}
+                <MenuItem value="">
+                  <em>All Precincts</em>
+                </MenuItem>
                 {precincts.map((p) => (
-                  <MenuItem key={p.id} value={p.precinct_code}>
+                  <MenuItem key={p.id} value={p.id}>
                     {p.name} ({p.precinct_code})
                   </MenuItem>
                 ))}

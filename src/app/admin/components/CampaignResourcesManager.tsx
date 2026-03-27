@@ -103,6 +103,17 @@ export const CampaignResourcesManager: React.FC = () => {
         .toArray();
     }, [selectedArea]) ?? [];
 
+  useEffect(() => {
+    // If we change county, we MUST clear area and precinct
+    setSelectedArea("");
+    setSelectedPrecinct("");
+  }, [selectedCounty]);
+
+  useEffect(() => {
+    // If we change area, we MUST clear precinct
+    setSelectedPrecinct("");
+  }, [selectedArea]);
+
   // --- 6. Handlers ---
 
   const handleUpload = async () => {

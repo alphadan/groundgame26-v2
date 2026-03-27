@@ -1621,52 +1621,78 @@ export const adminGenerateResourceUploadUrl = onCall(
 // ================================================================
 
 export const onResourceUploaded = onObjectFinalized(async (event) => {
-  const meta = event.data.metadata || {};
-  if (!event.data.name.startsWith("resources/")) return;
+  const fileData = event.data;
+  const meta = fileData.metadata || {};
+
+  if (!fileData.name.startsWith("resources/")) return;
 
   try {
     const rawTitle = meta.title || "Untitled";
     const rawScope = (meta.scope || "county").toLowerCase();
+    const rawCategory = (meta.category || "General").toUpperCase();
 
-    // Map hyphenated metadata keys back to your _code search fields
+    // 1. Extract values from hyphenated metadata (the "Handshake")
+    const cId = meta["county-id"] || "PA-C-15";
     const cCode = meta["county-code"] || "15";
+    const aId = meta["area-id"] || "";
     const aCode = meta["area-code"] || "";
+    const pId = meta["precinct-id"] || "";
     const pCode = meta["precinct-code"] || "";
 
-    // Generate Custom ID using the Code (Consistent with DownloadCenter)
+    // 2. Generate Custom ID Logic
     const codeForId = pCode || aCode || cCode;
     const titleSlug = rawTitle
       .replace(/[^a-zA-Z0-9]/g, "")
       .substring(0, 8)
       .toUpperCase();
-    const customDocId = `${rawScope.toUpperCase()}-${codeForId}-${meta.category.toUpperCase()}-${titleSlug}`;
 
+    const customDocId = `${rawScope.toUpperCase()}-${codeForId}-${rawCategory}-${titleSlug}`;
+
+    // 3. Construct the nested resourceData object
     const resourceData = {
       id: customDocId,
       title: rawTitle,
-      category: meta.category,
-      description: meta.description,
+      category: meta.category || "General",
+      description: meta.description || "",
       scope: rawScope,
-      // SEARCH FIELDS (DownloadCenter uses these)
-      county_code: cCode,
-      area_code: aCode || null,
-      precinct_code: pCode || null,
-      // DB REFERENCE FIELDS (AdminManager uses these)
-      county_id: meta["county-id"],
-      area_id: meta["area-id"] || null,
-      precinct_id: meta["precinct-id"] || null,
 
-      url: `https://firebasestorage.googleapis.com/v0/b/${event.data.bucket}/o/${encodeURIComponent(event.data.name)}?alt=media`,
-      storagePath: event.data.name,
+      // --- THE LOCATION MAP (Firestore Nested Object) ---
+      location: {
+        county: {
+          id: cId,
+          code: cCode,
+        },
+        area: aId
+          ? {
+              id: aId,
+              code: aCode,
+            }
+          : null,
+        precinct: pId
+          ? {
+              id: pId,
+              code: pCode,
+            }
+          : null,
+      },
+
+      // File Metadata
+      url: `https://firebasestorage.googleapis.com/v0/b/${fileData.bucket}/o/${encodeURIComponent(fileData.name)}?alt=media`,
+      storagePath: fileData.name,
       active: true,
       created_at: Date.now(),
+      verified_by_role: "county_chair",
     };
 
+    // 4. Save to collection
     await db
       .collection("campaign_resources")
       .doc(customDocId)
       .set(resourceData);
-    logger.info(`Successfully indexed ${customDocId}`);
+
+    logger.info(
+      `Successfully indexed ${customDocId} with nested location map.`,
+    );
   } catch (error) {
     logger.error("Indexing failed", error);
   }
@@ -1683,68 +1709,89 @@ export const onResourceUploaded = onObjectFinalized(async (event) => {
 export const getResourcesByLocation = onCall(
   { cors: true },
   async (request) => {
-    logger.info("adminGenerateResourceUploadUrl called", {
-      uid: request.auth?.uid,
-    });
-    logger.info("Incoming request data:", request.data);
-
-    // 1. Auth Guard
-    if (!request.auth?.uid) {
-      throw new HttpsError("unauthenticated", "You must be logged in.");
-    }
-
     const { county, area, precinct } = request.data;
 
-    logger.info(
-      `Searching for: County=${county}, Area=${area}, Precinct=${precinct}`,
-    );
+    // 1. Validation: We need at least a County ID to start
+    if (!county || !county.full) {
+      throw new HttpsError(
+        "invalid-argument",
+        "A valid County selection is required.",
+      );
+    }
 
     try {
-      // 2. The "Waterfall" Query
-      // Notice: We use 'db' and 'Filter' directly here because they are
-      // already imported and initialized at the top of your file.
-      const query = db.collection("campaign_resources").where(
-        Filter.or(
-          // Search using the _code fields that match your frontend/BigQuery values
-          Filter.and(
-            Filter.where("county_id", "==", county),
-            Filter.where("scope", "==", "county"),
-          ),
-          Filter.and(
-            Filter.where("area_id", "==", area),
-            Filter.where("scope", "==", "area"),
-          ),
-          Filter.and(
-            Filter.where("precinct_id", "==", precinct),
-            Filter.where("scope", "==", "precinct"),
-          ),
-        ),
+      const resourceRef = db.collection("campaign_resources");
+      const queries = [];
+
+      // QUERY A: Get County-wide resources
+      // These are general assets like "Voter Registration Forms" or "County Slates"
+      queries.push(
+        resourceRef
+          .where("location.county.id", "==", county.full)
+          .where("scope", "==", "county")
+          .where("active", "==", true)
+          .get(),
       );
 
-      logger.info("getResourcesByLocation query", query);
+      // QUERY B: Get Area-specific resources (if an Area is selected)
+      // These are assets like "Area 15 Poll Watcher Instructions"
+      if (area && area.full) {
+        queries.push(
+          resourceRef
+            .where("location.area.id", "==", area.full)
+            .where("scope", "==", "area")
+            .where("active", "==", true)
+            .get(),
+        );
+      }
 
-      const snapshot = await query.get();
-      const resources = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      // QUERY C: Get Precinct-specific resources (if a Precinct is selected)
+      // This is where your "Highland Map" (PA15-P-005) lives!
+      if (precinct && precinct.full) {
+        queries.push(
+          resourceRef
+            .where("location.precinct.id", "==", precinct.full)
+            .where("scope", "==", "precinct")
+            .where("active", "==", true)
+            .get(),
+        );
+      }
 
-      logger.info(`Found ${snapshot.size} matching documents`);
+      // 2. Execute all queries in parallel for maximum speed
+      const snapshots = await Promise.all(queries);
 
-      // 3. Categorize
-      const categorized = {
-        Brochures: resources.filter((r) => r.category === "Brochures"),
-        Ballots: resources.filter((r) => r.category === "Ballots"),
-        Graphics: resources.filter((r) => r.category === "Graphics"),
-        Forms: resources.filter((r) => r.category === "Forms"),
-        Maps: resources.filter((r) => r.category === "Maps"),
-        Scripts: resources.filter((r) => r.category === "Scripts"),
+      // 3. Flatten the results into a single list
+      const allResources = [];
+      snapshots.forEach((snap) => {
+        snap.forEach((doc) => {
+          allResources.push({ id: doc.id, ...doc.data() });
+        });
+      });
+
+      // 4. Group by Category for the DownloadCenter's UI logic
+      // (Matches the 'categorized' logic in your DownloadCenter component)
+      const categorized = allResources.reduce((acc, res) => {
+        const cat = res.category || "General";
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(res);
+        return acc;
+      }, {});
+
+      logger.info(
+        `Found ${allResources.length} resources for ${precinct?.name || area?.name || county.name}`,
+      );
+
+      return {
+        success: true,
+        categorized,
+        total: allResources.length,
       };
-
-      return { categorized };
     } catch (error) {
-      logger.error("Resource Query Error:", error); // Using the 'logger' you imported
-      throw new HttpsError("internal", error.message);
+      logger.error("Error fetching resources:", error);
+      throw new HttpsError(
+        "internal",
+        "Failed to retrieve campaign materials.",
+      );
     }
   },
 );

@@ -12,9 +12,20 @@ export const useDynamicVoters = (filters: FilterValues | null) => {
       if (!filters) return [];
 
       try {
+        // 1. TRANSFORMATION LAYER: Flatten GeoPayload objects into SQL strings
+        // This ensures BigQuery receives "5" instead of the whole Atglen object.
+        const sqlParams = {
+          ...filters,
+          county: filters.county?.sql || filters.county,
+          area: filters.area?.sql || filters.area,
+          precinct: filters.precinct?.sql || filters.precinct,
+          srd: filters.srd?.sql || filters.srd,
+        };
+
+        // 2. Execute the call with the flattened parameters
         const result = await callFunction<{ voters: any[] }>(
-          "queryVotersDynamic", // ← Now uses the new dynamic function
-          filters
+          "queryVotersDynamic",
+          sqlParams,
         );
 
         return result.voters ?? [];
