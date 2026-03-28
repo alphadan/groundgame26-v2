@@ -125,10 +125,6 @@ export const CampaignResourcesManager: React.FC = () => {
     const areaObj = areas.find((a) => a.id === selectedArea);
     const precinctObj = precincts.find((p) => p.id === selectedPrecinct);
 
-    console.log("countyObj :", countyObj.code);
-    console.log("areaObj :", areaObj.area_district);
-    console.log("precinctObj :", precinctObj.precinct_code);
-
     setIsUploading(true);
     try {
       const result = await adminGenerateResourceUploadUrl({

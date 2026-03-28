@@ -173,11 +173,22 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
       return;
     }
 
+    // 2. GENERATE PASSWORD HERE (So it's defined for the whole function)
+    // Format: First3Letters-Random5! (e.g., joh-x82n1!)
+    const newTempPassword = `${form.display_name.slice(0, 3).toLowerCase()}-${Math.random().toString(36).slice(-5)}!`;
+
+    // Ensure phone is present before sending
+    if (!form.phone) {
+      alert("Mobile Phone Number is required for secure account setup.");
+      return;
+    }
+
     setConfirmOpen(false);
     setIsSubmitting(true);
     try {
       const result = await callFunction<WelcomeEmailData>("adminCreateUser", {
         ...form,
+        tempPassword: newTempPassword,
         county_id: claims?.counties?.[0] || "",
         area_id: isCandidate ? "" : claims?.areas?.[0] || "",
         active: form.active,
@@ -333,10 +344,13 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <TextField
-            label="Phone Number"
+            label="Mobile Phone Number *"
             fullWidth
+            required
+            placeholder="e.g. 6105551234"
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            helperText="Required for Two-Factor SMS Security"
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -480,6 +494,7 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
           !permissions.can_create_users || // Final UI block
           !form.email ||
           !form.display_name ||
+          !form.phone ||
           !form.role ||
           !form.group_id ||
           (isCandidate && !form.jurisdiction_value) ||

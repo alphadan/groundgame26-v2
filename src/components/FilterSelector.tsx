@@ -37,10 +37,14 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
 }) => {
   const theme = useTheme();
 
+  const defaultSrd = initialSrd
+    ? { sql: initialSrd, full: initialSrd, name: initialSrd }
+    : null;
+
   const { control, handleSubmit, watch, setValue } = useForm<FilterValues>({
     defaultValues: {
       ...defaultValues,
-      srd: initialSrd || defaultValues.srd || "",
+      srd: defaultSrd as any,
     },
   });
 

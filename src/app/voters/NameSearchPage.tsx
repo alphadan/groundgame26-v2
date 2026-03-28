@@ -397,6 +397,12 @@ export default function NameSearchPage() {
               <DataGrid
                 rows={voters}
                 columns={columns}
+                initialState={{
+                  pagination: {
+                    paginationModel: { pageSize: 10, page: 0 },
+                  },
+                }}
+                pageSizeOptions={[10, 25, 50, 100]}
                 getRowId={(r) => r.voter_id}
                 disableRowSelectionOnClick
               />

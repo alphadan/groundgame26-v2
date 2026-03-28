@@ -89,14 +89,20 @@ export default function AnalysisPage() {
   const analysis = useMemo(() => {
     if (!voters.length) return null;
 
-    const parties = ["R", "D", "I"];
-    const partyCounts = parties.map((p) => ({
-      label: p === "I" ? "Other" : p,
+    const partyConfig = [
+      { code: "R", label: "Republican", color: "#B22234" },
+      { code: "D", label: "Democrat", color: "#00AEF3" },
+      { code: "I", label: "Other", color: "#D3D3D3" },
+    ];
+
+    const partyCounts = partyConfig.map((p) => ({
+      label: p.label,
       val: voters.filter((v) =>
-        p === "I"
+        p.code === "I"
           ? !["R", "D"].includes(v.political_party)
-          : v.political_party === p,
+          : v.political_party === p.code,
       ).length,
+      color: p.color, // Add the specific color to the dataset
     }));
 
     const streetMap: Record<string, number> = {};
@@ -136,6 +142,16 @@ export default function AnalysisPage() {
     });
   };
 
+  useEffect(() => {
+    if (analysis?.partyCounts) {
+      console.log(
+        "📊 Chart Dataset Keys:",
+        analysis.partyCounts.map((d) => d.label),
+      );
+      console.log("📊 Full Dataset Object:", analysis.partyCounts);
+    }
+  }, [analysis]);
+
   const isPresetActive = (preset: any) =>
     voterFilters &&
     Object.keys(preset).every(
@@ -174,6 +190,19 @@ export default function AnalysisPage() {
         {/* LEFT COLUMN: FILTERS */}
         <Grid size={{ xs: 12, md: 6, lg: 6 }}>
           <Stack spacing={3} sx={{ position: { md: "sticky" }, top: 24 }}>
+            {/* FilterSelector now receives the current SRD state */}
+            <FilterSelector
+              onSubmit={setVoterFilters}
+              isLoading={votersLoading}
+              initialSrd={selectedSRD}
+              demographicFilters={[
+                "party",
+                "turnout",
+                "ageGroup",
+                "mailBallot",
+                "sex",
+              ]}
+            />
             <Paper sx={{ p: 3, borderRadius: 3 }}>
               <Stack direction="row" spacing={1} alignItems="center" mb={2}>
                 <BoltIcon color="warning" />
@@ -208,20 +237,6 @@ export default function AnalysisPage() {
                 })}
               </Box>
             </Paper>
-
-            {/* FilterSelector now receives the current SRD state */}
-            <FilterSelector
-              onSubmit={setVoterFilters}
-              isLoading={votersLoading}
-              initialSrd={selectedSRD}
-              demographicFilters={[
-                "party",
-                "turnout",
-                "ageGroup",
-                "mailBallot",
-                "sex",
-              ]}
-            />
           </Stack>
         </Grid>
 
@@ -299,15 +314,45 @@ export default function AnalysisPage() {
                     </Typography>
                     <BarChart
                       dataset={analysis?.partyCounts || []}
-                      xAxis={[{ scaleType: "band", dataKey: "label" }]}
+                      // 1. Remove the top-level colors array to avoid confusion
+                      xAxis={[
+                        {
+                          scaleType: "band",
+                          dataKey: "label",
+                          categoryGapRatio: 0.3,
+                          label: "Political Affiliation",
+                          // 2. MOVE COLORMAP HERE
+                          colorMap: {
+                            type: "ordinal",
+                            values: ["Republican", "Democrat", "Other"],
+                            colors: [
+                              theme.palette.voter.hardR,
+                              theme.palette.voter.hardD,
+                              theme.palette.voter.swing,
+                            ],
+                          },
+                        },
+                      ]}
                       series={[
                         {
                           dataKey: "val",
-                          label: "Voters",
-                          color: theme.palette.primary.main,
+                          label: "Voter Count",
+                          // 3. REMOVE colorMap from here
                         },
                       ]}
                       height={300}
+                      sx={{
+                        "& .MuiChartsSurface-root": {
+                          fill: "transparent",
+                        },
+                      }}
+                      slotProps={{
+                        legend: {
+                          sx: {
+                            display: "none",
+                          },
+                        },
+                      }}
                     />
                   </Paper>
                 </Grid>

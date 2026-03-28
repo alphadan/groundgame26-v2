@@ -39,13 +39,14 @@ const ICON_MAP: Record<string, React.ElementType> = {
 export default function ConsentScreen() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [keystoneVersion, setKeystoneVersion] = useState<string | null>(null);
 
   // 1. DYNAMIC FETCH: Listen to the required legal version from the Keystone
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "config", "app_control"), (snap) => {
       if (snap.exists()) {
-        setKeystoneVersion(snap.data().legal_version || "2026.01");
+        setKeystoneVersion(snap.data().legal_terms_version || "2026.01");
       }
     });
     return unsub;
@@ -68,17 +69,28 @@ export default function ConsentScreen() {
     // Ensure we are using the EXACT string from the Keystone
     if (!keystoneVersion) return;
 
+    setLoading(true);
+    setError(null);
+
     try {
       if (!user?.uid) return;
+
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
         has_agreed_to_terms: true,
-        "legal_consent.version": keystoneVersion, // Should be "2026.02.14"
+        "legal_consent.version": keystoneVersion,
         "legal_consent.agreed_at_ms": Date.now(),
+        "legal_consent.user_agent": navigator.userAgent,
+        updated_at: Date.now(),
       });
       console.log("✅ [Consent] Saved version:", keystoneVersion);
-    } catch (err) {
-      // ... error handling
+    } catch (err: any) {
+      console.error("❌ Consent Submission Error:", err);
+      setError(
+        err.message ||
+          "Failed to save agreement. Please check your connection.",
+      );
+      setLoading(false); // STOP LOADING ON ERROR
     }
   };
 
@@ -128,6 +140,12 @@ export default function ConsentScreen() {
             Voter bribery is a Third-Degree Felony in Pennsylvania. GroundGame26
             enforces zero-tolerance for incentivized registration.
           </Alert>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
 
           <Stack spacing={3}>
             {LEGAL_CONFIG.REQUIRED_CHECKS.map((item, index) => {

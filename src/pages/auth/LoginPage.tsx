@@ -275,7 +275,7 @@ export default function LoginPage() {
               textAlign="center"
               fontStyle="italic"
             >
-              A Get Out The Vote App
+              A Republican Get Out The Vote App
             </Typography>
             <Stack
               component="form"

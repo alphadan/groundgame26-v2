@@ -167,6 +167,7 @@ export interface UserProfile {
   role: UserRole;
   points_balance?: number;
   points_history?: PointsHistoryEntry[];
+  requires_password_update?: boolean;
   has_agreed_to_terms?: boolean;
   terms_agreed_at?: number;
   legal_consent?: {
@@ -222,6 +223,17 @@ export interface GeoPayload {
   name: string; // e.g., "Atglen" (For UI/Analytics)
 }
 
+export type FilterKey =
+  | "name"
+  | "street"
+  | "modeledParty"
+  | "party"
+  | "turnout"
+  | "ageGroup"
+  | "mailBallot"
+  | "zipCode"
+  | "sex";
+
 export interface FilterValues {
   // --- Geographic Context (Upgraded to Dual-Value) ---
   county?: GeoPayload | null;
@@ -250,6 +262,7 @@ export interface FilterValues {
   gn_pr_11_04_25?: string;
   gn_11_05_24?: string;
   dropoffOnly?: boolean;
+  hardGopSuper?: boolean;
 }
 
 /**

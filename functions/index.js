@@ -627,6 +627,14 @@ export const queryVotersDynamic = onCall(
       params.v24 = filters.gn_11_05_24.trim();
     }
 
+    if (filters.hardGopSuper === true) {
+      sql += ` 
+    AND modeled_party = '1 - Hard Republican' 
+    AND GN_11_05_24 = 'R' 
+    AND GN_PR_11_04_25 = 'R' 
+  `;
+    }
+
     // === Mail Ballot ===
     if (
       filters.mailBallot !== undefined &&
@@ -1801,12 +1809,9 @@ export const getResourcesByLocation = onCall(
 // ================================================================
 
 export const adminCreateUser = onCall({ cors: true }, async (request) => {
-  // 1. Authentication Check
+  // 1. Authentication Guard
   if (!request.auth) {
-    throw new HttpsError(
-      "unauthenticated",
-      "You must be logged in to provision users.",
-    );
+    throw new HttpsError("unauthenticated", "Admin authentication required.");
   }
 
   const {
@@ -1814,7 +1819,7 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
     display_name,
     preferred_name,
     phone,
-    role, // The role we are assigning to the NEW user
+    role,
     group_id,
     county_id,
     district_id,
@@ -1823,206 +1828,208 @@ export const adminCreateUser = onCall({ cors: true }, async (request) => {
     active,
     jurisdiction_type,
     jurisdiction_value,
+    tempPassword,
   } = request.data;
 
   // 2. Data Validation
   const isCandidate = role === "candidate";
-  const hasJurisdiction = jurisdiction_type && jurisdiction_value;
-
-  if (
-    !email ||
-    !display_name ||
-    !role ||
-    !group_id ||
-    !county_id ||
-    (!isCandidate && !district_id) ||
-    (isCandidate && !hasJurisdiction)
-  ) {
+  if (!email || !display_name || !role || !phone) {
     throw new HttpsError(
       "invalid-argument",
-      "Missing required fields for provisioning.",
+      "Missing core user identity fields.",
     );
   }
 
-  // 3. DYNAMIC AUTHORIZATION LOGIC
+  // 3. Authorization Check (Guards)
   const adminRole = request.auth.token.role || "base";
   const adminName = request.auth.token.name || "A Campaign Lead";
 
-  // Fetch the creator's permission set from Firestore
-  const adminPerms = await getPermissionsFromFirestore(adminRole);
+  // FIX: Using 'db' constant instead of 'auth.firestore()'
+  const adminPermsDoc = await db
+    .collection("config")
+    .doc("roles_permissions")
+    .get();
 
-  if (!adminPerms) {
-    throw new HttpsError("internal", "Could not verify admin permissions.");
-  }
+  const allowedRoles =
+    adminPermsDoc.data()?.[adminRole]?.allowed_to_create || [];
 
-  // Check if the admin is allowed to create this specific role
-  const isAllowed =
-    adminPerms.allowed_to_create?.includes(role) || adminRole === "developer";
-
-  if (!isAllowed) {
+  if (adminRole !== "developer" && !allowedRoles.includes(role)) {
     throw new HttpsError(
       "permission-denied",
-      `Your role (${adminRole}) is not authorized to create a ${role}.`,
+      `Your role (${adminRole}) is not authorized to provision ${role}s.`,
     );
   }
 
   try {
-    // 4. Generate Temporary Password
-    const randomSuffix = randomBytes(2).toString("hex");
-    const cleanName = display_name.replace(/[^a-zA-Z]/g, "").toLowerCase();
-    const namePart =
-      cleanName.length >= 4
-        ? cleanName.substring(0, 4)
-        : cleanName.padEnd(4, "x");
-    const tempPassword = `${namePart}-${randomSuffix}-!`;
+    // 4. Phone Normalization (E.164 required for Firebase MFA)
+    const formattedPhone = phone.startsWith("+")
+      ? phone
+      : `+1${phone.replace(/\D/g, "")}`;
 
-    // 5. Fetch New User's Permissions (to be embedded in claims)
-    const newUserPerms = await getPermissionsFromFirestore(role);
-
-    logger.info(`Provisioning new ${role}: ${email}`);
-
-    // 6. Create Firebase Auth Account
-    const userRecord = await auth.createUser({
-      email: email.trim(),
-      password: tempPassword,
-      displayName: display_name.trim(),
-    });
-    const uid = userRecord.uid;
-
-    // 7. Generate Access Object & Role ID
-    let access;
-    let roleDocId;
-
-    if (isCandidate) {
-      access = await getJurisdictionAccess(
-        county_id,
-        jurisdiction_type,
-        jurisdiction_value,
+    if (formattedPhone.length !== 12) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Valid 10-digit US mobile number required for MFA.",
       );
-      access.jurisdiction = {
-        type: jurisdiction_type,
-        value: jurisdiction_value,
-      };
-      roleDocId = `candidate_${jurisdiction_type}_${jurisdiction_value}_${uid}`
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "-");
-    } else {
-      let accessCounties = [county_id];
-      let accessDistricts = [district_id];
-      let accessAreas = area_id ? [area_id] : [];
-      let accessPrecincts = precinct_id ? [precinct_id] : [];
-
-      // Logic overrides for hierarchy
-      if (role === "developer") {
-        accessCounties = ["ALL"];
-        accessAreas = ["ALL"];
-        accessDistricts = ["ALL"];
-        accessPrecincts = ["ALL"];
-      } else if (role === "county_chair") {
-        accessDistricts = ["ALL"];
-        accessAreas = ["ALL"];
-        accessPrecincts = ["ALL"];
-      } else if (role === "state_rep_district") {
-        accessAreas = ["ALL"];
-        accessPrecincts = ["ALL"];
-      } else if (role === "area_chair") {
-        accessPrecincts = ["ALL"];
-      }
-
-      access = {
-        counties: accessCounties,
-        districts: accessDistricts,
-        areas: accessAreas,
-        precincts: accessPrecincts,
-      };
-      roleDocId = [
-        role,
-        county_id,
-        district_id,
-        area_id || "ALL",
-        precinct_id || "none",
-      ]
-        .map((p) =>
-          String(p)
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, "-"),
-        )
-        .join("_");
     }
 
-    // 8. Prepare Firestore User Document
-    const userDoc = {
-      uid: uid,
+    // 5. Build Access Hierarchy Object
+    let access = {
+      counties: [county_id],
+      districts: [district_id],
+      areas: [area_id].filter(Boolean),
+      precincts: [precinct_id].filter(Boolean),
+    };
+
+    if (role === "developer") {
+      access = {
+        counties: ["ALL"],
+        districts: ["ALL"],
+        areas: ["ALL"],
+        precincts: ["ALL"],
+      };
+    } else if (role === "county_chair") {
+      access.districts = ["ALL"];
+      access.areas = ["ALL"];
+      access.precincts = ["ALL"];
+    } else if (role === "state_rep_district") {
+      access.areas = ["ALL"];
+      access.precincts = ["ALL"];
+    } else if (role === "area_chair") {
+      access.precincts = ["ALL"];
+    }
+
+    // 6. CREATE AUTH ACCOUNT (Using 'auth' constant)
+    const userRecord = await auth.createUser({
+      email: email.trim().toLowerCase(),
+      password: tempPassword,
+      displayName: display_name.trim(),
+      emailVerified: true,
+      multiFactor: {
+        enrolledFactors: [
+          {
+            phoneNumber: formattedPhone,
+            displayName: "Mobile Phone",
+            factorId: "phone",
+          },
+        ],
+      },
+    });
+
+    const uid = userRecord.uid;
+
+    // 7. Atomic Firestore Updates (Using 'db' constant)
+    const batch = db.batch();
+
+    const userRef = db.collection("users").doc(uid);
+    batch.set(userRef, {
+      uid,
+      email: email.toLowerCase().trim(),
       display_name: display_name.trim(),
       preferred_name: preferred_name || display_name.split(" ")[0],
-      email: email.toLowerCase().trim(),
-      phone: phone || null,
-      role: role,
-      group_id: group_id,
-      access: access,
-      permissions: newUserPerms, // Save snapshot of permissions in doc
+      phone: formattedPhone,
+      role,
+      group_id,
+      access,
       active: active ?? true,
+      requires_password_update: true,
       has_agreed_to_terms: false,
       created_by: request.auth.uid,
-      created_at: Date.now(),
-      updated_at: Date.now(),
-      last_claims_sync: Date.now(),
-    };
+      created_at: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
+    });
 
-    // 9. Create/Update Org Role Position
-    const roleDoc = {
+    const roleDocId = `${role}_${uid}`.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const roleRef = db.collection("org_roles").doc(roleDocId);
+    batch.set(roleRef, {
       id: roleDocId,
-      uid: uid,
-      role: role,
-      group_id: group_id,
-      county_id: county_id,
+      uid,
+      email: email.toLowerCase(),
+      role,
+      group_id,
+      county_id,
       district_id: isCandidate ? "CANDIDATE" : district_id,
-      area_id: isCandidate ? null : area_id || null,
-      precinct_id: isCandidate ? null : precinct_id || null,
-      jurisdiction: isCandidate ? access.jurisdiction : null,
+      area_id: area_id || null,
+      precinct_id: precinct_id || null,
       active: true,
       is_vacant: false,
-      updated_at: Date.now(),
-    };
-
-    // 10. Atomic Write
-    const batch = db.batch();
-    batch.set(db.collection("users").doc(uid), userDoc);
-    batch.set(db.collection("org_roles").doc(roleDocId), roleDoc, {
-      merge: true,
+      updated_at: FieldValue.serverTimestamp(),
     });
+
     await batch.commit();
 
-    // 11. Provision Custom Claims (The ultimate source of truth for the UI)
+    // 8. Set Custom Claims (Using 'auth' constant)
     await auth.setCustomUserClaims(uid, {
-      role: role,
-      group_id: group_id,
+      role,
+      group_id,
+      permissions: adminPermsDoc.data()?.[role]?.permissions || {},
       counties: access.counties,
-      districts: access.districts,
       areas: access.areas,
+      districts: access.districts,
       precincts: access.precincts,
-      permissions: newUserPerms, // Dynamic permissions attached to the token
     });
+
+    logger.info(`Successfully provisioned ${role} with MFA: ${email}`);
 
     return {
       success: true,
       uid,
       email,
-      display_name,
-      tempPassword,
+      tempPassword: tempPassword,
       created_by: adminName,
     };
   } catch (error) {
-    logger.error("Admin Create User failed:", error);
+    logger.error("Provisioning critical failure:", error);
     if (error.code === "auth/email-already-exists") {
-      throw new HttpsError(
-        "already-exists",
-        "This email address is already registered.",
-      );
+      throw new HttpsError("already-exists", "This email is already in use.");
+    }
+    if (error.code === "auth/invalid-phone-number") {
+      throw new HttpsError("invalid-argument", "Invalid phone number format.");
     }
     throw new HttpsError("internal", error.message);
   }
 });
+
+// ================================================================
+//  RESET USER PASSWORD FROM ADMIN USERS MODULE
+// ================================================================
+
+export const adminResetUserPassword = onCall(
+  { cors: true },
+  async (request) => {
+    if (!request.auth?.token?.permissions?.can_create_users) {
+      throw new HttpsError("permission-denied", "Unauthorized.");
+    }
+
+    const { uid, email, display_name, phone } = request.data;
+
+    // Generate new temp password
+    const tempPassword = `Reset-${Math.random().toString(36).slice(-6)}!`;
+
+    try {
+      // 1. Update Auth with new password
+      await admin.auth().updateUser(uid, {
+        password: tempPassword,
+      });
+
+      // 2. Set the flag in Firestore to force them to the update screen
+      await admin.firestore().collection("users").doc(uid).update({
+        requires_password_update: true,
+        updated_at: Date.now(),
+      });
+
+      return {
+        success: true,
+        tempPassword,
+        email,
+        display_name,
+        created_by: request.auth.token.name || "Campaign Admin",
+      };
+    } catch (error) {
+      throw new HttpsError("internal", error.message);
+    }
+  },
+);
 
 // ================================================================
 //  CREATE GOALS THROUGH APP

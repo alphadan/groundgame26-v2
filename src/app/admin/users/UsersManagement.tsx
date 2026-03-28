@@ -3,10 +3,18 @@ import { useAuth } from "../../../context/AuthContext";
 import { UserProfile } from "../../../types";
 import { CreateUserForm } from "../components/CreateUserForm";
 import { useAdminCRUD } from "../../../hooks/useAdminCRUD";
+import { useCloudFunctions } from "../../../hooks/useCloudFunctions";
+import {
+  getWelcomeEmailTemplate,
+  WelcomeEmailData,
+} from "../constants/emailTemplates";
 
 import { useNavigate } from "react-router-dom";
 import IconButton from "@mui/material/IconButton";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import PasswordIcon from "@mui/icons-material/Password";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import VpnKeyIcon from "@mui/icons-material/VpnKey";
 import Tooltip from "@mui/material/Tooltip";
 import {
   Box,
@@ -20,6 +28,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogContentText,
   DialogActions,
   FormControlLabel,
   Switch,
@@ -29,8 +38,13 @@ import {
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 
 export default function UsersManagement() {
-  // 1. DYNAMIC PERMISSIONS: Using AuthContext instead of Dexie
-  const { claims, permissions, isLoaded: authLoaded } = useAuth();
+  const {
+    claims,
+    permissions,
+    isLoaded: authLoaded,
+    userProfile: adminProfile,
+  } = useAuth();
+  const { callFunction } = useCloudFunctions();
   const navigate = useNavigate();
 
   // Functional Gating
@@ -59,14 +73,19 @@ export default function UsersManagement() {
   const [confirmMessage, setConfirmMessage] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  // Focus blur fix
+  // Password Reset State
+  const [resetData, setResetData] = useState<WelcomeEmailData | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [userToReset, setUserToReset] = useState<UserProfile | null>(null);
+
   useEffect(() => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
   }, []);
 
-  // 2. LOADING & ACCESS GATES
   if (!authLoaded) {
     return (
       <Box
@@ -82,7 +101,6 @@ export default function UsersManagement() {
     );
   }
 
-  // Block users without management permissions
   if (!canManageTeam) {
     return (
       <Box p={6} textAlign="center">
@@ -117,6 +135,43 @@ export default function UsersManagement() {
     }
   };
 
+  const initiateReset = (user: UserProfile) => {
+    setUserToReset(user);
+    setResetConfirmOpen(true);
+  };
+
+  const handleConfirmReset = async () => {
+    if (!userToReset) return;
+
+    setResetConfirmOpen(false); // Close confirm dialog
+    setIsResetting(true);
+    try {
+      const result = await callFunction<WelcomeEmailData>(
+        "adminResetUserPassword",
+        {
+          uid: userToReset.uid,
+          email: userToReset.email,
+          display_name: userToReset.display_name,
+          phone: userToReset.phone,
+        },
+      );
+      setResetData(result);
+    } catch (err: any) {
+      alert("Reset failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsResetting(false);
+      setUserToReset(null);
+    }
+  };
+
+  const handleCopyResetData = () => {
+    if (!resetData) return;
+    const template = getWelcomeEmailTemplate(resetData);
+    const fullText = `Subject: ${template.subject}\n\n${template.body}`;
+    navigator.clipboard.writeText(fullText);
+    alert("Full email template copied to clipboard.");
+  };
+
   const handleEdit = (user: UserProfile) => {
     setSelectedUser(user);
     setEditForm({
@@ -132,7 +187,7 @@ export default function UsersManagement() {
     setConfirmMessage(
       newActive
         ? "Activating this user will restore access immediately."
-        : "Inactivating this user will suspend all access and deactivate their roles. Continue?",
+        : "Inactivating this user will suspend all access. Continue?",
     );
     setConfirmOpen(true);
   };
@@ -157,7 +212,7 @@ export default function UsersManagement() {
     {
       field: "active",
       headerName: "Active",
-      width: 120,
+      width: 90,
       renderCell: (params) => (
         <Chip
           label={params.value ? "Yes" : "No"}
@@ -169,16 +224,35 @@ export default function UsersManagement() {
     {
       field: "actions",
       headerName: "Actions",
-      width: 120,
+      width: 180,
       sortable: false,
       renderCell: (params) => (
-        <Button
-          size="small"
-          variant="outlined"
-          onClick={() => handleEdit(params.row)}
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ height: "100%", alignItems: "center" }}
         >
-          Edit
-        </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => handleEdit(params.row)}
+          >
+            Edit
+          </Button>
+
+          {canCreateUsers && (
+            <Tooltip title="Reset & Resend Credentials">
+              <IconButton
+                size="small"
+                color="secondary"
+                onClick={() => initiateReset(params.row)}
+                disabled={isResetting || !params.row.active}
+              >
+                <VpnKeyIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
       ),
     },
   ];
@@ -201,14 +275,13 @@ export default function UsersManagement() {
             Manage Users
           </Typography>
           <Typography variant="h6" color="text.secondary">
-            Search and update team member accounts
+            Provision and update team member accounts
           </Typography>
         </Box>
       </Box>
 
       <Divider sx={{ mb: 4 }} />
 
-      {/* Search & Create Controls */}
       <Stack direction="row" spacing={2} mb={4} flexWrap="wrap">
         <TextField
           label="Search by Email"
@@ -222,7 +295,6 @@ export default function UsersManagement() {
           Search
         </Button>
 
-        {/* 3. CONDITIONAL BUTTON: Only show if allowed by Firestore config */}
         {canCreateUsers && (
           <Button variant="outlined" onClick={() => setCreateDialogOpen(true)}>
             Provision New User
@@ -254,7 +326,7 @@ export default function UsersManagement() {
         />
       </Paper>
 
-      {/* Create User Dialog */}
+      {/* Provision Dialog */}
       <Dialog
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
@@ -269,6 +341,69 @@ export default function UsersManagement() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCreateDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Reset Success Dialog */}
+      <Dialog
+        open={Boolean(resetData)}
+        onClose={() => setResetData(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontWeight: "bold", color: "secondary.main" }}>
+          Credentials Reset Successfully
+        </DialogTitle>
+        <DialogContent dividers>
+          {resetData && (
+            <Stack spacing={2}>
+              <Alert severity="warning">
+                A new temporary password has been set. The user will be forced
+                to change it upon login.
+              </Alert>
+              <Box sx={{ p: 2, bgcolor: "grey.100", borderRadius: 2 }}>
+                <Typography variant="body2">
+                  <b>Target Email:</b> {resetData.email}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  <b>New Temp Password:</b>{" "}
+                  <code style={{ fontSize: "1.1rem", color: "#d32f2f" }}>
+                    {resetData.tempPassword}
+                  </code>
+                </Typography>
+              </Box>
+              <Typography variant="subtitle2" fontWeight="bold">
+                New Welcome Template Preview:
+              </Typography>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  bgcolor: "#fafafa",
+                  maxHeight: 200,
+                  overflow: "auto",
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{ whiteSpace: "pre-wrap", fontFamily: "monospace" }}
+                >
+                  {getWelcomeEmailTemplate(resetData).body}
+                </Typography>
+              </Paper>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setResetData(null)}>Close</Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<ContentCopyIcon />}
+            onClick={handleCopyResetData}
+          >
+            Copy Email Content
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -337,6 +472,33 @@ export default function UsersManagement() {
           <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
           <Button color="primary" variant="contained" onClick={confirmToggle}>
             Confirm Change
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {/* --- RESET CONFIRMATION DIALOG --- */}
+      <Dialog
+        open={resetConfirmOpen}
+        onClose={() => setResetConfirmOpen(false)}
+      >
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <VpnKeyIcon color="secondary" /> Reset User Credentials?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            You are about to generate a new temporary password for{" "}
+            <b>{userToReset?.display_name}</b>. Their current password will stop
+            working immediately and they will be forced to set a new one.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setResetConfirmOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleConfirmReset}
+            variant="contained"
+            color="secondary"
+            autoFocus
+          >
+            Generate New Password
           </Button>
         </DialogActions>
       </Dialog>

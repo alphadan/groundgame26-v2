@@ -55,7 +55,7 @@ const baseTheme = {
   palette: {
     primary: {
       main: primaryRed,
-      light: "#E54B5F",
+      light: "#D73045",
       dark: "#8B1A1A",
       contrastText: "#FFFFFF",
     },
@@ -74,10 +74,10 @@ const baseTheme = {
     },
     voter: {
       hardR: "#B22234",
-      weakR: "#E57373",
-      swing: "#AB47BC",
+      weakR: "#D73045",
+      swing: "#D3D3D3",
       weakD: "#90CAF9",
-      hardD: "#1976D2",
+      hardD: "#00AEF3",
     },
     kpi: {
       onTrack: "#43A047",

@@ -124,6 +124,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
                   active: true,
                   // Logic Gates forced to TRUE for developers
                   has_agreed_to_terms: true,
+                  requires_password_update: false,
                   legal_consent: {
                     version:
                       profileData?.legal_consent?.version || "DEV_OVERRIDE",

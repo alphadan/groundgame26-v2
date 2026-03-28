@@ -10,6 +10,7 @@ import { AppControl } from "./types";
 import MainLayout from "./app/layout/MainLayout";
 import AppRouter from "./routes/AppRouter";
 import EnrollMFAScreen from "./pages/auth/EnrollMFAScreen";
+import UpdatePasswordScreen from "./pages/auth/UpdatePasswordScreen";
 import ConsentScreen from "./pages/auth/ConsentScreen";
 import { PublicFooter } from "./components/PublicFooter";
 import { VersionGuard } from "./components/auth/VersionGuard";
@@ -80,7 +81,7 @@ export default function App() {
   }, [dbReady, isSynced, initError, performSync]);
 
   // --- RENDER GATES (After all hooks are declared) ---
-
+  // 1. AUTH LOADING GATE
   if (authLoading || !authLoaded) {
     return (
       <Box
@@ -94,6 +95,7 @@ export default function App() {
     );
   }
 
+  // 2. UNAUTHENTICATED GATE
   if (!user) {
     return (
       <Box
@@ -110,6 +112,7 @@ export default function App() {
     );
   }
 
+  // 3. SYSTEM CONFIG GATE
   if (!keystone) {
     return (
       <Box
@@ -124,10 +127,16 @@ export default function App() {
     );
   }
 
+  // 4. MFA ENFORCEMENT GATE
   const mfaUser = multiFactor(user);
   if (mfaUser.enrolledFactors.length === 0) return <EnrollMFAScreen />;
 
-  // CONSENT GATE
+  // 5. PASSWORD UPDATE GATE (STEP 3 CONFIRMED)
+  if (userProfile?.requires_password_update) {
+    return <UpdatePasswordScreen />;
+  }
+
+  // 6. CONSENT GATE
   if (userProfile) {
     const isDev = role === "developer";
     const hasAgreed = userProfile.has_agreed_to_terms === true;
@@ -144,7 +153,7 @@ export default function App() {
     }
   }
 
-  // HYDRATION LOADING
+  // 7. HYDRATION LOADING
   if (!dbReady || (!isSynced && !initError)) {
     return (
       <Box
@@ -187,6 +196,7 @@ export default function App() {
     );
   }
 
+  // 8. FINAL APP RENDER
   return (
     <VersionGuard>
       <Box

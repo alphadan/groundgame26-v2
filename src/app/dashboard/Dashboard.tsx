@@ -266,9 +266,9 @@ export default function Dashboard() {
               ]}
               xAxis={[{ scaleType: "band", dataKey: "age" }]}
               series={[
-                { dataKey: "R", label: "Rep", color: "#B22234" },
-                { dataKey: "I", label: "Ind (NF)", color: "#E0E0E0" },
-                { dataKey: "D", label: "Dem", color: "#1976D2" },
+                { dataKey: "R", label: "Rep", color: theme.palette.voter.hardR },
+                { dataKey: "I", label: "Ind (NF)", color: theme.palette.voter.swing },
+                { dataKey: "D", label: "Dem", color: theme.palette.voter.hardD },
               ]}
               height={300}
               margin={{ top: 50, bottom: 30, left: 40, right: 10 }}
@@ -311,9 +311,9 @@ export default function Dashboard() {
               ]}
               xAxis={[{ scaleType: "band", dataKey: "age" }]}
               series={[
-                { dataKey: "R", label: "Rep", color: "#B22234" },
-                { dataKey: "I", label: "Ind (NF)", color: "#E0E0E0" },
-                { dataKey: "D", label: "Dem", color: "#1976D2" },
+                { dataKey: "R", label: "Rep", color: theme.palette.voter.hardR },
+                { dataKey: "I", label: "Ind (NF)", color: theme.palette.voter.swing },
+                { dataKey: "D", label: "Dem", color: theme.palette.voter.hardD },
               ]}
               height={300}
               margin={{ top: 50, bottom: 30, left: 40, right: 10 }}

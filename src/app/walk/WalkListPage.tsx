@@ -301,10 +301,10 @@ export default function WalkListPage() {
             fontWeight: "bold",
             bgcolor:
               value === "R"
-                ? theme.palette.error.main
+                ? theme.palette.voter.hardR
                 : value === "D"
-                  ? theme.palette.info.main
-                  : "grey.400",
+                  ? theme.palette.voter.hardD
+                  : theme.palette.voter.swing,
             color: "white",
           }}
         />
@@ -351,10 +351,10 @@ export default function WalkListPage() {
           row.isLocked
             ? "#d32f2f"
             : row.party === "R"
-              ? "#B22234"
+              ? theme.palette.voter.hardR
               : row.party === "D"
-                ? "#1976d2"
-                : "#9e9e9e"
+                ? theme.palette.voter.hardD
+                : theme.palette.voter.swing
         }`,
       }}
     >
@@ -413,10 +413,10 @@ export default function WalkListPage() {
               sx={{
                 bgcolor:
                   row.party === "R"
-                    ? "error.main"
+                    ? theme.palette.voter.hardR
                     : row.party === "D"
-                      ? "info.main"
-                      : "grey.400",
+                      ? theme.palette.voter.hardD
+                      : theme.palette.voter.swing,
                 color: "white",
                 fontWeight: "bold",
               }}
@@ -659,6 +659,12 @@ export default function WalkListPage() {
                 <DataGrid
                   rows={filteredVoters}
                   columns={columns}
+                  initialState={{
+                    pagination: {
+                      paginationModel: { pageSize: 10, page: 0 },
+                    },
+                  }}
+                  pageSizeOptions={[10, 25, 50, 100]}
                   getRowId={(r) => r.voter_id}
                   rowHeight={75}
                   loading={isLoading}

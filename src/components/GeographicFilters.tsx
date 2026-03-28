@@ -69,7 +69,7 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
   const counties =
     useLiveQuery(async () => {
       const all = await indexedDb.counties.toArray();
-      return all.filter((c) => c.active === true || c.active === 1);
+      return all.filter((c) => c.active === true || (c.active as any) === 1);
     }) ?? [];
 
   const srds =
@@ -79,7 +79,7 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
         .where("county_id")
         .equals(selectedCounty)
         .toArray();
-      return all.filter((d) => d.active === true || d.active === 1);
+      return all.filter((d) => d.active === true || (d.active as any) === 1);
     }, [selectedCounty]) ?? [];
 
   const areas =
@@ -90,7 +90,7 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
           .where("county_id")
           .equals(selectedCounty)
           .toArray();
-        return all.filter((a) => a.active === true || a.active === 1);
+        return all.filter((a) => a.active === true || (a.active as any) === 1);
       }
       // SRD Logic: Find areas containing precincts for this specific SRD
       const associated = await indexedDb.precincts
@@ -101,7 +101,7 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
       const allAreas = await indexedDb.areas
         .filter((a) => validIds.includes(a.id))
         .toArray();
-      return allAreas.filter((a) => a.active === true || a.active === 1);
+      return allAreas.filter((a) => a.active === true || (a.active as any) === 1);
     }, [selectedCounty, selectedSRD]) ?? [];
 
   const precincts =
@@ -112,7 +112,7 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
       if (selectedSRD) {
         results = results.filter((p) => p.party_rep_district === selectedSRD);
       }
-      return results.filter((p) => p.active === true || p.active === 1);
+      return results.filter((p) => p.active === true || (p.active as any) === 1);
     }, [selectedArea, selectedSRD]) ?? [];
 
   // --- 3. Auto-Selection Logic (Cascading Effects) ---

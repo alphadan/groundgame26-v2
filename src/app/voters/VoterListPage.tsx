@@ -59,7 +59,7 @@ export default function VoterListPage() {
 
   const { user, claims, isLoaded: authLoaded } = useAuth();
   const dncMap = useDncMap();
-  const interactionMap = useInteractionMap(filters?.precinct);
+  const interactionMap = useInteractionMap(filters?.precinct?.full);
 
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -89,6 +89,11 @@ export default function VoterListPage() {
       label: "GOP Women",
       icon: "👩",
       filters: { political_party: "R", sex: "F" },
+    },
+    {
+      label: "Party Base",
+      icon: "🔥",
+      filters: { hardGopSuper: true },
     },
     {
       label: "Happy Birthday",
@@ -517,10 +522,10 @@ export default function VoterListPage() {
                 sx={{
                   bgcolor:
                     row.political_party === "R"
-                      ? "error.main"
+                      ? theme.palette.voter.hardR
                       : row.political_party === "D"
-                        ? "info.main"
-                        : "grey.400",
+                        ? theme.palette.voter.hardD
+                        : theme.palette.voter.swing,
                   color: "white",
                   fontWeight: "bold",
                 }}
@@ -704,7 +709,24 @@ export default function VoterListPage() {
             2026 Mobilization List
           </AlertTitle>
           You are viewing <strong>{voters.length}</strong> casual GOP voters in
-          Precinct {filters.precinct} who missed the 2025 cycle.
+          Precinct {filters.precinct?.name || filters.precinct?.sql || ""} who
+          missed the 2025 cycle.
+        </Alert>
+      )}
+
+      {/* STRATEGIC ALERT FOR PARTY BASE */}
+      {filters?.hardGopSuper && voters.length > 0 && (
+        <Alert
+          severity="success"
+          variant="outlined"
+          icon={<BoltIcon />}
+          sx={{ mb: 3, borderRadius: 2, bgcolor: "rgba(76, 175, 80, 0.02)" }}
+        >
+          <AlertTitle sx={{ fontWeight: "bold" }}>
+            Super GOP Outreach
+          </AlertTitle>
+          Showing <strong>{voters.length}</strong> "Hard Republicans" with
+          perfect 2024-25 turnout records. These are your reliable base voters.
         </Alert>
       )}
 
@@ -793,7 +815,12 @@ export default function VoterListPage() {
                 columns={columns}
                 rowHeight={70}
                 slots={{ toolbar: CustomToolbar }}
-                // This is what turns the row grey on desktop
+                initialState={{
+                  pagination: {
+                    paginationModel: { pageSize: 10, page: 0 },
+                  },
+                }}
+                pageSizeOptions={[10, 25, 50, 100]}
                 getRowClassName={(params) =>
                   params.row.isLocked ? "muted-row" : ""
                 }
