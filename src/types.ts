@@ -346,11 +346,11 @@ export interface Voter {
   isLocked?: boolean; // Combined suppression flag
 }
 
-export type VoterStatsParams = {
-  areaCode?: string;
-  precinctCodes?: string[];
-  precinct_id?: string;
-};
+export interface VoterStatsParams {
+  type: "county" | "srd" | "area" | "precinct" | "all";
+  id: string; // The Firestore UUID
+  code?: string; // The BigQuery ID (e.g., "105" or "AREA-15")
+}
 
 export type VoterStats = {
   total_r: number;

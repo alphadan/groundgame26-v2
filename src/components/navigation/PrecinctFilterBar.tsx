@@ -11,14 +11,18 @@ import {
   CircularProgress,
   Box,
 } from "@mui/material";
+import { VoterStatsParams } from "../../types";
 
 interface PrecinctFilterBarProps {
-  onPrecinctSelect: (id: string) => void;
+  onFilterChange: (params: {
+    type: "county" | "srd" | "area" | "precinct" | "all";
+    id: string;
+  }) => void;
   isLoading?: boolean;
 }
 
 export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
-  onPrecinctSelect,
+  onFilterChange,
   isLoading,
 }) => {
   const [selectedCounty, setSelectedCounty] = useState<string>("");
@@ -109,6 +113,15 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
     }
   }, [selectedSRD, areas, selectedArea]);
 
+  useEffect(() => {
+    if (selectedArea && selectedPrecinct !== "all") {
+      const isStillValid = precincts.some((p) => p.id === selectedPrecinct);
+      if (!isStillValid && precincts.length > 0) {
+        setSelectedPrecinct("all");
+      }
+    }
+  }, [selectedArea, precincts]);
+
   return (
     <Stack
       direction={{ xs: "column", md: "row" }}
@@ -137,7 +150,7 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
             setSelectedSRD("");
             setSelectedArea("");
             setSelectedPrecinct("all");
-            onPrecinctSelect(val);
+            onFilterChange({ type: "county", id: val });
           }}
         >
           {counties.map((c) => (
@@ -163,7 +176,11 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
             setSelectedSRD(val);
             setSelectedArea("");
             setSelectedPrecinct("all");
-            onPrecinctSelect(val || selectedCounty);
+            const filter: VoterStatsParams = {
+              type: val ? "srd" : "county",
+              id: val || selectedCounty,
+            };
+            onFilterChange(filter);
           }}
         >
           <MenuItem value="">
@@ -191,7 +208,11 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
             const val = e.target.value as string;
             setSelectedArea(val);
             setSelectedPrecinct("all");
-            onPrecinctSelect(val || selectedSRD || selectedCounty);
+            const filter: VoterStatsParams = {
+              type: val ? "area" : selectedSRD ? "srd" : "county",
+              id: val || selectedSRD || selectedCounty,
+            };
+            onFilterChange(filter);
           }}
         >
           <MenuItem value="">
@@ -214,8 +235,11 @@ export const PrecinctFilterBar: React.FC<PrecinctFilterBarProps> = ({
           onChange={(e) => {
             const val = e.target.value as string;
             setSelectedPrecinct(val);
-            const targetId = val === "all" ? selectedArea : val;
-            onPrecinctSelect(targetId);
+            const filter: VoterStatsParams = {
+              type: val === "all" ? "area" : "precinct",
+              id: val === "all" ? selectedArea : val,
+            };
+            onFilterChange(filter);
           }}
         >
           <MenuItem value="all">

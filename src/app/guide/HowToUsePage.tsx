@@ -2,7 +2,6 @@ import React from "react";
 import {
   Box,
   Typography,
-  Paper,
   Stack,
   List,
   ListItem,
@@ -82,151 +81,147 @@ export default function HowToUsePage() {
 
   return (
     <Container sx={{ py: 6 }}>
-      <Paper sx={{ p: { xs: 4 }, borderRadius: 4, boxShadow: 6 }}>
-        <Stack spacing={5} alignItems="center" textAlign="center">
-          {/* Hero */}
-          <Box>
-            <Typography
-              variant="h3"
-              fontWeight="bold"
-              color="primary"
-              gutterBottom
-              sx={{ fontSize: { xs: "2.5rem", md: "3.5rem" } }}
-            >
-              How to Use GroundGame
-            </Typography>
-            <Typography variant="h5" color="text.secondary">
-              Your step-by-step guide to winning doors in 2026
-            </Typography>
-          </Box>
-
-          <Divider
-            sx={{
-              width: "80%",
-              borderColor: "primary.main",
-              borderBottomWidth: 3,
-            }}
-          />
-
-          {/* NEW: PRO TIP ALERT */}
-          <Alert
-            severity="info"
-            variant="outlined"
-            icon={<Info fontSize="inherit" />}
-            sx={{
-              width: "100%",
-              textAlign: "left",
-              borderRadius: 3,
-              bgcolor: "info.50",
-              borderColor: "info.light",
-            }}
+      <Stack spacing={5} alignItems="center" textAlign="center">
+        {/* Hero */}
+        <Box>
+          <Typography
+            variant="h3"
+            fontWeight="bold"
+            color="primary"
+            gutterBottom
+            sx={{ fontSize: { xs: "2.5rem", md: "3.5rem" } }}
           >
-            <AlertTitle sx={{ fontWeight: "bold" }}>Pro Tip</AlertTitle>
-            We advise new users to take small steps in learning the app and then
-            add additional skills to become a power user.
-            <strong> Start by sending a text to a friend</strong> to earn your
-            first point! Then, go to the Message Center, copy a message, and
-            send it to another friend. You'll be on your way to winning Chester
-            County while earning more points and rewards in no time!
-          </Alert>
+            How to Use GroundGame
+          </Typography>
+          <Typography variant="h5" color="text.secondary">
+            Your step-by-step guide to winning doors in 2026
+          </Typography>
+        </Box>
 
-          {/* Main Steps */}
-          <List sx={{ width: "100%" }}>
-            {steps.map((step, index) => (
-              <React.Fragment key={index}>
-                <ListItem alignItems="flex-start">
-                  <ListItemIcon sx={{ minWidth: 64, mt: 1 }}>
-                    <Box
-                      sx={{
-                        width: 56,
-                        height: 56,
-                        borderRadius: "50%",
-                        bgcolor: "primary.100",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {step.icon}
-                    </Box>
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Typography variant="h6" fontWeight="bold" gutterBottom>
-                        {step.title}
-                      </Typography>
-                    }
-                    secondary={
-                      <Typography variant="body1" color="text.secondary">
-                        {step.description}
-                      </Typography>
-                    }
-                  />
-                </ListItem>
-                {index < steps.length - 1 && <Divider sx={{ my: 2 }} />}
-              </React.Fragment>
-            ))}
-          </List>
+        <Divider
+          sx={{
+            width: "80%",
+            borderColor: "primary.main",
+            borderBottomWidth: 3,
+          }}
+        />
 
-          {/* Pro Tips Section */}
-          <Box sx={{ width: "100%" }}>
-            <Typography
-              variant="h5"
-              fontWeight="bold"
-              color="primary"
-              gutterBottom
-            >
-              Pro Tips from the Field
-            </Typography>
-            <Stack spacing={2} sx={{ mt: 3 }}>
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
-                <Typography variant="body1">
-                  <strong>Texting:</strong> Your message is automatically
-                  copied. After sending, tap the ← arrow in the top-left to
-                  return.
-                </Typography>
-              </Paper>
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
-                <Typography variant="body1">
-                  <strong>Walk Lists:</strong> Swipe left/right on mobile to see
-                  all columns.
-                </Typography>
-              </Paper>
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
-                <Typography variant="body1">
-                  <strong>Badges:</strong> Every action counts — knock doors,
-                  send texts, recruit volunteers to earn points and exclusive
-                  rewards.
-                </Typography>
-              </Paper>
-            </Stack>
-          </Box>
+        {/* NEW: PRO TIP ALERT */}
+        <Alert
+          severity="info"
+          variant="outlined"
+          icon={<Info fontSize="inherit" />}
+          sx={{
+            width: "100%",
+            textAlign: "left",
+            borderRadius: 3,
+            bgcolor: "info.50",
+            borderColor: "info.light",
+          }}
+        >
+          <AlertTitle sx={{ fontWeight: "bold" }}>Pro Tip</AlertTitle>
+          We advise new users to take small steps in learning the app and then
+          add additional skills to become a power user.
+          <strong> Start by sending a text to a friend</strong> to earn your
+          first point! Then, go to the Message Center, copy a message, and send
+          it to another friend. You'll be on your way to winning Chester County
+          while earning more points and rewards in no time!
+        </Alert>
 
-          {/* Closing */}
-          <Box sx={{ mt: 6 }}>
-            <Typography
-              variant="h5"
-              fontWeight="bold"
-              color="primary"
-              gutterBottom
-            >
-              You're ready to win.
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Every door knocked, every voter contacted brings us closer to
-              victory in 2026.
-            </Typography>
-            <Typography
-              variant="h6"
-              fontWeight="bold"
-              color="primary"
-              sx={{ mt: 3 }}
-            >
-              Now go Get Out The Vote!
-            </Typography>
-          </Box>
-        </Stack>
-      </Paper>
+        {/* Main Steps */}
+        <List sx={{ width: "100%" }}>
+          {steps.map((step, index) => (
+            <React.Fragment key={index}>
+              <ListItem alignItems="flex-start">
+                <ListItemIcon sx={{ minWidth: 64, mt: 1 }}>
+                  <Box
+                    sx={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: "50%",
+                      bgcolor: "primary.100",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {step.icon}
+                  </Box>
+                </ListItemIcon>
+                <ListItemText
+                  primary={
+                    <Typography variant="h6" fontWeight="bold" gutterBottom>
+                      {step.title}
+                    </Typography>
+                  }
+                  secondary={
+                    <Typography variant="body1" color="text.secondary">
+                      {step.description}
+                    </Typography>
+                  }
+                />
+              </ListItem>
+              {index < steps.length - 1 && <Divider sx={{ my: 2 }} />}
+            </React.Fragment>
+          ))}
+        </List>
+
+        {/* Pro Tips Section */}
+        <Box sx={{ width: "100%" }}>
+          <Typography
+            variant="h5"
+            fontWeight="bold"
+            color="primary"
+            gutterBottom
+          >
+            Pro Tips from the Field
+          </Typography>
+          <Stack spacing={2} sx={{ mt: 3 }}>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Typography variant="body1">
+                <strong>Texting:</strong> Your message is automatically copied.
+                After sending, tap the ← arrow in the top-left to return.
+              </Typography>
+            </Paper>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Typography variant="body1">
+                <strong>Walk Lists:</strong> Swipe left/right on mobile to see
+                all columns.
+              </Typography>
+            </Paper>
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+              <Typography variant="body1">
+                <strong>Badges:</strong> Every action counts — knock doors, send
+                texts, recruit volunteers to earn points and exclusive rewards.
+              </Typography>
+            </Paper>
+          </Stack>
+        </Box>
+
+        {/* Closing */}
+        <Box sx={{ mt: 6 }}>
+          <Typography
+            variant="h5"
+            fontWeight="bold"
+            color="primary"
+            gutterBottom
+          >
+            You're ready to win.
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Every door knocked, every voter contacted brings us closer to
+            victory in 2026.
+          </Typography>
+          <Typography
+            variant="h6"
+            fontWeight="bold"
+            color="primary"
+            sx={{ mt: 3 }}
+          >
+            Now go Get Out The Vote!
+          </Typography>
+        </Box>
+      </Stack>
     </Container>
   );
 }

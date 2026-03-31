@@ -14,6 +14,19 @@ import { getFirestore, FieldValue, Filter } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { randomBytes } from "crypto";
+import { readFileSync } from "fs";
+import { join } from "path";
+
+let geoMapping = {};
+try {
+  // Use process.cwd() to find the root of the deployed function
+  const mappingPath = join(process.cwd(), "geoMapping.json");
+  const data = readFileSync(mappingPath, "utf8");
+  geoMapping = JSON.parse(data);
+  logger.info("✅ geoMapping.json loaded successfully");
+} catch (err) {
+  logger.error("❌ Failed to load geoMapping.json:", err.message);
+}
 
 setGlobalOptions({
   region: "us-central1",
@@ -126,7 +139,7 @@ export const getSyncCollections = onCall(async (request) => {
     const primaryRole = ROLE_PRIORITY.find((r) => rolesSet.has(r)) || "base";
 
     // Get the robust permissions set using your helper function
-    const computedPermissions = getPermissionsForRole(primaryRole);
+    const computedPermissions = getPermissionsFromFirestore(primaryRole);
 
     // WILDCARD EXPANSION (Ensure data visibility matches permissions)
     if (primaryRole === "developer" || primaryRole === "state_admin") {
@@ -331,33 +344,18 @@ export const getDashboardStats = onCall(
     cors: true,
     region: "us-central1",
     timeoutSeconds: 60,
-    memory: "256MiB",
+    memory: "512MiB",
   },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError("unauthenticated", "Authentication required");
     }
 
-    const { areaCode, precinctCodes } = request.data || {};
+    const { type, id } = request.data || {};
 
-    // Validate inputs
-    if (areaCode && typeof areaCode !== "string") {
-      throw new HttpsError("invalid-argument", "areaCode must be a string");
-    }
-    if (
-      precinctCodes &&
-      (!Array.isArray(precinctCodes) ||
-        precinctCodes.some((p) => typeof p !== "string"))
-    ) {
-      throw new HttpsError(
-        "invalid-argument",
-        "precinctCodes must be an array of strings",
-      );
-    }
+    logger.warn(`After deconstruction ${type} ID: ${id}.`);
 
-    const table = VOTER_TABLE;
-
-    // Comprehensive SQL to cover all Chart keys (Registration & Mail-In)
+    // 1. Initialize SQL and Params
     let sql = `
       SELECT 
         COUNTIF(political_party = 'R') AS total_r,
@@ -405,37 +403,70 @@ export const getDashboardStats = onCall(
         COUNTIF(has_mail_ballot AND age_group = '71+' AND political_party = 'R') AS mail_age_71_plus_r,
         COUNTIF(has_mail_ballot AND age_group = '71+' AND political_party = 'D') AS mail_age_71_plus_d,
         COUNTIF(has_mail_ballot AND age_group = '71+' AND political_party NOT IN ('R','D')) AS mail_age_71_plus_i
-
-      FROM \`${table}\`
+      FROM \`${VOTER_TABLE}\`
       WHERE 1=1
     `;
 
-    const params = {};
+    const queryParams = {};
 
-    if (areaCode) {
-      sql += ` AND area_district = @areaCode`;
-      params.areaCode = areaCode;
+    // 2. The Translation Layer
+    // 2. The Translation Layer
+    if (id && id !== "all") {
+      // 1. Standardize collection name (e.g., 'srd' -> 'srds')
+      const collection = type.endsWith("s") ? type : type + "s";
+
+      const mappingGroup = geoMapping[collection];
+      const voterCode = mappingGroup ? mappingGroup[id] : undefined;
+
+      if (voterCode !== undefined && voterCode !== null) {
+        // 3. Map internal types to BigQuery column names
+        let column;
+        switch (type) {
+          case "area":
+            column = "area_district";
+            break;
+          case "srd":
+            column = "rep_state_comm";
+            break;
+          default:
+            column = type;
+        }
+
+        // 4. Handle Numeric vs String types for BigQuery
+        // If SRD and County are both integers in your BQ table
+        if (typeof voterCode === "number") {
+          sql += ` AND ${column} = @code`;
+          queryParams.code = voterCode;
+        } else {
+          // For Precinct/Area (String)
+          sql += ` AND CAST(${column} AS STRING) = @code`;
+          queryParams.code = String(voterCode);
+        }
+
+        logger.info(`🎯 Filtering ${type} (${column}) by code: ${voterCode}`);
+      } else {
+        logger.warn(`⚠️ ID ${id} not found in geoMapping.${collection}`);
+      }
     }
 
-    if (precinctCodes?.length > 0) {
-      sql += ` AND precinct IN UNNEST(@precinctCodes)`;
-      params.precinctCodes = precinctCodes;
-    }
-
+    // 3. Execution
     try {
-      const [rows] = await bigquery.query({
+      const [job] = await bigquery.createQueryJob({
         query: sql,
-        params,
+        params: queryParams,
         location: "US",
       });
 
+      const [rows] = await job.getQueryResults();
       return { stats: rows[0] || {} };
     } catch (error) {
-      console.error("BigQuery dashboard query failed:", error.message);
-      throw new HttpsError(
-        "internal",
-        "Error calculating dashboard analytics.",
-      );
+      logger.error("❌ BigQuery Execution Error:", {
+        message: error.message,
+        type,
+        id,
+        sql,
+      });
+      throw new HttpsError("internal", "Error calculating analytics.");
     }
   },
 );
@@ -1709,6 +1740,37 @@ export const onResourceUploaded = onObjectFinalized(async (event) => {
 // ================================================================
 //  DELETES RESOURCES TEMPLATES BUCKET FILES WHEN DOCUMENTS ARE DELETED
 // ================================================================
+
+export const onCampaignResourceDeleted = onDocumentDeleted(
+  "campaign_resources/{resourceId}",
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+
+    const data = snap.data();
+    const storagePath = data.storage_path; // e.g., "resources/guid-filename.pdf"
+
+    if (!storagePath) {
+      logger.warn(
+        `No storage_path found for resource ${event.params.resourceId}`,
+      );
+      return;
+    }
+
+    try {
+      const bucket = getStorage().bucket();
+      const file = bucket.file(storagePath);
+
+      const [exists] = await file.exists();
+      if (exists) {
+        await file.delete();
+        logger.info(`Successfully deleted orphaned file: ${storagePath}`);
+      }
+    } catch (error) {
+      logger.error(`Failed to delete storage file at ${storagePath}:`, error);
+    }
+  },
+);
 
 // ================================================================
 //  GET DOWNLOADABLE TEMPLATES

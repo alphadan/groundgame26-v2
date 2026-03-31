@@ -173,9 +173,17 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
       return;
     }
 
-    // 2. GENERATE PASSWORD HERE (So it's defined for the whole function)
-    // Format: First3Letters-Random5! (e.g., joh-x82n1!)
-    const newTempPassword = `${form.display_name.slice(0, 3).toLowerCase()}-${Math.random().toString(36).slice(-5)}!`;
+    // 2a. Clean the name (remove spaces/apostrophes)
+    const cleanNamePrefix = form.display_name
+      .replace(/[^a-zA-Z0-9]/g, "") // Remove anything not alphanumeric
+      .slice(0, 3)
+      .toLowerCase();
+
+    // 2b. Generate 6 random alphanumeric chars
+    const randomSuffix = Math.random().toString(36).slice(-6);
+
+    // 2c. Combine: Result looks like "johx82n1a"
+    const newTempPassword = `${cleanNamePrefix}${randomSuffix}`;
 
     // Ensure phone is present before sending
     if (!form.phone) {

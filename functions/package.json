@@ -6,7 +6,9 @@
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",
     "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
+    "build": "tsc",
+    "copy-config": "cp src/geoMapping.json . && cp src/geoMapping.json lib/",
+    "deploy": "npm run build && npm run copy-config && firebase deploy --only functions",
     "logs": "firebase functions:log"
   },
   "engines": {

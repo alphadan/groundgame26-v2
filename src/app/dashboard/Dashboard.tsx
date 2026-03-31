@@ -37,6 +37,11 @@ export default function Dashboard() {
   const claims = authState?.claims ?? null;
   const isLoaded = authState?.isLoaded ?? false;
 
+  const [geoFilter, setGeoFilter] = useState<VoterStatsParams>({
+    type: "county",
+    id: claims?.counties?.[0] || "all",
+  });
+
   // Fetch and cache user profile (simplified — your original logic is fine)
   // ... (keep your useEffect for profile caching)
 
@@ -49,58 +54,47 @@ export default function Dashboard() {
     profile?.preferred_name || user?.displayName || user?.email || "User";
 
   // --- 1. STATE & DATA HOOKS ---
-  const [analysisPrecinct, setAnalysisPrecinct] = useState<string>("all");
-
   // Fetch AI Goals & Narratives (Bridge to BigQuery data)
+
+  const { data: turnoutStats = {} as VoterStats, isLoading: turnoutLoading } =
+    useVoterStats(geoFilter);
+
   const {
     goal,
     stats,
     loading: analysisLoading,
-  } = usePrecinctAnalysis(analysisPrecinct, 1, 2026);
-
-  const { data: turnoutStats = {} as VoterStats, isLoading: turnoutLoading } =
-    useVoterStats({
-      precinct_id: analysisPrecinct === "all" ? undefined : analysisPrecinct,
-    });
+  } = usePrecinctAnalysis(geoFilter.id, 1, 2026);
 
   // --- 2. KPI CALCULATIONS ---
   const progressStats = useMemo(() => {
-    const s = stats || {
-      gop_registrations: 0,
-      gop_has_mail_ballots: 0,
-      doors_knocked: 0,
-      texts_sent: 0,
-    };
-    const g = goal?.targets || {
+    // 1. Current Values from BigQuery (turnoutStats) or Local Stats
+    const currentRegs = turnoutStats.total_r || 0;
+    const currentMailIn = turnoutStats.mail_r || 0;
+    const currentOutreach =
+      (stats?.doors_knocked || 0) + (stats?.texts_sent || 0);
+
+    // 2. Target Values from the Goal hook
+    const targets = goal?.targets || {
       registrations: 0,
       mail_in: 0,
       user_activity: 0,
     };
 
-    const calc = (cur: number | undefined, tar: number | undefined) => {
-      const safeCur = cur ?? 0;
-      const safeTar = tar ?? 0;
-      // Calculate raw percentage
-      const rawPct = safeTar > 0 ? (safeCur / safeTar) * 100 : 0;
-
+    const calc = (cur: number, tar: number) => {
+      const rawPct = tar > 0 ? (cur / tar) * 100 : 0;
       return {
-        value: safeCur,
-        target: safeTar,
-        // We still cap at 100 for the LinearProgress UI only,
-        // but we use the rawPct for the label text.
+        value: cur,
+        target: tar,
         pct: rawPct,
       };
     };
 
     return {
-      regs: calc(s.gop_registrations, g.registrations),
-      vbm: calc(s.gop_has_mail_ballots, g.mail_in),
-      outreach: calc(
-        (s.doors_knocked || 0) + (s.texts_sent || 0),
-        g.user_activity,
-      ),
+      regs: calc(currentRegs, targets.registrations),
+      vbm: calc(currentMailIn, targets.mail_in),
+      outreach: calc(currentOutreach, targets.user_activity),
     };
-  }, [stats, goal]);
+  }, [turnoutStats, stats, goal]);
 
   // --- 3. TREND STUBS (Replace with real hooks when ready) ---
 
@@ -174,7 +168,10 @@ export default function Dashboard() {
             width: { xs: "100%", md: "auto" },
           }}
         >
-          <PrecinctFilterBar onPrecinctSelect={setAnalysisPrecinct} />
+          <PrecinctFilterBar
+            onFilterChange={(filter) => setGeoFilter(filter)}
+            isLoading={turnoutLoading}
+          />
         </Box>
       </Stack>
 
@@ -186,12 +183,19 @@ export default function Dashboard() {
           { label: "Voter Outreach", data: progressStats.outreach },
         ].map((kpi) => {
           const displayPct = kpi.data.pct;
-          const barValue = Math.min(displayPct, 100); // Visual bar shouldn't exceed container
+          const barValue = Math.min(displayPct, 100);
           const statusColor = getStatusColor(displayPct);
 
           return (
             <Grid size={{ xs: 12, md: 4 }} key={kpi.label}>
-              <Paper sx={{ p: 3, borderRadius: 3 }}>
+              <Paper
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  opacity: turnoutLoading || analysisLoading ? 0.7 : 1,
+                  transition: "opacity 0.3s ease",
+                }}
+              >
                 <Typography
                   variant="caption"
                   fontWeight="bold"
@@ -200,19 +204,27 @@ export default function Dashboard() {
                   {kpi.label}
                 </Typography>
 
-                <Typography variant="h4" fontWeight="900" sx={{ my: 1 }}>
-                  {kpi.data.value.toLocaleString()}
-                </Typography>
+                {/* Show spinner or value */}
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={1}
+                  sx={{ my: 1 }}
+                >
+                  <Typography variant="h4" fontWeight="900">
+                    {turnoutLoading ? "..." : kpi.data.value.toLocaleString()}
+                  </Typography>
+                </Stack>
 
                 <LinearProgress
-                  variant="determinate"
-                  value={barValue} // This makes the bar move to 5% if pct is 5
+                  variant={turnoutLoading ? "indeterminate" : "determinate"}
+                  value={barValue}
                   color={statusColor}
                   sx={{
                     height: 10,
                     borderRadius: 5,
                     mb: 1,
-                    bgcolor: "grey.200", // Keeps the "track" visible
+                    bgcolor: "grey.200",
                     "& .MuiLinearProgress-bar": { borderRadius: 5 },
                   }}
                 />
@@ -266,9 +278,21 @@ export default function Dashboard() {
               ]}
               xAxis={[{ scaleType: "band", dataKey: "age" }]}
               series={[
-                { dataKey: "R", label: "Rep", color: theme.palette.voter.hardR },
-                { dataKey: "I", label: "Ind (NF)", color: theme.palette.voter.swing },
-                { dataKey: "D", label: "Dem", color: theme.palette.voter.hardD },
+                {
+                  dataKey: "R",
+                  label: "Rep",
+                  color: theme.palette.voter.hardR,
+                },
+                {
+                  dataKey: "I",
+                  label: "Ind (NF)",
+                  color: theme.palette.voter.swing,
+                },
+                {
+                  dataKey: "D",
+                  label: "Dem",
+                  color: theme.palette.voter.hardD,
+                },
               ]}
               height={300}
               margin={{ top: 50, bottom: 30, left: 40, right: 10 }}
@@ -311,9 +335,21 @@ export default function Dashboard() {
               ]}
               xAxis={[{ scaleType: "band", dataKey: "age" }]}
               series={[
-                { dataKey: "R", label: "Rep", color: theme.palette.voter.hardR },
-                { dataKey: "I", label: "Ind (NF)", color: theme.palette.voter.swing },
-                { dataKey: "D", label: "Dem", color: theme.palette.voter.hardD },
+                {
+                  dataKey: "R",
+                  label: "Rep",
+                  color: theme.palette.voter.hardR,
+                },
+                {
+                  dataKey: "I",
+                  label: "Ind (NF)",
+                  color: theme.palette.voter.swing,
+                },
+                {
+                  dataKey: "D",
+                  label: "Dem",
+                  color: theme.palette.voter.hardD,
+                },
               ]}
               height={300}
               margin={{ top: 50, bottom: 30, left: 40, right: 10 }}
