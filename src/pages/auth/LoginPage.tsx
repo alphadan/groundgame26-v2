@@ -25,7 +25,11 @@ import {
   CircularProgress,
   Link,
   Stack,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import LogoSvg from "../../assets/icons/icon-blue-512.svg";
 
@@ -51,6 +55,7 @@ export default function LoginPage() {
   const [forgotOpen, setForgotOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetSent, setResetSent] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // MFA Code Input Modal
   const [mfaOpen, setMfaOpen] = useState(false);
@@ -218,6 +223,15 @@ export default function LoginPage() {
     }
   };
 
+  // Show Password
+  const handleClickShowPassword = () => setShowPassword((show) => !show);
+
+  const handleMouseDownPassword = (
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    event.preventDefault();
+  };
+
   // === Password Reset ===
   const handleForgotPassword = async () => {
     if (!resetEmail.trim()) {
@@ -294,14 +308,35 @@ export default function LoginPage() {
               />
               <TextField
                 label="Password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 size="small"
                 fullWidth
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                // The new standard API
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle password visibility"
+                          onClick={handleClickShowPassword}
+                          onMouseDown={handleMouseDownPassword}
+                          edge="end"
+                          size="small"
+                        >
+                          {showPassword ? (
+                            <VisibilityOff fontSize="small" />
+                          ) : (
+                            <Visibility fontSize="small" />
+                          )}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
               />
-
               <Link
                 component="button"
                 type="button"
