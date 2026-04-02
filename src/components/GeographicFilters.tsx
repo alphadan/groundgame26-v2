@@ -12,14 +12,14 @@ import {
   Box,
 } from "@mui/material";
 import { Control, Controller, UseFormSetValue } from "react-hook-form";
-import { GeoPayload } from "../types";
+import { FilterValues, GeoPayload } from "../types";
 
 export interface GeographicFiltersProps {
-  control: Control<any>;
-  setValue: UseFormSetValue<any>;
-  selectedCounty: string; // The "Full ID" string from watch("county")
-  selectedSRD: string; // The "Full ID" string from watch("srd")
-  selectedArea: string; // The "Full ID" string from watch("area")
+  control: Control<FilterValues>;
+  setValue: UseFormSetValue<FilterValues>;
+  selectedCounty: string;
+  selectedSRD: string;
+  selectedArea: string;
   onCountyChange: (payload: GeoPayload | null) => void;
   onSRDChange: (payload: GeoPayload | null) => void;
   onAreaChange: (payload: GeoPayload | null) => void;
@@ -38,6 +38,8 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
   onPrecinctChange,
 }) => {
   const { isLoaded: authLoaded } = useAuth();
+
+  const emptyPayload = { sql: "", full: "", name: "" };
 
   // --- 1. Payload Helper (Centralized Logic) ---
   const createPayload = (
@@ -101,7 +103,9 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
       const allAreas = await indexedDb.areas
         .filter((a) => validIds.includes(a.id))
         .toArray();
-      return allAreas.filter((a) => a.active === true || (a.active as any) === 1);
+      return allAreas.filter(
+        (a) => a.active === true || (a.active as any) === 1,
+      );
     }, [selectedCounty, selectedSRD]) ?? [];
 
   const precincts =
@@ -112,7 +116,9 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
       if (selectedSRD) {
         results = results.filter((p) => p.party_rep_district === selectedSRD);
       }
-      return results.filter((p) => p.active === true || (p.active as any) === 1);
+      return results.filter(
+        (p) => p.active === true || (p.active as any) === 1,
+      );
     }, [selectedArea, selectedSRD]) ?? [];
 
   // --- 3. Auto-Selection Logic (Cascading Effects) ---
@@ -121,7 +127,7 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
   useEffect(() => {
     if (counties.length === 1 && !selectedCounty) {
       const single = counties[0];
-      setValue("county", single.id);
+      setValue("county", single.id as any);
       onCountyChange(createPayload(single, "county"));
     }
   }, [counties, selectedCounty, setValue, onCountyChange]);
@@ -130,7 +136,7 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
   useEffect(() => {
     if (selectedCounty && areas.length === 1 && !selectedArea) {
       const single = areas[0];
-      setValue("area", single.id);
+      setValue("area", single.id as any);
       onAreaChange(createPayload(single, "area"));
     }
   }, [selectedCounty, areas, selectedArea, setValue, onAreaChange]);
@@ -140,7 +146,7 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
     if (selectedArea && precincts.length === 1) {
       const single = precincts[0];
       // We don't check for !selectedPrecinct because we want to force the payload update
-      setValue("precinct", single.id);
+      setValue("precinct", single.id as any);
       onPrecinctChange(createPayload(single, "precinct"));
     }
   }, [selectedArea, precincts, setValue, onPrecinctChange]);
@@ -172,9 +178,9 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
                   field.onChange(val);
                   onCountyChange(val ? createPayload(obj, "county") : null);
                   // Resets
-                  setValue("srd", "");
-                  setValue("area", "");
-                  setValue("precinct", "");
+                  setValue("srd", emptyPayload);
+                  setValue("area", emptyPayload);
+                  setValue("precinct", emptyPayload);
                   onSRDChange(null);
                   onAreaChange(null);
                   onPrecinctChange(null);
@@ -209,8 +215,8 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
                   field.onChange(val);
                   onSRDChange(val ? createPayload(obj, "srd") : null);
                   // Resets
-                  setValue("area", "");
-                  setValue("precinct", "");
+                  setValue("area", "" as any);
+                  setValue("precinct", "" as any);
                   onAreaChange(null);
                   onPrecinctChange(null);
                 }}
@@ -247,7 +253,7 @@ export const GeographicFilters: React.FC<GeographicFiltersProps> = ({
                   field.onChange(val);
                   onAreaChange(val ? createPayload(obj, "area") : null);
                   // Resets
-                  setValue("precinct", "");
+                  setValue("precinct", "" as any);
                   onPrecinctChange(null);
                 }}
               >

@@ -13,7 +13,6 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), svgr()],
     define: {
       "process.env.NODE_ENV": JSON.stringify(mode),
-      "process.env": {}, // Provides an empty object for any other process.env calls
     },
     resolve: {
       alias: {

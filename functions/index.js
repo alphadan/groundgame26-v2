@@ -65,8 +65,7 @@ const ROLE_HIERARCHY_VALUES = {
   area_chair: 4,
   committeeperson: 5,
   volunteer: 6,
-  candidate: 7,
-  base: 8,
+  base: 7,
 };
 
 // ================================================================
@@ -315,9 +314,9 @@ export const getVotersByPrecinct = onCall(async (request) => {
   // 3. BigQuery uses named placeholders with @ but the params object
   // needs to match that key exactly.
   const sql = `
-    SELECT * FROM \`${VOTER_TABLE}\` 
-    WHERE precinct = @precinctCode 
-    AND active = TRUE 
+    SELECT * FROM \`${VOTER_TABLE}\`
+    WHERE precinct = @precinctCode
+    AND active = TRUE
     `;
 
   const options = {
@@ -357,7 +356,7 @@ export const getDashboardStats = onCall(
 
     // 1. Initialize SQL and Params
     let sql = `
-      SELECT 
+      SELECT
         COUNTIF(political_party = 'R') AS total_r,
         COUNTIF(political_party = 'D') AS total_d,
         COUNTIF(political_party NOT IN ('R','D') AND political_party IS NOT NULL) AS total_nf,
@@ -499,7 +498,7 @@ export const getVotersByPrecinctV2 = onCall(
     const table = VOTER_TABLE;
 
     const sql = `
-      SELECT 
+      SELECT
         voter_id, full_name, age, sex, political_party, modeled_party,
         phone_primary, phone_home, phone_mobile, address, turnout_score_general,
         vbn_ballotreturned, likely_moved, precinct, area_district
@@ -548,7 +547,7 @@ export const queryVotersDynamic = onCall(
     const table = VOTER_TABLE;
 
     let sql = `
-      SELECT 
+      SELECT
         voter_id, full_name, sex, age, political_party, precinct, area_district,
         address, house_int, city, email, phone_mobile, phone_home, has_mail_ballot,
         modeled_party, turnout_score_general, turnout_score_primary, date_registered, likely_moved, zip_code, date_of_birth, GN_PR_11_04_25, GN_11_05_24
@@ -628,16 +627,33 @@ export const queryVotersDynamic = onCall(
     }
 
     // === Birth Day ===
-    if (filters.birthDay && filters.birthDay.trim() !== "") {
-      sql += ` AND date_of_birth LIKE @dobPattern`;
-      params.dobPattern = `%${filters.birthDay.trim()}%`;
+    if (
+      filters.birthDay &&
+      typeof filters.birthDay === "string" &&
+      filters.birthDay.includes("/")
+    ) {
+      // Now it is safe to split because we know it's a string with a slash
+      const parts = filters.birthDay.split("/");
+
+      if (parts.length === 2) {
+        const [m, d] = parts;
+
+        // Create patterns: "4/2/%" and "04/02/%"
+        const rawPattern = `${m}/${d}/%`;
+        const paddedPattern = `${m.padStart(2, "0")}/${d.padStart(2, "0")}/%`;
+
+        sql += ` AND (date_of_birth LIKE @dobRaw OR date_of_birth LIKE @dobPadded)`;
+
+        params.dobRaw = rawPattern;
+        params.dobPadded = paddedPattern;
+      }
     }
 
     // NEW: Handle the specific logic for Drop-off voters
     // Logic: Voted in 2025 Primary (gn_pr_11_04_25) but NOT in 2024 General (gn_11_05_24)
     if (filters.dropoffOnly === true) {
-      sql += ` AND gn_11_05_24 IS NOT NULL 
-               AND gn_pr_11_04_25 IS NULL 
+      sql += ` AND gn_11_05_24 IS NOT NULL
+               AND gn_pr_11_04_25 IS NULL
                AND political_party = 'R'`;
     }
 
@@ -659,10 +675,10 @@ export const queryVotersDynamic = onCall(
     }
 
     if (filters.hardGopSuper === true) {
-      sql += ` 
-    AND modeled_party = '1 - Hard Republican' 
-    AND GN_11_05_24 = 'R' 
-    AND GN_PR_11_04_25 = 'R' 
+      sql += `
+    AND modeled_party = '1 - Hard Republican'
+    AND GN_11_05_24 = 'R'
+    AND GN_PR_11_04_25 = 'R'
   `;
     }
 
@@ -691,7 +707,7 @@ export const queryVotersDynamic = onCall(
       }
     }
 
-    sql += ` AND voter_status = 'A' ORDER BY 
+    sql += ` AND voter_status = 'A' ORDER BY
         REGEXP_REPLACE(address, r'^[0-9]+\\s+', '') ASC,
         house_int ASC,
         full_name ASC `;
@@ -2220,7 +2236,7 @@ export const searchVotersByPhoneV2 = onCall(
     // 3. SQL Query with Normalization
     // Use REGEXP_REPLACE to remove non-digits from the stored phone field for comparison
     const sql = `
-      SELECT 
+      SELECT
         voter_id,
         full_name,
         age,
@@ -2805,7 +2821,7 @@ export const searchVotersUniversal = onCall(
     const filters = request.data || {};
     const table = VOTER_TABLE;
 
-    let sql = `SELECT voter_id, full_name, address, political_party, sex, age, precinct, email, phone_mobile, phone_home 
+    let sql = `SELECT voter_id, full_name, address, political_party, sex, age, precinct, email, phone_mobile, phone_home
              FROM \`${table}\` WHERE 1=1`;
 
     const params = {};
@@ -2857,7 +2873,7 @@ export const searchVotersUniversal = onCall(
       }
     }
 
-    sql += ` AND voter_status = 'A' ORDER BY 
+    sql += ` AND voter_status = 'A' ORDER BY
         REGEXP_REPLACE(address, r'^[0-9]+\\s+', '') ASC,
         house_int ASC,
         full_name ASC LIMIT 100`;

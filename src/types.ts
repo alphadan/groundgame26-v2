@@ -245,6 +245,7 @@ export interface FilterValues {
   name?: string;
   street?: string;
   precinct_id?: string; // Legacy support or direct lookup
+  zipCode?: string;
 
   // --- Demographic & Party ---
   modeledParty?: string;

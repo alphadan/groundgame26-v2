@@ -69,7 +69,7 @@ export default function AnalysisPage() {
       filters: { party: "R", turnout: "1" },
     },
     {
-      label: "Potential Walk List",
+      label: "Swing Voters",
       icon: "🚶",
       filters: { modeledParty: "3 - Swing", mailBallot: "false" },
     },

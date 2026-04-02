@@ -98,7 +98,7 @@ export const FilterSelector: React.FC<FilterSelectorProps> = ({
               </Typography>
               <GeographicFilters
                 control={control}
-                setValue={setValue as any}
+                setValue={setValue}
                 selectedCounty={watchedCounty as string}
                 selectedSRD={watchedSRD as string}
                 selectedArea={watchedArea as string}

@@ -42,12 +42,11 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import MailIcon from "@mui/icons-material/Mail";
 import { Voter, FilterValues } from "../../types";
+import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 import {
-  DataGrid,
-  GridColDef,
   GridToolbarContainer,
   GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
+} from "@mui/x-data-grid/components";
 
 const REWARD_PURPLE = "#673ab7";
 
@@ -66,9 +65,9 @@ export default function VoterListPage() {
   const [isRewardToast, setIsRewardToast] = useState(false);
 
   const today = new Date();
-  const mm = String(today.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
-  const dd = String(today.getDate()).padStart(2, "0");
-  const birthdayString = `${mm}-${dd}`;
+  const mm = today.getMonth() + 1;
+  const dd = today.getDate();
+  const birthdayString = `${mm}/${dd}`;
 
   const PRESET_FILTERS = [
     {
@@ -80,7 +79,7 @@ export default function VoterListPage() {
       label: "High Primary Turnout",
       icon: "🗳️",
       filters: {
-        political_party: "R",
+        party: "R",
         turnout_score_primary: 4,
         turnout_score_general: undefined,
       },
@@ -88,7 +87,7 @@ export default function VoterListPage() {
     {
       label: "GOP Women",
       icon: "👩",
-      filters: { political_party: "R", sex: "F" },
+      filters: { party: "R", sex: "F" },
     },
     {
       label: "Party Base",
@@ -236,19 +235,29 @@ export default function VoterListPage() {
     });
   };
 
-  const CustomToolbar = useCallback(
-    () => (
+  const CustomToolbar = useCallback(() => {
+    return (
       <GridToolbarContainer
-        sx={{ p: 2, justifyContent: "space-between", bgcolor: "grey.50" }}
+        sx={{
+          p: 2,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          bgcolor: "background.paper", // Uses theme variable for better Dark Mode support
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
       >
-        <Typography variant="h6" fontWeight="bold">
+        <Typography variant="h6" fontWeight="bold" color="text.primary">
           Voter Contact List
         </Typography>
-        <GridToolbarQuickFilter />
+
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <GridToolbarQuickFilter />
+        </Box>
       </GridToolbarContainer>
-    ),
-    [],
-  );
+    );
+  }, []);
 
   const columns: GridColDef<Voter>[] = useMemo(
     () => [
@@ -814,10 +823,29 @@ export default function VoterListPage() {
                 }
                 columns={columns}
                 rowHeight={70}
-                slots={{ toolbar: CustomToolbar }}
+                loading={isLoading}
+                // 1. Official Slot assignment
+                slots={{
+                  toolbar: CustomToolbar,
+                }}
+                // 2. Official Slot Configuration (v8 standard)
+                slotProps={{
+                  toolbar: {
+                    showQuickFilter: true,
+                    quickFilterProps: {
+                      debounceMs: 500,
+                      slotProps: {
+                        root: {
+                          placeholder: "Search voters by name or address...",
+                          size: "small",
+                        },
+                      },
+                    },
+                  },
+                }}
                 initialState={{
                   pagination: {
-                    paginationModel: { pageSize: 10, page: 0 },
+                    paginationModel: { pageSize: 25, page: 0 },
                   },
                 }}
                 pageSizeOptions={[10, 25, 50, 100]}
@@ -829,9 +857,19 @@ export default function VoterListPage() {
                   boxShadow: 2,
                   border: "none",
                   "& .muted-row": {
-                    bgcolor: "grey.50",
+                    bgcolor: "action.hover", // More semantically correct than grey.50
                     opacity: 0.6,
                     pointerEvents: "none",
+                  },
+                  "& .MuiDataGrid-columnHeaders": {
+                    bgcolor: "background.default",
+                    borderBottom: "2px solid",
+                    borderColor: "divider",
+                  },
+                  // v8 Tweak: Ensure the search input in the toolbar doesn't look cramped
+                  "& .MuiDataGrid-toolbarContainer": {
+                    flexDirection: { xs: "column", sm: "row" },
+                    gap: 1,
                   },
                 }}
               />

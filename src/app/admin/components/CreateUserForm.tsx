@@ -101,7 +101,6 @@ export const CreateUserForm: React.FC<Props> = ({ claims }) => {
         "county_chair",
         "state_rep_district",
         "area_chair",
-        "candidate",
         "committeeperson",
         "volunteer",
       ];

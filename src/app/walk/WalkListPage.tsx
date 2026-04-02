@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useDynamicVoters } from "../../hooks/useDynamicVoters";
 import { useInteractionMap } from "../../hooks/useInteractionMap";
@@ -37,12 +37,11 @@ import ApartmentIcon from "@mui/icons-material/Apartment";
 import HowToVoteIcon from "@mui/icons-material/HowToVote";
 import OtherHousesIcon from "@mui/icons-material/OtherHouses";
 import MailIcon from "@mui/icons-material/Mail";
+import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 import {
-  DataGrid,
-  GridColDef,
   GridToolbarContainer,
   GridToolbarQuickFilter,
-} from "@mui/x-data-grid";
+} from "@mui/x-data-grid/components";
 
 import { Voter } from "../../types";
 
@@ -181,6 +180,30 @@ export default function WalkListPage() {
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
     window.open(url, "_blank");
   };
+
+  const CustomToolbar = useCallback(() => {
+    return (
+      <GridToolbarContainer
+        sx={{
+          p: 2,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          bgcolor: "grey.50",
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
+        <Typography variant="h6" fontWeight="bold" color="text.primary">
+          Voter Contact List
+        </Typography>
+
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <GridToolbarQuickFilter />
+        </Box>
+      </GridToolbarContainer>
+    );
+  }, []);
 
   // --- COLUMNS (DESKTOP) ---
   const columns: GridColDef[] = [
@@ -659,16 +682,35 @@ export default function WalkListPage() {
                 <DataGrid
                   rows={filteredVoters}
                   columns={columns}
+                  getRowId={(r) => r.voter_id}
+                  loading={isLoading}
+                  rowHeight={75}
+                  // NEW: Assign the managed slots
+                  slots={{
+                    toolbar: CustomToolbar,
+                  }}
+                  // NEW: Configure the filter behavior
+                  slotProps={{
+                    toolbar: {
+                      showQuickFilter: true,
+                      quickFilterProps: { debounceMs: 500 },
+                    },
+                  }}
                   initialState={{
                     pagination: {
-                      paginationModel: { pageSize: 10, page: 0 },
+                      paginationModel: { pageSize: 25, page: 0 },
                     },
                   }}
                   pageSizeOptions={[10, 25, 50, 100]}
-                  getRowId={(r) => r.voter_id}
-                  rowHeight={75}
-                  loading={isLoading}
-                  sx={{ border: "none" }}
+                  sx={{
+                    border: "none",
+                    "& .MuiDataGrid-columnHeader": {
+                      bgcolor: "grey.50",
+                      fontWeight: "bold",
+                    },
+                    // Prevent the horizontal scrollbar from covering the last row
+                    "& .MuiDataGrid-main": { borderRadius: 2 },
+                  }}
                 />
               </Paper>
             )}

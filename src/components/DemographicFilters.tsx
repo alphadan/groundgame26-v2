@@ -11,21 +11,11 @@ import {
   Typography,
 } from "@mui/material";
 import { Control, Controller } from "react-hook-form";
-
-type FilterKey =
-  | "name"
-  | "street"
-  | "modeledParty"
-  | "party"
-  | "turnout"
-  | "ageGroup"
-  | "mailBallot"
-  | "zipCode"
-  | "sex";
+import { FilterKey, FilterValues } from "../types";
 
 interface DemographicFiltersProps {
-  control: Control<any>;
-  filtersToShow: FilterKey[];
+  control: Control<FilterValues>;
+  filtersToShow: string[];
 }
 
 export const DemographicFilters: React.FC<DemographicFiltersProps> = ({
