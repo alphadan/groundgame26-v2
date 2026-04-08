@@ -20,18 +20,32 @@ export default function PointAdjustmentDialog({
   const [amount, setAmount] = useState<number>(0);
 
   const handleUpdate = async () => {
-    if (!userId || amount <= 0) return;
+    // 1. Validate userId exists
+    if (!userId) return;
+
+    // 2. Take the Absolute Value to strip any minus signs the user typed
+    const cleanAmount = Math.abs(amount);
+
+    // 3. Prevent zero-value updates
+    if (cleanAmount === 0) return;
 
     const userRef = doc(db, "users", userId);
-    const change = mode === "add" ? amount : -amount;
 
-    await updateDoc(userRef, {
-      points_balance: increment(change),
-      last_points_update: Date.now(),
-    });
+    // 4. Determine the direction based on the mode prop
+    const change = mode === "add" ? cleanAmount : -cleanAmount;
 
-    setAmount(0);
-    onClose();
+    try {
+      await updateDoc(userRef, {
+        points_balance: increment(change),
+        last_points_update: Date.now(),
+      });
+
+      setAmount(0);
+      onClose();
+    } catch (err) {
+      console.error("❌ Failed to adjust points:", err);
+      // You could set an error state here to show in the Dialog UI
+    }
   };
 
   return (

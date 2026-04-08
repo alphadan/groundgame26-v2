@@ -100,6 +100,23 @@ export default function VoterListPage() {
       filters: { birthDay: birthdayString },
     },
     {
+      label: "Newly Registered",
+      icon: "🆕",
+      filters: { date_registered: "last_2_months" },
+    },
+    {
+      label: "Recently Changed",
+      icon: "🔄",
+      filters: { date_last_changed: "last_2_months" },
+      disabled: true,
+    },
+    {
+      label: "Likely Moved",
+      icon: "🚚",
+      filters: { likely_moved: true },
+      disabled: true,
+    },
+    {
       label: "Has Mail-In Ballot",
       icon: "📩",
       filters: { political_party: "R", has_mail_ballot: true },

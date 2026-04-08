@@ -229,10 +229,12 @@ export default function MainLayout({ children }: { children?: ReactNode }) {
         component="main"
         sx={{
           flexGrow: 1,
-          width: "100%",
+          // Calculate width relative to the drawer on large screens
+          width: { lg: `calc(100% - ${drawerWidth}px)` },
+          minWidth: 0, // Allows the container to shrink correctly
           display: "flex",
           flexDirection: "column",
-          bgcolor: "background.default", // Theme aware main background
+          bgcolor: "background.default",
         }}
       >
         <AppBar

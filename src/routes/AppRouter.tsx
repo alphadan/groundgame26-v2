@@ -54,7 +54,7 @@ export default function AppRouter() {
 
   return (
     <Routes>
-      {/* 1. PUBLIC ROUTES 
+      {/* 1. PUBLIC ROUTES
           Accessible to everyone, regardless of login status.
       */}
       <Route path="/legal" element={<LegalPage />} />
@@ -72,7 +72,7 @@ export default function AppRouter() {
         element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />}
       />
 
-      {/* 3. PROTECTED USER ROUTES 
+      {/* 3. PROTECTED USER ROUTES
           These routes require the user to be logged in and MFA verified via ProtectedRoute.
       */}
       <Route element={<ProtectedRoute />}>
@@ -107,7 +107,7 @@ export default function AppRouter() {
         <Route path="/manage-team" element={<ManageTeamPage />} />
       </Route>
 
-      {/* 5. BUCKET 3: ADMIN PROTECTED ROUTES 
+      {/* 5. BUCKET 3: ADMIN PROTECTED ROUTES
           Requires dynamic 'can_manage_team' permission from Firestore.
       */}
       <Route element={<ProtectedRoute requiredPermission="can_manage_team" />}>
@@ -143,10 +143,6 @@ export default function AppRouter() {
       />
 
       {/* 7. DYNAMIC ROOT & CATCH-ALL */}
-      <Route
-        path="/"
-        element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />}
-      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

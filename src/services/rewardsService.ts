@@ -2,7 +2,6 @@ import {
   doc,
   updateDoc,
   increment,
-  arrayUnion,
   collection,
   addDoc,
   getDocs,
@@ -11,10 +10,17 @@ import {
   orderBy,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "../lib/firebase";
 import { ireward } from "../types";
 
 export type RewardAction = "sms" | "email" | "walk" | "survey" | "admin_adj";
+
+export interface RedemptionResult {
+  success: boolean;
+  newBalance?: number;
+  error?: string;
+}
 
 /**
  * ATOMIC POINTS AWARDS
@@ -41,12 +47,11 @@ export const awardPoints = async (
  */
 export const getAllRewards = async (): Promise<ireward[]> => {
   const colRef = collection(db, "rewards");
-  const q = query(colRef, orderBy("points_cost", "asc")); // Updated to points_cost
+  const q = query(colRef, orderBy("points_cost", "asc"));
   const snapshot = await getDocs(q);
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as ireward);
 };
 
-// Fixed to handle the Omit type mismatch by spreading and adding default timestamps
 export const addReward = async (rewardData: any) => {
   return await addDoc(collection(db, "rewards"), {
     ...rewardData,
@@ -67,30 +72,29 @@ export const deleteReward = async (id: string) => {
 };
 
 /**
- * REDEMPTION FLOW
- * Updated to return a result object { success: boolean, error?: string }
+ * REDEMPTION FLOW (SECURE VERSION)
+ * Calls the 'redeemRewardCloud' function in index.js to handle the transaction.
  */
-export const redeemReward = async (uid: string, reward: ireward) => {
+export const redeemReward = async (
+  uid: string,
+  reward: ireward,
+  shippingAddress?: string,
+): Promise<RedemptionResult> => {
+  const redeemCall = httpsCallable(functions, "redeemRewardCloud");
+
   try {
-    // 1. Create the pending redemption record
-    await addDoc(collection(db, "redemptions"), {
-      userId: uid,
+    const result = await redeemCall({
       rewardId: reward.id,
-      rewardTitle: reward.title,
-      points_cost: reward.points_cost, // Updated to points_cost
-      status: "pending",
-      redeemedAt: serverTimestamp(),
+      shippingAddress: shippingAddress,
     });
 
-    // 2. Deduct points from user balance
-    await updateDoc(doc(db, "users", uid), {
-      points_balance: increment(-reward.points_cost), // Updated to points_cost
-    });
-
-    return { success: true };
+    return result.data as RedemptionResult;
   } catch (err: any) {
     console.error("Redemption Service Error:", err);
-    return { success: false, error: err.message };
+    return {
+      success: false,
+      error: err.message || "An unexpected error occurred.",
+    };
   }
 };
 

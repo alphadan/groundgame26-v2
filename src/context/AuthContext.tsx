@@ -102,11 +102,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           unsubscribeProfile = onSnapshot(
             doc(db, "users", currentUser.uid),
             async (snapshot) => {
-              let profileData: UserProfile | null = null;
-
-              if (snapshot.exists()) {
-                profileData = snapshot.data() as UserProfile;
-              }
+              let profileData: UserProfile | null = snapshot.exists()
+                ? (snapshot.data() as UserProfile)
+                : null;
 
               // --- SYSTEM GOVERNANCE: DEVELOPER OVERRIDE ---
               // If the user has the 'developer' claim, we FORCE consent fields to be valid.
@@ -149,12 +147,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
               // Handle Cloud-triggered claim refreshes
               if (profileData?.last_claims_sync) {
-                const updatedToken = await getIdTokenResult(currentUser, true);
-                setClaims(updatedToken.claims as CustomClaims);
-                setPermissions(
-                  (updatedToken.claims.permissions as UserPermissions) ||
-                    DEFAULT_PERMISSIONS,
-                );
+                const lastSync = profileData.last_claims_sync;
+                let lastSyncTimeSeconds = 0;
+
+                // Handle both Firestore Timestamps and numeric values (ms or seconds)
+                if (lastSync?.seconds) {
+                  lastSyncTimeSeconds = lastSync.seconds;
+                } else {
+                  const val = Number(lastSync);
+                  // Normalize milliseconds to seconds (Firebase auth claims are in seconds)
+                  lastSyncTimeSeconds =
+                    val > 10000000000 ? Math.floor(val / 1000) : val;
+                }
+
+                // CRITICAL FIX: Use 'iat' (issued at) instead of 'auth_time'
+                // to break the infinite refresh loop.
+                const currentTokenIat = currentClaims.iat || 0;
+
+                if (lastSyncTimeSeconds > currentTokenIat) {
+                  console.log("🔄 New claims detected, refreshing token...");
+                  const updatedToken = await getIdTokenResult(
+                    currentUser,
+                    true,
+                  );
+                  setClaims(updatedToken.claims as CustomClaims);
+                  setPermissions(
+                    (updatedToken.claims.permissions as UserPermissions) ||
+                      DEFAULT_PERMISSIONS,
+                  );
+                }
               }
 
               setIsLoading(false);

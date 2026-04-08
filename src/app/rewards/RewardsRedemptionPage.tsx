@@ -27,7 +27,11 @@ import {
 } from "@mui/icons-material";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
-import { redeemReward, getAllRewards } from "../../services/rewardsService";
+import {
+  redeemReward,
+  getAllRewards,
+  RedemptionResult,
+} from "../../services/rewardsService";
 import { ireward } from "../../types";
 
 export default function RewardsRedemptionCenter() {
@@ -77,14 +81,22 @@ export default function RewardsRedemptionCenter() {
     setRedeemError("");
 
     try {
-      const result = await redeemReward(user.uid, selectedReward);
+      // 1. Pass the shippingAddress to the service
+      const result: RedemptionResult = await redeemReward(
+        user.uid,
+        selectedReward,
+        shippingAddress,
+      );
 
       if (result.success) {
-        // 2. Manually update local state so the UI reflects the new balance
-        setTotalPoints((prev) => prev - selectedReward.points_cost);
+        // 2. Use the official new balance returned from the Cloud Function
+        if (result.newBalance !== undefined) {
+          setTotalPoints(result.newBalance);
+        }
         setRedeemSuccess(true);
       } else {
-        setRedeemError((result.error as string) || "Redemption failed.");
+        // 3. Display the specific error message from the transaction (e.g., "Insufficient balance")
+        setRedeemError(result.error || "Redemption failed.");
       }
     } catch (err: any) {
       setRedeemError(err.message || "An error occurred.");

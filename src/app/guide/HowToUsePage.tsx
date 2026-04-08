@@ -81,7 +81,7 @@ export default function HowToUsePage() {
   ];
 
   return (
-    <Container sx={{ py: 6 }}>
+    <Container sx={{ py: 6, backgroundColor: "white" }}>
       <Stack spacing={5} alignItems="center" textAlign="center">
         {/* Hero */}
         <Box>
@@ -130,7 +130,7 @@ export default function HowToUsePage() {
         </Alert>
 
         {/* Main Steps */}
-        <List sx={{ width: "100%" }}>
+        <List sx={{ width: "100%", backgroundColor: "white" }}>
           {steps.map((step, index) => (
             <React.Fragment key={index}>
               <ListItem alignItems="flex-start">

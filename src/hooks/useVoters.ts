@@ -94,6 +94,10 @@ export const useVoters = (sql: string) => {
       // === 5. Response validation ===
       if (!res.ok) {
         let errorMsg = "Query failed";
+        if (res.status === 403)
+          throw new Error("Permission denied: You cannot access this data.");
+        if (res.status === 429)
+          throw new Error("Too many requests. Please wait a moment.");
         try {
           const text = await res.text();
           // Only expose generic message – prevent info leaks

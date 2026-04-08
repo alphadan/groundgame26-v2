@@ -85,6 +85,93 @@ async function getPermissionsFromFirestore(role) {
   return snapshot.data();
 }
 
+/**
+ * SECURITY HELPER: Enforce Geographic Data Scoping
+ * Returns a SQL fragment and parameters to restrict a query to the user's assigned area.
+ */
+function getGeoRestrictions(auth, requestedPrecinct, requestedArea) {
+  const claims = auth.token;
+  const role = claims.role || "base";
+
+  // 1. Developers have full access
+  if (role === "developer") {
+    return { sql: "", params: {} };
+  }
+
+  const restrictions = [];
+  const params = {};
+
+  // 2. PRECINCT LEVEL (Highest priority restriction)
+  if (claims.precincts && !claims.precincts.includes("ALL")) {
+    const allowedCodes = claims.precincts
+      .map((id) => geoMapping.precincts?.[id])
+      .filter((code) => code !== undefined)
+      .map((code) => code.replace(/^0+/, "") || "0"); // Normalize like the BQ table
+
+    if (allowedCodes.length > 0) {
+      // If they requested a specific precinct, check if they are allowed to see it
+      if (requestedPrecinct) {
+        const normRequested = requestedPrecinct.replace(/^0+/, "") || "0";
+        if (!allowedCodes.includes(normRequested)) {
+          throw new HttpsError(
+            "permission-denied",
+            "Access to requested precinct denied.",
+          );
+        }
+      }
+      restrictions.push("precinct IN UNNEST(@allowedPrecincts)");
+      params.allowedPrecincts = allowedCodes;
+    }
+  }
+
+  // 3. AREA LEVEL
+  else if (claims.areas && !claims.areas.includes("ALL")) {
+    const allowedCodes = claims.areas
+      .map((id) => geoMapping.areas?.[id])
+      .filter((code) => code !== undefined);
+
+    if (allowedCodes.length > 0) {
+      if (requestedArea && !allowedCodes.includes(requestedArea)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Access to requested area denied.",
+        );
+      }
+      restrictions.push("area_district IN UNNEST(@allowedAreas)");
+      params.allowedAreas = allowedCodes.map(String);
+    }
+  }
+
+  // 4. DISTRICT/SRD LEVEL
+  else if (claims.districts && !claims.districts.includes("ALL")) {
+    const allowedCodes = claims.districts
+      .map((id) => geoMapping.srds?.[id])
+      .filter((code) => code !== undefined);
+
+    if (allowedCodes.length > 0) {
+      restrictions.push("rep_state_comm IN UNNEST(@allowedDistricts)");
+      params.allowedDistricts = allowedCodes;
+    }
+  }
+
+  // 5. COUNTY LEVEL (Fallback)
+  else if (claims.counties && !claims.counties.includes("ALL")) {
+    const allowedCodes = claims.counties
+      .map((id) => geoMapping.counties?.[id])
+      .filter((code) => code !== undefined);
+
+    if (allowedCodes.length > 0) {
+      restrictions.push("county IN UNNEST(@allowedCounties)");
+      params.allowedCounties = allowedCodes;
+    }
+  }
+
+  return {
+    sql: restrictions.length > 0 ? ` AND ${restrictions.join(" AND ")}` : "",
+    params,
+  };
+}
+
 // ================================================================
 // 1. SYNC COLLECTIONS FOR USER DEXIE DB
 // ================================================================
@@ -542,9 +629,17 @@ export const queryVotersDynamic = onCall(
     }
 
     const filters = request.data || {};
-    console.log("Received filters:", filters); // Debug log
-
+    const params = {};
     const table = VOTER_TABLE;
+
+    const security = getGeoRestrictions(
+      request.auth,
+      filters.precinct,
+      filters.area,
+    );
+    Object.assign(params, security.params);
+
+    logger.log("Received filters:", filters);
 
     let sql = `
       SELECT
@@ -552,13 +647,11 @@ export const queryVotersDynamic = onCall(
         address, house_int, city, email, phone_mobile, phone_home, has_mail_ballot,
         modeled_party, turnout_score_general, turnout_score_primary, date_registered, likely_moved, zip_code, date_of_birth, GN_PR_11_04_25, GN_11_05_24
       FROM \`${table}\`
-      WHERE 1=1
+      WHERE 1=1 ${security.sql}
     `;
 
-    const params = {};
-
     // === Area ===
-    if (filters.area && filters.area.trim() !== "") {
+    if (filters.area && !security.sql.includes("area_district")) {
       sql += ` AND area_district = @area`;
       params.area = filters.area.trim();
     }
@@ -674,6 +767,28 @@ export const queryVotersDynamic = onCall(
       params.v24 = filters.gn_11_05_24.trim();
     }
 
+    // === Newly Registered (Last 60 Days) ===
+    if (filters.date_registered === "last_2_months") {
+      sql += ` AND DATE_DIFF(CURRENT_DATE(), SAFE.PARSE_DATE('%m/%e/%Y', date_registered), DAY) <= 60`;
+    }
+
+    // === Recently Changed (Last 60 Days) ===
+    if (filters.date_last_changed === "last_2_months") {
+      sql += ` AND DATE_DIFF(
+        CURRENT_DATE(),
+        COALESCE(
+          SAFE.PARSE_DATE('%m/%d/%y', REGEXP_EXTRACT(TRIM(date_last_changed), r'^[0-9/]+')),
+          SAFE.PARSE_DATE('%m/%d/%Y', REGEXP_EXTRACT(TRIM(date_last_changed), r'^[0-9/]+'))
+        ),
+        DAY) <= 60`;
+    }
+
+    // === Likely Moved ===
+    if (filters.likely_moved && filters.likely_moved !== false) {
+      sql += ` AND likely_moved = @likely_moved`;
+      params.likely_moved = filters.likely_moved;
+    }
+
     if (filters.hardGopSuper === true) {
       sql += `
     AND modeled_party = '1 - Hard Republican'
@@ -727,6 +842,174 @@ export const queryVotersDynamic = onCall(
     } catch (error) {
       console.error("Dynamic query failed:", error);
       throw new HttpsError("internal", "Query failed — check server logs");
+    }
+  },
+);
+
+/**
+ * DYNAMIC VOTER ANALYTICS (Production Optimized)
+ * Fixes: 1.3 (Auth Bypass), 2.1 (Atomicity), 3.1 (O(n) Performance)
+ */
+export const queryVoterAnalyticsDynamic = onCall(
+  {
+    cors: [/localhost:\d+$/, /127\.0\.0\.1:\d+$/, "https://groundgame26.com"],
+    region: "us-central1",
+    timeoutSeconds: 60,
+    memory: "512MiB",
+  },
+  async (request) => {
+    // 1. AUTHENTICATION GUARD
+    if (!request.auth?.uid) {
+      throw new HttpsError("unauthenticated", "Authentication required.");
+    }
+
+    const filters = request.data || {};
+    const params = {};
+    const table = VOTER_TABLE;
+
+    try {
+      // 2. SECURITY ENFORCEMENT
+      // Uses the helper to restrict data based on user's assigned Precincts/Areas
+      const security = getGeoRestrictions(
+        request.auth,
+        filters.precinct,
+        filters.area,
+      );
+      Object.assign(params, security.params);
+
+      // Initialize WHERE clause with security restrictions
+      let whereClause = `WHERE voter_status = 'A' ${security.sql}`;
+
+      // 3. ROBUST FILTER BUILDER
+      // --- Area ---
+      if (filters.area && !security.sql.includes("area_district")) {
+        const areaVal = filters.area.sql || filters.area;
+        if (typeof areaVal === "string" && areaVal.trim() !== "") {
+          whereClause += ` AND area_district = @area`;
+          params.area = areaVal.trim();
+        }
+      }
+
+      // --- Precinct ---
+      if (filters.precinct && !security.sql.includes("precinct")) {
+        const precinctVal = filters.precinct.sql || filters.precinct;
+        if (typeof precinctVal === "string" && precinctVal.trim() !== "") {
+          const normalized = precinctVal.trim().replace(/^0+/, "") || "0";
+          whereClause += ` AND precinct = @precinct`;
+          params.precinct = normalized;
+        }
+      }
+
+      // --- Party ---
+      if (
+        filters.party &&
+        typeof filters.party === "string" &&
+        filters.party.trim() !== ""
+      ) {
+        whereClause += ` AND political_party = @party`;
+        params.party = filters.party.trim();
+      }
+
+      // --- Age Group ---
+      if (
+        filters.ageGroup &&
+        typeof filters.ageGroup === "string" &&
+        filters.ageGroup.trim() !== ""
+      ) {
+        whereClause += ` AND age_group = @ageGroup`;
+        params.ageGroup = filters.ageGroup.trim();
+      }
+
+      // --- Turnout Score ---
+      if (
+        filters.turnout &&
+        typeof filters.turnout === "string" &&
+        filters.turnout.trim() !== ""
+      ) {
+        const score = parseInt(filters.turnout.trim());
+        if (!isNaN(score)) {
+          whereClause += ` AND turnout_score_general = @turnout`;
+          params.turnout = score;
+        }
+      }
+
+      // --- Mail Ballot ---
+      if (
+        filters.mailBallot !== undefined &&
+        filters.mailBallot !== null &&
+        filters.mailBallot !== ""
+      ) {
+        const isMailBallot =
+          String(filters.mailBallot).toLowerCase() === "true";
+        whereClause += isMailBallot
+          ? ` AND has_mail_ballot IS TRUE`
+          : ` AND has_mail_ballot IS NOT TRUE`;
+      }
+
+      // --- Strategic Filters (Drop-offs) ---
+      if (filters.dropoffOnly === true) {
+        whereClause += ` AND gn_11_05_24 IS NOT NULL AND gn_pr_11_04_25 IS NULL AND political_party = 'R'`;
+      }
+
+      // --- Registration Recency ---
+      if (filters.date_registered === "last_2_months") {
+        whereClause += ` AND DATE_DIFF(CURRENT_DATE(), SAFE.PARSE_DATE('%m/%e/%Y', date_registered), DAY) <= 60`;
+      }
+
+      // 4. PREPARE AGGREGATION QUERIES
+      const partySql = `
+        SELECT political_party as label, COUNT(*) as val
+        FROM \`${table}\` ${whereClause}
+        GROUP BY political_party ORDER BY val DESC
+      `;
+
+      const streetSql = `
+        SELECT REGEXP_EXTRACT(address, r'^[0-9]+\\s+(.*)') as street, COUNT(*) as count
+        FROM \`${table}\` ${whereClause}
+        GROUP BY street ORDER BY count DESC LIMIT 10
+      `;
+
+      // 5. PARALLEL BIGQUERY EXECUTION
+      const [partyResponse, streetResponse] = await Promise.all([
+        bigquery.query({ query: partySql, params }),
+        bigquery.query({ query: streetSql, params }),
+      ]);
+
+      const partyRows = partyResponse[0] || [];
+      const streetRows = streetResponse[0] || [];
+
+      // 6. CALCULATE TOTALS AND RETURN
+      // We cast to Number() because BigQuery returns counts as strings/large numbers
+      const totalCount = partyRows.reduce(
+        (acc, r) => acc + (Number(r.val) || 0),
+        0,
+      );
+
+      logger.info("Analytics success", {
+        total: totalCount,
+        uid: request.auth.uid,
+      });
+
+      return {
+        partyCounts: partyRows.map((r) => ({
+          label: r.label,
+          val: Number(r.val),
+        })),
+        topStreets: streetRows.map((r) => ({
+          name: r.street || "Unknown / PO Box",
+          count: Number(r.count),
+        })),
+        totalCount,
+      };
+    } catch (error) {
+      logger.error("Analytics Engine Failure", {
+        error: error.message,
+        filters,
+      });
+      throw new HttpsError(
+        "internal",
+        error.message || "Failed to calculate analytics.",
+      );
     }
   },
 );
@@ -2819,12 +3102,18 @@ export const searchVotersUniversal = onCall(
       throw new HttpsError("unauthenticated", "Authentication required");
 
     const filters = request.data || {};
+    const params = {};
     const table = VOTER_TABLE;
 
-    let sql = `SELECT voter_id, full_name, address, political_party, sex, age, precinct, email, phone_mobile, phone_home
-             FROM \`${table}\` WHERE 1=1`;
+    const security = getGeoRestrictions(
+      request.auth,
+      filters.precinct,
+      filters.area,
+    );
+    Object.assign(params, security.params);
 
-    const params = {};
+    let sql = `SELECT voter_id, full_name, address, political_party, sex, age, precinct, email, phone_mobile, phone_home
+             FROM \`${table}\` WHERE 1=1 ${security.sql}`;
 
     // --- LOGGING INPUT ---
     logger.info("Search Request Received", {
@@ -2889,6 +3178,92 @@ export const searchVotersUniversal = onCall(
     } catch (error) {
       logger.error("BigQuery Search Error", { error: error.message, sql });
       throw new HttpsError("internal", "Query failed — check server logs");
+    }
+  },
+);
+
+// ================================================================
+//  SECURE REWARDS REDEMPTION (Server-Side Logic)
+// ================================================================
+
+export const redeemRewardCloud = onCall(
+  {
+    cors: [/localhost:\d+$/, /127\.0\.0\.1:\d+$/, "https://groundgame26.com"],
+    region: "us-central1",
+  },
+  async (request) => {
+    // 1. Auth Guard
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required.");
+    }
+
+    const { rewardId, shippingAddress } = request.data;
+    const uid = request.auth.uid;
+
+    if (!rewardId) {
+      throw new HttpsError("invalid-argument", "Missing rewardId.");
+    }
+
+    try {
+      // 2. TRANSACTION: Atomic check-and-deduct
+      const result = await db.runTransaction(async (transaction) => {
+        const rewardRef = db.collection("rewards").doc(rewardId);
+        const userRef = db.collection("users").doc(uid);
+
+        const [rewardDoc, userDoc] = await Promise.all([
+          transaction.get(rewardRef),
+          transaction.get(userRef),
+        ]);
+
+        if (!rewardDoc.exists) throw new Error("Reward item not found.");
+        const rewardData = rewardDoc.data();
+        const userData = userDoc.data();
+
+        if (rewardData.status !== "active") {
+          throw new Error("This reward is currently unavailable.");
+        }
+
+        // SERVER IS SOURCE OF TRUTH FOR COST
+        const cost = rewardData.points_cost;
+        const currentBalance = userDoc.data()?.points_balance || 0;
+
+        if (currentBalance < cost) {
+          throw new Error(
+            `Insufficient balance. Need ${cost}, have ${userBalance}.`,
+          );
+        }
+
+        // 3. ATOMIC UPDATES
+        // A) Deduct Points
+        transaction.update(userRef, {
+          points_balance: FieldValue.increment(-cost),
+          updated_at: Date.now(),
+        });
+
+        // B) Create Redemption Record
+        const redemptionRef = db.collection("redemptions").doc();
+        transaction.set(redemptionRef, {
+          id: redemptionRef.id,
+          userId: uid,
+          rewardId: rewardId,
+          rewardTitle: rewardData.title,
+          points_cost: cost,
+          status: "pending",
+          shipping_address: shippingAddress || null,
+          redeemedAt: Date.now(),
+        });
+
+        return { success: true, newBalance: currentBalance - cost };
+      });
+
+      return result;
+    } catch (error) {
+      logger.error("Redemption Transaction Failed:", {
+        uid,
+        rewardId,
+        error: error.message,
+      });
+      throw new HttpsError("internal", error.message || "Transaction failed.");
     }
   },
 );

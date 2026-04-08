@@ -138,9 +138,10 @@ export default function Dashboard() {
     <Box
       sx={{
         width: "100%",
-        maxWidth: "100vw",
+        maxWidth: "100%", // Changed from 100vw
         p: { xs: 2, sm: 3, md: 4 },
         mx: "auto",
+        boxSizing: "border-box",
       }}
     >
       <Stack

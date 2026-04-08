@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { FilterValues } from "../../types";
-import { useDynamicVoters } from "../../hooks/useDynamicVoters";
+import { useVoterAnalytics } from "../../hooks/useVoterAnalytics";
 import { FilterSelector } from "../../components/FilterSelector";
 import {
   Box,
@@ -42,8 +42,12 @@ export default function AnalysisPage() {
   const [selectedSRD, setSelectedSRD] = useState<string>("");
   const [voterFilters, setVoterFilters] = useState<FilterValues | null>(null);
 
-  const { data: voters = [], isLoading: votersLoading } =
-    useDynamicVoters(voterFilters);
+  // 1. Switch from full list to summarized analytics
+  const {
+    data: analytics,
+    isLoading: votersLoading,
+    error: votersError,
+  } = useVoterAnalytics(voterFilters);
 
   // 3. AUTO-SELECT LOGIC: Handles the "District Leader" login flow
   useEffect(() => {
@@ -83,40 +87,40 @@ export default function AnalysisPage() {
       icon: "🎓",
       filters: { party: "R", ageGroup: "18-25" },
     },
+    {
+      label: "Newly Registered",
+      icon: "🆕",
+      filters: { date_registered: "last_2_months" },
+    },
+    {
+      label: "Recently Changed",
+      icon: "🔄",
+      filters: { date_last_changed: "last_2_months" },
+    },
   ];
 
   // --- DATA TRANSFORMATION ---
   const analysis = useMemo(() => {
-    if (!voters.length) return null;
+    if (!analytics) return { partyCounts: [], topStreets: [] };
 
-    const partyConfig = [
-      { code: "R", label: "Republican", color: "#B22234" },
-      { code: "D", label: "Democrat", color: "#00AEF3" },
-      { code: "I", label: "Other", color: "#D3D3D3" },
-    ];
+    const partyConfig: any = {
+      R: { label: "Republican", color: theme.palette.error.main },
+      D: { label: "Democrat", color: theme.palette.primary.main },
+      U: { label: "Independent", color: theme.palette.grey[500] },
+    };
 
-    const partyCounts = partyConfig.map((p) => ({
-      label: p.label,
-      val: voters.filter((v) =>
-        p.code === "I"
-          ? !["R", "D"].includes(v.political_party)
-          : v.political_party === p.code,
-      ).length,
-      color: p.color, // Add the specific color to the dataset
+    const partyCounts = analytics.partyCounts.map((p) => ({
+      label: partyConfig[p.label]?.label || "Other",
+      val: p.val,
+      color: partyConfig[p.label]?.color || theme.palette.divider,
     }));
 
-    const streetMap: Record<string, number> = {};
-    voters.forEach((v) => {
-      const street = v.address?.replace(/^\d+\s+/, "").trim() || "Unknown";
-      streetMap[street] = (streetMap[street] || 0) + 1;
-    });
-
-    const topStreets = Object.entries(streetMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-
-    return { partyCounts, topStreets };
-  }, [voters]);
+    return {
+      partyCounts,
+      topStreets: analytics.topStreets,
+      totalCount: analytics.totalCount,
+    };
+  }, [analytics, theme]);
 
   const applyQuickFilter = (presetFilters: any) => {
     setVoterFilters((prev) => {
@@ -185,6 +189,12 @@ export default function AnalysisPage() {
           </Typography>
         </Box>
       </Stack>
+      {votersError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <AlertTitle>Query Error</AlertTitle>
+          {(votersError as Error).message}
+        </Alert>
+      )}
 
       <Grid container spacing={4}>
         {/* LEFT COLUMN: FILTERS */}
@@ -264,7 +274,8 @@ export default function AnalysisPage() {
                     : "District Wide"}
               </AlertTitle>
               <Typography variant="body2">
-                Found <strong>{voters.length.toLocaleString()}</strong>{" "}
+                Found{" "}
+                <strong>{(analytics?.totalCount || 0).toLocaleString()}</strong>{" "}
                 Republicans in this area who vote in Presidential cycles but
                 skipped last year.
               </Typography>
@@ -290,6 +301,23 @@ export default function AnalysisPage() {
                 Select a District and apply filters to analyze voter segments
               </Typography>
             </Paper>
+          ) : votersLoading ? (
+            // --- NEW LOADING STATE ---
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: 500,
+                gap: 2,
+              }}
+            >
+              <CircularProgress size={60} thickness={4} />
+              <Typography variant="h6" color="text.secondary">
+                Analyzing BigQuery Voter File...
+              </Typography>
+            </Box>
           ) : (
             <Stack spacing={3}>
               <Alert
@@ -299,7 +327,8 @@ export default function AnalysisPage() {
                 sx={{ borderRadius: 3, bgcolor: "background.paper" }}
               >
                 Query complete: Found{" "}
-                <strong>{voters.length.toLocaleString()}</strong> voters.
+                <strong>{(analytics?.totalCount || 0).toLocaleString()}</strong>{" "}
+                voters.
               </Alert>
 
               <Grid container spacing={3}>
@@ -386,7 +415,7 @@ export default function AnalysisPage() {
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {analysis?.topStreets.map(([name, count]) => (
+                          {analysis?.topStreets.map(({ name, count }) => (
                             <TableRow key={name}>
                               <TableCell>{name}</TableCell>
                               <TableCell align="right">
@@ -435,8 +464,10 @@ export default function AnalysisPage() {
                     sx={{ mb: 2 }}
                   >
                     Create a new Walk or Phone list using these{" "}
-                    <strong>{voters.length.toLocaleString()}</strong> records
-                    with the following parameters:
+                    <strong>
+                      {(analytics?.totalCount || 0).toLocaleString()}
+                    </strong>{" "}
+                    records with the following parameters:
                   </Typography>
 
                   <Stack direction="row" flexWrap="wrap" gap={1}>

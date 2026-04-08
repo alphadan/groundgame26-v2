@@ -205,7 +205,7 @@ export default function AdminDashboard() {
 
       <Grid container spacing={3}>
         {cardConfigs.map((card) => (
-          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={card.title}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={card.title}>
             <Card
               elevation={3}
               sx={{

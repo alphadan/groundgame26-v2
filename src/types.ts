@@ -264,6 +264,9 @@ export interface FilterValues {
   gn_11_05_24?: string;
   dropoffOnly?: boolean;
   hardGopSuper?: boolean;
+  date_registered?: string;
+  date_last_changed?: string;
+  likely_moved?: boolean;
 }
 
 /**

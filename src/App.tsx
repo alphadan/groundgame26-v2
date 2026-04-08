@@ -139,15 +139,17 @@ export default function App() {
   // 6. CONSENT GATE
   if (userProfile) {
     const isDev = role === "developer";
+
+    // Use the ACTUAL data from your AuthContext/Firestore
     const hasAgreed = userProfile.has_agreed_to_terms === true;
     const isLatestVersion =
-      userProfile.legal_consent?.version === keystone.legal_terms_version;
+      userProfile.legal_consent?.version === keystone?.legal_terms_version;
 
     console.log(
       `🔍 [Gate] Dev: ${isDev} | Agreed: ${hasAgreed} | VersionMatch: ${isLatestVersion}`,
     );
 
-    // If NOT a dev and terms are missing/old, show Consent
+    // Only show consent if they aren't a dev AND (haven't agreed OR version is old)
     if (!isDev && (!hasAgreed || !isLatestVersion)) {
       return <ConsentScreen />;
     }
