@@ -41,6 +41,8 @@ import {
 } from "@mui/icons-material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import MailIcon from "@mui/icons-material/Mail";
+import MailVBM from "../../assets/icons/mail-vbm24.svg?react";
+import { SvgIcon } from "@mui/material";
 import { Voter, FilterValues } from "../../types";
 import { DataGrid, type GridColDef } from "@mui/x-data-grid";
 import {
@@ -324,9 +326,9 @@ export default function VoterListPage() {
             spacing={0.5}
             alignItems="center"
             justifyContent="center"
-            sx={{ color: value ? "success.main" : "warning.main" }}
+            sx={{ color: value ? "success.main" : "warning.main", height: "100%" }}
           >
-            <MailIcon sx={{ fontSize: 18 }} />
+            <SvgIcon component={MailVBM} sx={{ fontSize: 24 }} inheritViewBox />
           </Stack>
         ),
       },
@@ -526,7 +528,12 @@ export default function VoterListPage() {
                       : "warning.main",
                   }}
                 >
-                  <MailIcon sx={{ fontSize: 18 }} />
+                  <SvgIcon
+                    component={MailVBM}
+                    sx={{ fontSize: 24 }}
+                    inheritViewBox
+                  />
+
                   <Typography variant="caption" fontWeight="900">
                     {row.has_mail_ballot ? "YES" : "NO"}
                   </Typography>
